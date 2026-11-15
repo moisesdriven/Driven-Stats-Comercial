@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Usuarios y accesos · Driven Comercial</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:#0B0D12}
+a{color:#1F5BFF;text-decoration:none}a:hover{color:#0B3FD9}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; background: linear-gradient(180deg, #FFFFFF 0%, #EEF2F9 100%); font-family: Inter, system-ui, sans-serif">
+
+  <nav aria-label="Navegación principal" style="flex: 1 1 248px; max-width: 100%; box-sizing: border-box; padding: 28px 18px; background: linear-gradient(180deg, #0B0D12 0%, #1B2030 100%); color: #E6E9F0; display: flex; flex-direction: column; gap: 28px">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 8px">
+      <div style="width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #1F5BFF 0%, #4D7CFF 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 4px rgba(31,91,255,0.18)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"></path><path d="M14 7h7v7"></path></svg>
+      </div>
+      <div style="display: flex; flex-direction: column">
+        <span style="font-family: 'Space Grotesk', Inter, sans-serif; font-weight: 700; font-size: 17px; color: #FFFFFF">Driven Comercial</span>
+        <span style="font-size: 12px; color: #9AA3B5">Medición de equipos</span>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #8A93A6; padding: 0 10px 6px">Vistas</span>
+      <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9CFDB; font-weight: 500; font-size: 14px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>
+        Vista general
+      </a>
+      <a href="Subcuenta.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9CFDB; font-weight: 500; font-size: 14px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 21v-6h6v6"></path></svg>
+        Subcuentas
+      </a>
+      <a href="Asesor.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9CFDB; font-weight: 500; font-size: 14px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg>
+        Asesores
+      </a>
+      <a href="Horarios.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9CFDB; font-weight: 500; font-size: 14px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+        Horarios
+      </a>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #8A93A6; padding: 0 10px 6px">Administración</span>
+      <a href="Usuarios.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 10px; background: #1F5BFF; color: #FFFFFF; font-weight: 600; font-size: 14px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
+        Usuarios y accesos
+      </a>
+    </div>
+    <div style="margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08)">
+      <div style="width: 36px; height: 36px; border-radius: 50%; background: #2A3145; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; color: #FFFFFF">DA</div>
+      <div style="display: flex; flex-direction: column">
+        <span style="font-size: 13px; font-weight: 600; color: #FFFFFF">Driven Automations</span>
+        <span style="font-size: 12px; color: #9AA3B5">Rol: Administrador</span>
+      </div>
+    </div>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px 40px 48px; display: flex; flex-direction: column; gap: 24px">
+
+    <header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+          <h1 style="margin: 0; font-family: 'Space Grotesk', Inter, sans-serif; font-size: 32px; font-weight: 700; letter-spacing: -0.02em">Usuarios y accesos</h1>
+          <span style="font-size: 12px; font-weight: 600; color: #1F5BFF; background: #E8EEFF; padding: 4px 10px; border-radius: 999px">Solo administradores</span>
+        </div>
+        <p style="margin: 0; font-size: 15px; color: #5B6475">Define quién entra, con qué rol, a qué subcuentas y qué módulos puede ver o editar.</p>
+      </div>
+      <button type="button" style="min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 18px; border-radius: 10px; border: 0; background: linear-gradient(180deg, #2A66FF 0%, #1F5BFF 100%); color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+        Nuevo usuario
+      </button>
+    </header>
+
+    <section aria-label="Roles" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px">
+      <sc-for list="{{roles}}" as="r" hint-placeholder-count="4">
+        <div style="border-radius: 16px; padding: 16px 18px; background: {{r.fondo}}; color: {{r.texto}}; border: 1px solid {{r.borde}}; display: flex; flex-direction: column; gap: 6px">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+            <span style="font-family: 'Space Grotesk', Inter, sans-serif; font-size: 16px; font-weight: 700">{{r.nombre}}</span>
+            <span style="font-size: 12px; font-weight: 600; opacity: 0.85">{{r.n}} usuarios</span>
+          </div>
+          <span style="font-size: 13px; opacity: 0.85">{{r.desc}}</span>
+        </div>
+      </sc-for>
+    </section>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+
+      <section aria-label="Lista de usuarios" style="flex: 999 1 560px; min-width: 0; border-radius: 18px; background: #FFFFFF; border: 1px solid #E3E8F2; display: flex; flex-direction: column">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px">
+          <h2 style="margin: 0; font-family: 'Space Grotesk', Inter, sans-serif; font-size: 20px; font-weight: 600">Usuarios</h2>
+          <label style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #D5DBE7; background: #FFFFFF; color: #5B6475; font-size: 14px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+            <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar usuario</span>
+            <input type="search" placeholder="Buscar por nombre o correo" style="border: 0; outline: none; font: inherit; font-size: 14px; color: #0B0D12; width: 200px; background: transparent">
+          </label>
+        </div>
+        <div style="overflow-x: auto">
+          <table style="width: 100%; min-width: 640px; border-collapse: collapse; font-size: 14px">
+            <thead>
+              <tr style="background: #F5F7FB; color: #5B6475; text-align: left">
+                <th style="padding: 12px 20px; font-weight: 600; font-size: 12px">Usuario</th>
+                <th style="padding: 12px; font-weight: 600; font-size: 12px">Rol</th>
+                <th style="padding: 12px; font-weight: 600; font-size: 12px">Subcuentas</th>
+                <th style="padding: 12px 20px 12px 12px; font-weight: 600; font-size: 12px">Último ingreso</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{usuarios}}" as="u" hint-placeholder-count="6">
+                <tr style="border-top: 1px solid #EDF0F6; {{u.fila}}">
+                  <td style="padding: 10px 20px">
+                    <button type="button" onClick="{{u.pick}}" aria-pressed="{{u.sel}}" style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; color: #0B0D12">
+                      <span style="flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; background: #E8EEFF; color: #1F5BFF; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">{{u.ini}}</span>
+                      <span style="display: flex; flex-direction: column">
+                        <span style="font-weight: 600">{{u.nombre}}</span>
+                        <span style="font-size: 12px; color: #5B6475">{{u.correo}}</span>
+                      </span>
+                    </button>
+                  </td>
+                  <td style="padding: 10px 12px"><span style="font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; {{u.rolChip}}">{{u.rol}}</span></td>
+                  <td style="padding: 10px 12px; font-size: 13px; color: #3A4252">{{u.subs}}</td>
+                  <td style="padding: 10px 20px 10px 12px; font-size: 13px; color: #5B6475">{{u.ingreso}}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-label="Editar acceso" style="flex: 1 1 380px; border-radius: 18px; background: linear-gradient(180deg, #0B0D12 0%, #1B2030 100%); color: #FFFFFF; padding: 22px; display: flex; flex-direction: column; gap: 20px; box-shadow: 0 18px 40px -24px rgba(11,13,18,0.55)">
+        <div style="display: flex; align-items: center; gap: 12px">
+          <span style="flex: 0 0 auto; width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, #1F5BFF 0%, #4D7CFF 100%); display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', Inter, sans-serif; font-size: 18px; font-weight: 700">{{actual.ini}}</span>
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <h2 style="margin: 0; font-family: 'Space Grotesk', Inter, sans-serif; font-size: 20px; font-weight: 600">{{actual.nombre}}</h2>
+            <span style="font-size: 13px; color: #B4BCCC">{{actual.correo}}</span>
+          </div>
+        </div>
+
+        <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+          <legend style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8FB0FF; padding: 0 0 8px">Rol</legend>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+            <sc-for list="{{rolOpciones}}" as="o" hint-placeholder-count="4">
+              <button type="button" onClick="{{o.pick}}" aria-pressed="{{o.sel}}" style="min-height: 48px; padding: 8px 12px; border-radius: 12px; font: inherit; font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; {{o.style}}">{{o.nombre}}</button>
+            </sc-for>
+          </div>
+        </fieldset>
+
+        <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+          <legend style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8FB0FF; padding: 0 0 8px">Subcuentas con acceso</legend>
+          <sc-if value="{{todas}}" hint-placeholder-val="{{ false }}">
+            <span style="font-size: 13px; color: #B4BCCC; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,0.06)">El administrador ve todas las subcuentas.</span>
+          </sc-if>
+          <sc-if value="{{elegir}}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <sc-for list="{{subOpciones}}" as="s" hint-placeholder-count="4">
+                <button type="button" role="checkbox" aria-checked="{{s.sel}}" onClick="{{s.pick}}" style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 12px; font: inherit; font-size: 14px; text-align: left; cursor: pointer; {{s.style}}">
+                  <span style="flex: 0 0 auto; width: 20px; height: 20px; border-radius: 6px; display: flex; align-items: center; justify-content: center; {{s.caja}}">
+                    <sc-if value="{{s.on}}" hint-placeholder-val="{{ true }}">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg>
+                    </sc-if>
+                  </span>
+                  {{s.nombre}}
+                </button>
+              </sc-for>
+              <span style="font-size: 12px; color: #B4BCCC">{{subResumen}}</span>
+            </div>
+          </sc-if>
+        </fieldset>
+
+        <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+          <legend style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8FB0FF; padding: 0 0 8px">Módulos</legend>
+          <div style="border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.10)">
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) 64px 64px; gap: 0; padding: 8px 12px; background: rgba(255,255,255,0.06); font-size: 12px; font-weight: 600; color: #B4BCCC">
+              <span>Módulo</span><span style="text-align: center">Ver</span><span style="text-align: center">Editar</span>
+            </div>
+            <sc-for list="{{modulos}}" as="m" hint-placeholder-count="8">
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) 64px 64px; align-items: center; padding: 6px 12px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 13px">
+                <span style="color: {{m.color}}">{{m.nombre}}</span>
+                <span style="display: flex; justify-content: center"><span role="img" aria-label="{{m.verTxt}}" style="width: 20px; height: 20px; border-radius: 6px; {{m.ver}}"></span></span>
+                <span style="display: flex; justify-content: center"><span role="img" aria-label="{{m.editTxt}}" style="width: 20px; height: 20px; border-radius: 6px; {{m.edit}}"></span></span>
+              </div>
+            </sc-for>
+          </div>
+          <span style="font-size: 12px; color: #B4BCCC">Valores por defecto del rol. El administrador puede activar o quitar módulos a cada usuario.</span>
+        </fieldset>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <button type="button" style="flex: 1 1 140px; min-height: 44px; border-radius: 10px; border: 0; background: linear-gradient(180deg, #2A66FF 0%, #1F5BFF 100%); color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Guardar cambios</button>
+          <button type="button" style="flex: 1 1 140px; min-height: 44px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); background: transparent; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Restablecer contraseña</button>
+        </div>
+      </section>
+    </div>
+
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1380}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: 1, overrides: {} };
+  }
+  renderVals() {
+    var self = this;
+    var SUBS = ['ECOM - Bria Import', 'Driven IA 1', 'Ecommerce', 'Driven Automations'];
+    var ROLES = {
+      admin: { nombre: 'Administrador', chip: 'background: #0B0D12; color: #FFFFFF', desc: 'Todo el sistema: usuarios, accesos, subcuentas, tokens y configuración.' },
+      dueno: { nombre: 'Dueño de negocio', chip: 'background: #E8EEFF; color: #1F5BFF', desc: 'Una o varias subcuentas asignadas: su vista general, asesores y metas.' },
+      supervisor: { nombre: 'Supervisor', chip: 'background: #F0F3F9; color: #3A4252', desc: 'Operación diaria de sus subcuentas: listas para actuar y horarios.' },
+      asesor: { nombre: 'Asesor', chip: 'background: #E7F8EF; color: #067647', desc: 'Solo su propio detalle e indicadores.' }
+    };
+    var MODULOS = [
+      { id: 'general', nombre: 'Vista general' },
+      { id: 'subcuenta', nombre: 'Vista por subcuenta' },
+      { id: 'asesores', nombre: 'Detalle de asesores' },
+      { id: 'mensajes', nombre: 'Texto de mensajes' },
+      { id: 'horarios', nombre: 'Horarios y ausencias' },
+      { id: 'metas', nombre: 'Metas y umbrales' },
+      { id: 'exportar', nombre: 'Exportar' },
+      { id: 'config', nombre: 'Subcuentas, tokens y etapas' },
+      { id: 'usuarios', nombre: 'Usuarios y accesos' }
+    ];
+    var MATRIZ = {
+      admin: { general: 'e', subcuenta: 'e', asesores: 'e', mensajes: 'v', horarios: 'e', metas: 'e', exportar: 'v', config: 'e', usuarios: 'e' },
+      dueno: { general: 'v', subcuenta: 'v', asesores: 'v', mensajes: 'v', horarios: 'v', metas: 'e', exportar: 'v', config: '', usuarios: '' },
+      supervisor: { general: '', subcuenta: 'v', asesores: 'v', mensajes: 'v', horarios: 'e', metas: 'v', exportar: '', config: '', usuarios: '' },
+      asesor: { general: '', subcuenta: '', asesores: 'v', mensajes: 'v', horarios: 'v', metas: '', exportar: '', config: '', usuarios: '' }
+    };
+    var base = [
+      { nombre: 'Driven Automations', ini: 'DA', correo: 'admin@driven.pe', rol: 'admin', subs: [0, 1, 2, 3], ingreso: 'Hoy, 01:40' },
+      { nombre: 'Dueño de negocio 1', ini: 'D1', correo: 'dueno1@correo.pe', rol: 'dueno', subs: [0, 2], ingreso: 'Ayer, 19:12' },
+      { nombre: 'Dueño de negocio 2', ini: 'D2', correo: 'dueno2@correo.pe', rol: 'dueno', subs: [1], ingreso: 'Hace 3 días' },
+      { nombre: 'Supervisor 1', ini: 'S1', correo: 'supervisor1@correo.pe', rol: 'supervisor', subs: [0], ingreso: 'Hoy, 09:05' },
+      { nombre: 'Asesor 2', ini: 'A2', correo: 'asesor2@correo.pe', rol: 'asesor', subs: [0], ingreso: 'Hoy, 09:01' },
+      { nombre: 'Asesor 7', ini: 'A7', correo: 'asesor7@correo.pe', rol: 'asesor', subs: [3], ingreso: 'Nunca' }
+    ];
+    var ov = this.state.overrides;
+    var users = base.map(function (u, i) { var o = ov[i] || {}; return Object.assign({}, u, { rol: o.rol || u.rol, subs: o.subs || u.subs }); });
+    var i0 = this.state.sel;
+    var cur = users[i0];
+    var setO = function (patch) { var n = Object.assign({}, self.state.overrides); n[i0] = Object.assign({}, n[i0] || { rol: cur.rol, subs: cur.subs }, patch); self.setState({ overrides: n }); };
+    var subsTxt = function (u) { return u.rol === 'admin' ? 'Todas' : u.subs.map(function (k) { return SUBS[k]; }).join(', '); };
+    var conteo = { admin: 0, dueno: 0, supervisor: 0, asesor: 0 };
+    users.forEach(function (u) { conteo[u.rol] += 1; });
+    var on = 'background: #1F5BFF; border: 1px solid #1F5BFF';
+    var off = 'background: transparent; border: 1px solid rgba(255,255,255,0.28)';
+    return {
+      roles: ['admin', 'dueno', 'supervisor', 'asesor'].map(function (k) {
+        var dark = k === 'admin';
+        return { nombre: ROLES[k].nombre, desc: ROLES[k].desc, n: conteo[k], fondo: dark ? 'linear-gradient(135deg, #0B0D12 0%, #1B2030 100%)' : 'linear-gradient(180deg, #FFFFFF 0%, #F7F9FD 100%)', texto: dark ? '#FFFFFF' : '#0B0D12', borde: dark ? '#0B0D12' : '#E3E8F2' };
+      }),
+      usuarios: users.map(function (u, i) {
+        var sel = i === i0;
+        return { nombre: u.nombre, ini: u.ini, correo: u.correo, rol: ROLES[u.rol].nombre, rolChip: ROLES[u.rol].chip, subs: subsTxt(u), ingreso: u.ingreso, sel: sel ? 'true' : 'false', fila: sel ? 'background: #EEF3FF' : '', pick: function () { self.setState({ sel: i }); } };
+      }),
+      actual: { nombre: cur.nombre, ini: cur.ini, correo: cur.correo },
+      rolOpciones: ['admin', 'dueno', 'supervisor', 'asesor'].map(function (k) {
+        var sel = cur.rol === k;
+        return { nombre: ROLES[k].nombre, sel: sel ? 'true' : 'false', pick: function () { setO({ rol: k }); }, style: sel ? 'background: #1F5BFF; color: #FFFFFF; border: 1px solid #1F5BFF' : 'background: rgba(255,255,255,0.04); color: #E6E9F0; border: 1px solid rgba(255,255,255,0.14)' };
+      }),
+      todas: cur.rol === 'admin',
+      elegir: cur.rol !== 'admin',
+      subOpciones: SUBS.map(function (n, k) {
+        var activo = cur.subs.indexOf(k) >= 0;
+        return { nombre: n, on: activo, sel: activo ? 'true' : 'false', caja: activo ? on : off,
+          style: activo ? 'background: rgba(31,91,255,0.16); color: #FFFFFF; border: 1px solid rgba(77,124,255,0.55)' : 'background: rgba(255,255,255,0.04); color: #C9CFDB; border: 1px solid rgba(255,255,255,0.10)',
+          pick: function () { var s = cur.subs.slice(); var p = s.indexOf(k); if (p >= 0) { s.splice(p, 1); } else { s.push(k); s.sort(); } setO({ subs: s }); } };
+      }),
+      subResumen: cur.rol === 'dueno' ? 'Un dueño de negocio puede tener una o varias subcuentas; su vista general suma solo las suyas.' : 'Solo verá datos de las subcuentas marcadas.',
+      modulos: MODULOS.map(function (m) {
+        var nivel = MATRIZ[cur.rol][m.id];
+        var v = nivel === 'v' || nivel === 'e';
+        var e = nivel === 'e';
+        return { nombre: m.nombre, color: v ? '#FFFFFF' : '#8A93A6', ver: v ? on : off, edit: e ? on : off, verTxt: v ? 'Puede ver' : 'No puede ver', editTxt: e ? 'Puede editar' : 'No puede editar' };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

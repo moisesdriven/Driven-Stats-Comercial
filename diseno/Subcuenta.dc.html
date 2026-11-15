@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Vista por subcuenta · Driven Comercial</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:#0B0D12}
+a{color:#1F5BFF;text-decoration:none}a:hover{color:#0B3FD9}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; background: linear-gradient(180deg, #FFFFFF 0%, #EEF2F9 100%); font-family: Inter, system-ui, sans-serif">
+
+  <nav aria-label="Navegación principal" style="flex: 1 1 248px; max-width: 100%; box-sizing: border-box; padding: 28px 18px; background: linear-gradient(180deg, #0B0D12 0%, #1B2030 100%); color: #E6E9F0; display: flex; flex-direction: column; gap: 28px">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 8px">
+      <div style="width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #1F5BFF 0%, #4D7CFF 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 4px rgba(31,91,255,0.18)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"></path><path d="M14 7h7v7"></path></svg>
+      </div>
+      <div style="display: flex; flex-direction: column">
+        <span style="font-family: 'Space Grotesk', Inter, sans-serif; font-weight: 700; font-size: 17px; color: #FFFFFF">Driven Comercial</span>
+        <span style="font-size: 12px; color: #9AA3B5">Medición de equipos</span>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #8A93A6; padding: 0 10px 6px">Vistas</span>
+      <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9CFDB; font-weight: 500; font-size: 14px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>
+        Vista general
+      </a>
+      <a href="Subcuenta.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 10px; background: #1F5BFF; color: #FFFFFF; font-weight: 600; font-size: 14px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 21v-6h6v6"></path></svg>
+        Subcuentas
+      </a>
+      <a href="Asesor.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9CFDB; font-weight: 500; font-size: 14px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg>
+        Asesores
+      </a>
+      <a href="Horarios.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9CFDB; font-weight: 500; font-size: 14px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+        Horarios
+      </a>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #8A93A6; padding: 0 10px 6px">Administración</span>
+      <a href="Usuarios.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9CFDB; font-weight: 500; font-size: 14px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
+        Usuarios y accesos
+      </a>
+    </div>
+    <div style="margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08)">
+      <div style="width: 36px; height: 36px; border-radius: 50%; background: #2A3145; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; color: #FFFFFF">SP</div>
+      <div style="display: flex; flex-direction: column">
+        <span style="font-size: 13px; font-weight: 600; color: #FFFFFF">Supervisor</span>
+        <span style="font-size: 12px; color: #9AA3B5">ECOM - Bria Import</span>
+      </div>
+    </div>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px 40px 48px; display: flex; flex-direction: column; gap: 24px">
+
+    <header style="display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #5B6475">
+        <a href="Main.dc.html">Vista general</a>
+        <span aria-hidden="true">›</span>
+        <span>ECOM - Bria Import</span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+            <h1 style="margin: 0; font-family: 'Space Grotesk', Inter, sans-serif; font-size: 32px; font-weight: 700; letter-spacing: -0.02em">ECOM - Bria Import</h1>
+            <span style="font-size: 12px; font-weight: 600; color: #93370D; background: #FEF3E2; padding: 4px 10px; border-radius: 999px">Cuello de botella: seguimiento</span>
+            <span style="font-size: 12px; font-weight: 600; color: #1F5BFF; background: #E8EEFF; padding: 4px 10px; border-radius: 999px">Datos de ejemplo</span>
+          </div>
+          <p style="margin: 0; font-size: 15px; color: #5B6475">5 asesores · 412 leads · del 8 al 14 de noviembre</p>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px">
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #5B6475">Subcuenta
+            <select style="min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #D5DBE7; background: #FFFFFF; font: inherit; font-size: 14px; color: #0B0D12">
+              <option>ECOM - Bria Import</option><option>Ecommerce</option><option>Driven IA 1</option><option>Driven Automations</option>
+            </select>
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #5B6475">Periodo
+            <select style="min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #D5DBE7; background: #FFFFFF; font: inherit; font-size: 14px; color: #0B0D12">
+              <option>Últimos 7 días</option><option>Hoy</option><option>Este mes</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <section aria-label="Indicadores de la subcuenta" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px">
+      <sc-for list="{{kpis}}" as="k" hint-placeholder-count="8">
+        <div style="border-radius: 14px; padding: 14px 16px; background: linear-gradient(180deg, #FFFFFF 0%, #F7F9FD 100%); border: 1px solid #E3E8F2; display: flex; flex-direction: column; gap: 6px">
+          <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: #5B6475"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{k.dot}}" aria-hidden="true"></span>{{k.label}}</span>
+          <span style="font-family: 'Space Grotesk', Inter, sans-serif; font-size: 24px; font-weight: 700">{{k.valor}}</span>
+        </div>
+      </sc-for>
+    </section>
+
+    <section aria-label="Asesores" style="border-radius: 18px; background: #FFFFFF; border: 1px solid #E3E8F2; display: flex; flex-direction: column">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 20px 24px">
+        <h2 style="margin: 0; font-family: 'Space Grotesk', Inter, sans-serif; font-size: 20px; font-weight: 600">Asesores</h2>
+        <span style="font-size: 13px; color: #5B6475">Tiempos medidos en el horario laboral de cada asesor</span>
+      </div>
+      <div style="overflow-x: auto">
+        <table style="width: 100%; min-width: 900px; border-collapse: collapse; font-size: 14px">
+          <thead>
+            <tr style="background: #F5F7FB; color: #5B6475; text-align: left">
+              <th style="padding: 12px 24px; font-weight: 600; font-size: 12px">Asesor</th>
+              <th style="padding: 12px; font-weight: 600; font-size: 12px">Leads</th>
+              <th style="padding: 12px; font-weight: 600; font-size: 12px">T. respuesta</th>
+              <th style="padding: 12px; font-weight: 600; font-size: 12px">Sin responder</th>
+              <th style="padding: 12px; font-weight: 600; font-size: 12px">Pendientes</th>
+              <th style="padding: 12px; font-weight: 600; font-size: 12px">Calidad</th>
+              <th style="padding: 12px; font-weight: 600; font-size: 12px">Conversión</th>
+              <th style="padding: 12px; font-weight: 600; font-size: 12px">Ventas</th>
+              <th style="padding: 12px; font-weight: 600; font-size: 12px">Etapas A · S · N · C</th>
+              <th style="padding: 12px 24px 12px 12px; font-weight: 600; font-size: 12px">Cuello de botella</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{asesores}}" as="s" hint-placeholder-count="5">
+              <tr style="border-top: 1px solid #EDF0F6">
+                <td style="padding: 12px 24px">
+                  <a href="Asesor.dc.html" style="display: flex; align-items: center; gap: 10px; color: #0B0D12; font-weight: 600">
+                    <span style="width: 32px; height: 32px; border-radius: 50%; background: #E8EEFF; color: #1F5BFF; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">{{s.ini}}</span>
+                    {{s.name}}
+                  </a>
+                </td>
+                <td style="padding: 12px">{{s.leads}}</td>
+                <td style="padding: 12px">{{s.resp}}</td>
+                <td style="padding: 12px">{{s.sin}}</td>
+                <td style="padding: 12px">{{s.pend}}</td>
+                <td style="padding: 12px">{{s.cal}}</td>
+                <td style="padding: 12px">{{s.conv}}</td>
+                <td style="padding: 12px; font-weight: 600">{{s.ventas}}</td>
+                <td style="padding: 12px">
+                  <div style="display: flex; gap: 6px">
+                    <sc-for list="{{s.etapas}}" as="d" hint-placeholder-count="4">
+                      <span title="{{d.t}}" style="width: 22px; height: 8px; border-radius: 999px; background: {{d.c}}"></span>
+                    </sc-for>
+                  </div>
+                </td>
+                <td style="padding: 12px 24px 12px 12px"><span style="font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: {{s.cBg}}; color: {{s.cFg}}">{{s.cuello}}</span></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section aria-label="Listas para actuar" style="border-radius: 18px; background: #FFFFFF; border: 1px solid #E3E8F2; display: flex; flex-direction: column">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 24px 0">
+        <h2 style="margin: 0; font-family: 'Space Grotesk', Inter, sans-serif; font-size: 20px; font-weight: 600">Para actuar ahora</h2>
+        <div role="tablist" aria-label="Listas" style="display: flex; flex-wrap: wrap; gap: 6px; padding: 4px; border-radius: 12px; background: #F0F3F9">
+          <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+            <button type="button" role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}" style="min-height: 40px; padding: 0 14px; border-radius: 9px; border: 0; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; {{t.style}}">{{t.label}} · {{t.n}}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; padding: 12px 24px 20px">
+        <sc-for list="{{filas}}" as="f" hint-placeholder-count="4">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid #EDF0F6">
+            <div style="flex: 0 0 auto; width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #0B0D12 0%, #2A3145 100%); color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">{{f.canal}}</div>
+            <div style="flex: 1 1 240px; display: flex; flex-direction: column; gap: 2px; min-width: 0">
+              <span style="font-size: 14px; font-weight: 600">{{f.contacto}}</span>
+              <span style="font-size: 13px; color: #5B6475">{{f.msg}}</span>
+            </div>
+            <span style="font-size: 13px; color: #5B6475; flex: 0 0 120px">{{f.asesor}}</span>
+            <span style="font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: {{f.bg}}; color: {{f.fg}}">{{f.espera}}</span>
+            <a href="https://app.gohighlevel.com" style="min-height: 40px; display: flex; align-items: center; gap: 6px; padding: 0 14px; border-radius: 10px; border: 1px solid #C9D6FF; color: #1F5BFF; font-size: 13px; font-weight: 600">Abrir en GHL
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg>
+            </a>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px">
+      <section aria-label="Motivos de pérdida" style="border-radius: 18px; padding: 20px 24px; background: #FFFFFF; border: 1px solid #E3E8F2; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h2 style="margin: 0; font-family: 'Space Grotesk', Inter, sans-serif; font-size: 18px; font-weight: 600">Por qué se pierden los leads</h2>
+          <span style="font-size: 13px; color: #5B6475">26 leads perdidos en el periodo</span>
+        </div>
+        <sc-for list="{{motivos}}" as="m" hint-placeholder-count="4">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <div style="display: flex; justify-content: space-between; font-size: 13px"><span>{{m.label}}</span><span style="font-weight: 600">{{m.n}}</span></div>
+            <div style="height: 10px; border-radius: 999px; background: #EDF0F6">
+              <div style="height: 10px; border-radius: 999px; {{m.w}}"></div>
+            </div>
+          </div>
+        </sc-for>
+      </section>
+
+      <section aria-label="Mensajes con menor puntaje" style="border-radius: 18px; padding: 20px 24px; background: #FFFFFF; border: 1px solid #E3E8F2; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h2 style="margin: 0; font-family: 'Space Grotesk', Inter, sans-serif; font-size: 18px; font-weight: 600">Mensajes para mejorar</h2>
+          <span style="font-size: 13px; color: #5B6475">Menor puntaje de calidad esta semana</span>
+        </div>
+        <sc-for list="{{mensajes}}" as="m" hint-placeholder-count="3">
+          <div style="display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 12px; background: #F5F7FB">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px">
+              <span style="font-size: 12px; font-weight: 600; color: #5B6475">{{m.asesor}} · {{m.tipo}}</span>
+              <span style="font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #FDECEA; color: #B42318">{{m.score}} / 5</span>
+            </div>
+            <span style="font-size: 14px">{{m.texto}}</span>
+            <span style="font-size: 12px; color: #5B6475">{{m.falta}}</span>
+          </div>
+        </sc-for>
+      </section>
+    </div>
+
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1640}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { tab: 'sin' }; }
+  renderVals() {
+    var self = this;
+    var S = {
+      g: { c: '#12B76A', t: 'Cumple', bg: '#E7F8EF', fg: '#067647' },
+      a: { c: '#F79009', t: 'Hasta 20 % debajo', bg: '#FEF3E2', fg: '#93370D' },
+      r: { c: '#F04438', t: 'Más de 20 % debajo', bg: '#FDECEA', fg: '#B42318' }
+    };
+    var et = function (codes) { return codes.split('').map(function (k) { return { c: S[k].c, t: S[k].t }; }); };
+    var asesores = [
+      { name: 'Asesor 1', ini: 'A1', leads: 104, resp: '3 min', sin: 0, pend: 2, cal: '4,2', conv: '19,2 %', ventas: 20, cuello: 'Sin cuello', k: 'g', e: 'gggg' },
+      { name: 'Asesor 2', ini: 'A2', leads: 96, resp: '4 min', sin: 1, pend: 5, cal: '3,8', conv: '14,6 %', ventas: 14, cuello: 'Seguimiento', k: 'r', e: 'grga' },
+      { name: 'Asesor 3', ini: 'A3', leads: 88, resp: '6 min', sin: 3, pend: 3, cal: '3,4', conv: '13,6 %', ventas: 12, cuello: 'Atención', k: 'a', e: 'agag' },
+      { name: 'Asesor 4', ini: 'A4', leads: 71, resp: '4 min', sin: 1, pend: 1, cal: '2,9', conv: '11,3 %', ventas: 8, cuello: 'Negociación', k: 'r', e: 'ggra' },
+      { name: 'Asesor 5', ini: 'A5', leads: 53, resp: '5 min', sin: 0, pend: 1, cal: '3,7', conv: '13,2 %', ventas: 7, cuello: 'Cierre', k: 'a', e: 'ggga' }
+    ].map(function (s) { return Object.assign({}, s, { etapas: et(s.e), cBg: S[s.k].bg, cFg: S[s.k].fg }); });
+    var listas = {
+      sin: { label: 'Sin responder', rows: [
+        { canal: 'WA', contacto: 'Contacto +51 9•• ••• 214', msg: '¿Tienen envío a Arequipa?', asesor: 'Asesor 3', espera: '42 min', k: 'r' },
+        { canal: 'IG', contacto: 'Contacto @cliente_ig', msg: 'Precio del set completo', asesor: 'Asesor 3', espera: '27 min', k: 'r' },
+        { canal: 'WA', contacto: 'Contacto +51 9•• ••• 587', msg: 'Quiero hacer un pedido', asesor: 'Asesor 2', espera: '18 min', k: 'a' },
+        { canal: 'FB', contacto: 'Contacto Facebook', msg: '¿Aceptan Yape?', asesor: 'Asesor 4', espera: '16 min', k: 'a' }
+      ] },
+      pend: { label: 'Pendientes de seguimiento', rows: [
+        { canal: 'WA', contacto: 'Contacto +51 9•• ••• 330', msg: 'Etapa: Por cerrar · cotización enviada', asesor: 'Asesor 2', espera: '2 días lab.', k: 'r' },
+        { canal: 'WA', contacto: 'Contacto +51 9•• ••• 902', msg: 'Etapa: Interesado · pidió fotos', asesor: 'Asesor 2', espera: '1 día lab.', k: 'a' },
+        { canal: 'IG', contacto: 'Contacto @tienda_cliente', msg: 'Etapa: Interesado · tarea vencida', asesor: 'Asesor 3', espera: '1 día lab.', k: 'a' }
+      ] },
+      ayer: { label: 'Interesados de ayer sin contacto hoy', rows: [
+        { canal: 'WA', contacto: 'Contacto +51 9•• ••• 118', msg: 'Interesado desde el jueves', asesor: 'Asesor 2', espera: 'Sin contacto hoy', k: 'a' },
+        { canal: 'FB', contacto: 'Contacto Facebook', msg: 'Interesado desde el viernes', asesor: 'Asesor 5', espera: 'Sin contacto hoy', k: 'a' }
+      ] }
+    };
+    var tabs = ['sin', 'pend', 'ayer'].map(function (id) {
+      var sel = self.state.tab === id;
+      return { label: listas[id].label, n: listas[id].rows.length, sel: sel ? 'true' : 'false', pick: function () { self.setState({ tab: id }); },
+        style: sel ? 'background: linear-gradient(180deg, #2A66FF 0%, #1F5BFF 100%); color: #FFFFFF' : 'background: transparent; color: #3A4252' };
+    });
+    var filas = listas[this.state.tab].rows.map(function (r) { return Object.assign({}, r, { bg: S[r.k].bg, fg: S[r.k].fg }); });
+    var motivos = [
+      { label: 'Cliente dejó de responder', n: 11 },
+      { label: 'Sin seguimiento', n: 7 },
+      { label: 'Precio', n: 5 },
+      { label: 'Compró en otro lugar', n: 3 }
+    ].map(function (m, i) { return Object.assign({}, m, { w: 'width: ' + Math.round(m.n / 11 * 100) + '%; background: ' + (i === 1 ? 'linear-gradient(90deg, #F79009 0%, #FDB022 100%)' : 'linear-gradient(90deg, #1F5BFF 0%, #4D7CFF 100%)') }); });
+    return {
+      kpis: [
+        { label: 'T. respuesta', valor: '4,4 min', dot: S.g.c },
+        { label: 'Sin responder', valor: '5', dot: S.a.c },
+        { label: 'Pendientes', valor: '12', dot: S.r.c },
+        { label: 'Conversión', valor: '14,8 %', dot: S.g.c },
+        { label: 'Tiempo de cierre', valor: '2,4 días', dot: S.g.c },
+        { label: 'Ticket promedio', valor: 'S/ 172', dot: '#1F5BFF' },
+        { label: 'Ventas', valor: '61', dot: S.g.c },
+        { label: 'Perdidos', valor: '26', dot: S.a.c }
+      ],
+      asesores: asesores,
+      tabs: tabs,
+      filas: filas,
+      motivos: motivos,
+      mensajes: [
+        { asesor: 'Asesor 4', tipo: 'Respuesta a precio', score: 2, texto: '“Hola, el precio está en el catálogo.”', falta: 'No responde la pregunta, sin personalizar, sin siguiente paso.' },
+        { asesor: 'Asesor 3', tipo: 'Seguimiento', score: 2, texto: '“¿Sigue interesado?”', falta: 'Genérico; no recuerda el producto ni propone una acción.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
