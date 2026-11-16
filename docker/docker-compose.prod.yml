@@ -1,5 +1,9 @@
-# Producción en el servidor (se completa en la fase 7).
-# Red propia, sin tocar nada de Driven Conteo. La web solo escucha en 127.0.0.1.
+# Producción en el servidor (se termina de ajustar en la fase 7).
+# - Red propia "comercial" entre web y worker.
+# - La web se publica con Traefik (el proxy que ya corre en el servidor) por etiquetas de Docker:
+#   no se edita ni se recarga ninguna configuración del proxy existente.
+# - Se une a la red de Traefik y a la red de la base de datos como redes externas (solo se conecta,
+#   no las modifica). No toca contenedores ni configuración de Driven Conteo.
 name: driven-comercial
 
 services:
@@ -9,16 +13,31 @@ services:
     restart: unless-stopped
     env_file: .env
     ports:
+      # Solo local, para diagnóstico desde el servidor (05-verificar.ps1).
       - '127.0.0.1:${PUERTO_WEB:-3100}:3100'
-    networks: [comercial]
+    labels:
+      traefik.enable: 'true'
+      traefik.docker.network: ${RED_TRAEFIK:-web}
+      traefik.http.routers.driven-comercial.rule: Host(`${DOMINIO:-comercial.drivenbox.drivenautomations.com}`)
+      traefik.http.routers.driven-comercial.entrypoints: websecure
+      traefik.http.routers.driven-comercial.tls.certresolver: letsencrypt
+      traefik.http.services.driven-comercial.loadbalancer.server.port: '3100'
+    networks: [comercial, traefik, bd]
 
   worker:
     image: ${IMAGEN_WORKER:-ghcr.io/moisesdriven/driven-comercial-worker}:${ETIQUETA:-latest}
     container_name: comercial-worker
     restart: unless-stopped
     env_file: .env
-    networks: [comercial]
+    networks: [comercial, bd]
 
 networks:
   comercial:
     name: comercial
+  traefik:
+    name: ${RED_TRAEFIK:-web}
+    external: true
+  bd:
+    # Red donde vive el contenedor de PostgreSQL compartido (por confirmar).
+    name: ${RED_BD:-drivenbox_internal}
+    external: true
