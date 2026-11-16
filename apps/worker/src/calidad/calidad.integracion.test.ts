@@ -228,19 +228,18 @@ describe.skipIf(!URL_PRUEBAS)('análisis de calidad (integración con Anthropic 
     const enviado = [...lotes.values()][0]!;
     expect(enviado).toHaveLength(2);
     expect(enviado[0]!.params.messages[0]!.content).toContain('[CLIENTE] ¿Cuánto cuesta');
-    expect(enviado[0]!.params.messages[0]!.content.match(/\[ASESOR #\d/g)).toHaveLength(1);
+    // Se califica el bloque completo (saludo + precio, dentro de 5 minutos), como en el análisis.
+    expect(enviado[0]!.params.messages[0]!.content.match(/\[ASESOR #\d/g)).toHaveLength(2);
     expect(informe.faltantes).toEqual(['no_existe']);
     expect(informe.total).toBe(2);
     expect(informe.categoria).toBe(2);
-    expect(informe.puntajeExacto).toBe(1);
-    expect(informe.puntajeUnPunto).toBe(2);
-    expect(informe.diferencias).toEqual([
-      { messageId: saludo, campo: 'responde', esperado: 'true', obtenido: 'false' },
-    ]);
+    // El simulado dice que el saludo no responde, pero su bloque da el precio: responde (v3).
+    expect(informe.diferencias).toEqual([]);
+    expect(informe.puntajeExacto).toBe(2);
     expect(informe.costoUsd).toBeGreaterThan(0);
 
-    // Con la regla de saludos, el saludo igual va a la IA: su bloque tiene otro mensaje con
-    // contenido (el precio) y el "responde" del bloque solo lo puede decidir la IA (v3).
+    // Con la regla de saludos, el saludo se califica por regla y el precio de su bloque con la IA;
+    // "responde" se unifica por bloque.
     const conRegla = crearProveedorSimulado({ esperas: 0 });
     const informe2 = await calibrar(
       db,
@@ -261,10 +260,10 @@ describe.skipIf(!URL_PRUEBAS)('análisis de calidad (integración con Anthropic 
     );
     const enviados2 = [...conRegla.lotes.values()][0]!;
     expect(enviados2).toHaveLength(2);
-    expect(informe2.porRegla).toBe(0);
-    expect(enviados2[1]!.params.messages[0]!.content).toContain(
-      '[ASESOR #1 | respuesta R1] Buenas tardes, soy asesora',
-    );
+    const texto2 = enviados2[1]!.params.messages[0]!.content;
+    expect(texto2).toContain('[ASESOR | respuesta R1] Buenas tardes, soy asesora');
+    expect(texto2).toContain('[ASESOR #1 | respuesta R1] Hola María');
+    expect(informe2.diferencias).toEqual([]);
   });
 
   it('se detiene sin enviar si superaría el tope mensual', async () => {

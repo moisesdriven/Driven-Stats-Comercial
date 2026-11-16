@@ -401,6 +401,7 @@ Los mensajes del asesor que debes calificar están marcados como [ASESOR #n]. Lo
 Cada mensaje del asesor lleva una marca de bloque:
 - "respuesta R1", "respuesta R2"…: los mensajes con la misma marca son UNA sola respuesta al cliente (lo que el asesor envió dentro de los 5 minutos siguientes a su primer mensaje después de que el cliente escribió). Evalúa la respuesta como bloque.
 - "seguimiento": el asesor escribió pasados esos 5 minutos sin que el cliente haya vuelto a escribir.
+Solo "responde" se evalúa sobre el bloque. La categoría y los demás criterios son de cada mensaje por separado: un saludo dentro de un bloque sigue siendo "saludo_plantilla", sin personalización ni siguiente paso propios, aunque otro mensaje del bloque los tenga.
 
 Para cada mensaje [ASESOR #n] devuelve:
 1. "categoria": exactamente una de:

@@ -19,7 +19,8 @@ import {
   costoReal,
   preciosDe,
   bloquesDeRespuesta,
-  esSaludoSuelto,
+  esTrivial,
+  unificarRespuestaPorBloque,
   recortarContexto,
   separarSaludos,
   textoConversacion,
@@ -54,6 +55,14 @@ export async function leerConjunto(ruta: string): Promise<ConjuntoCalibracion> {
   return esquemaConjunto.parse(JSON.parse(await readFile(ruta, 'utf8')));
 }
 
+/** Lo que se envía por cada mensaje del conjunto: su bloque, numerado, y lo calificado por regla. */
+export interface PlanCalibracion {
+  objetivo: string;
+  numeracion: Record<number, string>;
+  regla: Map<string, EtiquetaCalidad>;
+  bloques: Map<string, MarcaBloque>;
+}
+
 /** Días de conversación previos al mensaje que se usan como contexto. */
 const DIAS_CONTEXTO = 7;
 
@@ -73,12 +82,15 @@ export async function solicitudesCalibracion(
   porRegla: Map<string, EtiquetaCalidad>;
   /** Bloque de respuesta de cada mensaje del conjunto (v3). */
   marcas: Map<string, MarcaBloque>;
+  /** Por solicitud: los mensajes del bloque enviados a la IA y los calificados por regla. */
+  planes: Map<string, PlanCalibracion>;
 }> {
   const solicitudes: SolicitudLote[] = [];
   const porCustomId = new Map<string, string>();
   const faltantes: string[] = [];
   const porRegla = new Map<string, EtiquetaCalidad>();
   const marcas = new Map<string, MarcaBloque>();
+  const planes = new Map<string, PlanCalibracion>();
   for (const [i, item] of conjunto.mensajes.entries()) {
     const filas = await db.execute<{
       message_id: string;
@@ -106,7 +118,6 @@ export async function solicitudesCalibracion(
       automatico: f.direccion === 'outbound' && f.origen !== 'manual',
       texto: f.texto ?? '',
     }));
-    const objetivo = new Set([item.messageId]);
     if (!msgs.some((m) => m.id === item.messageId)) {
       faltantes.push(item.messageId);
       continue;
@@ -122,41 +133,60 @@ export async function solicitudesCalibracion(
         m.fecha.getTime() <= fechaObjetivo ||
         (bloqueObjetivo !== 'S' && bloques.get(m.id) === bloqueObjetivo),
     );
-    marcas.set(item.messageId, bloques.get(item.messageId) ?? 'S');
-    if (saludosPorRegla) {
-      // Como solo se califica este mensaje, la regla se usa si su bloque no tiene otros mensajes
-      // del asesor con contenido: si los tiene, el "responde" del bloque lo decide la IA.
-      const bloque = bloques.get(item.messageId);
-      const otros = orden.filter(
-        (m) =>
-          m.id !== item.messageId &&
-          m.direccion === 'outbound' &&
-          !m.automatico &&
-          bloques.get(m.id) === bloque,
-      );
-      const regla = separarSaludos(orden, objetivo, bloques).porRegla.get(item.messageId);
-      if (regla && otros.every((m) => esSaludoSuelto(m.texto))) {
-        porRegla.set(item.messageId, regla);
-        continue;
-      }
+    const bloqueObj = bloques.get(item.messageId) ?? 'S';
+    marcas.set(item.messageId, bloqueObj);
+    // Como en el análisis (v3): se califica el bloque completo del mensaje (sus otros mensajes del
+    // asesor no triviales), "responde" se unifica por bloque y se toma el resultado del mensaje.
+    const delBloque = new Set(
+      bloqueObj === 'S'
+        ? [item.messageId]
+        : orden
+            .filter(
+              (m) =>
+                m.direccion === 'outbound' &&
+                !m.automatico &&
+                bloques.get(m.id) === bloqueObj &&
+                (m.id === item.messageId || !esTrivial(m.texto)),
+            )
+            .map((m) => m.id),
+    );
+    const { porRegla: regla, paraIa } = saludosPorRegla
+      ? separarSaludos(orden, delBloque, bloques)
+      : { porRegla: new Map<string, EtiquetaCalidad>(), paraIa: delBloque };
+    if (!paraIa.size) {
+      // Todo el bloque son saludos sueltos: se resuelve por regla, sin IA.
+      const final = new Map(regla);
+      for (const [id, criterios] of unificarRespuestaPorBloque(
+        [...regla].map(([messageId, e]) => ({ messageId, criterios: e.criterios })),
+        bloques,
+      ))
+        final.set(id, { ...final.get(id)!, criterios });
+      porRegla.set(item.messageId, final.get(item.messageId)!);
+      continue;
     }
     const posteriores = orden.filter((m) => m.fecha.getTime() > fechaObjetivo);
     const contexto = [
       ...recortarContexto(
         orden.filter((m) => m.fecha.getTime() <= fechaObjetivo),
-        objetivo,
+        new Set([item.messageId]),
       ),
       ...posteriores,
     ];
-    const { texto, numeracion } = textoConversacion(contexto, objetivo, bloques);
+    const { texto, numeracion } = textoConversacion(contexto, paraIa, bloques);
     const customId = `cal_${i}`;
     porCustomId.set(customId, item.messageId);
+    planes.set(customId, {
+      objetivo: item.messageId,
+      numeracion: Object.fromEntries(numeracion),
+      regla,
+      bloques,
+    });
     solicitudes.push({
       custom_id: customId,
       params: parametrosSolicitud({ texto, mensajes: numeracion.size }, modelo, ajustes, formato),
     });
   }
-  return { solicitudes, porCustomId, faltantes, porRegla, marcas };
+  return { solicitudes, porCustomId, faltantes, porRegla, marcas, planes };
 }
 
 export interface InformeCalibracion extends ResultadoCalibracion {
@@ -190,14 +220,15 @@ export async function calibrar(
     formato?: FormatoSalida;
   },
 ): Promise<InformeCalibracion> {
-  const { solicitudes, porCustomId, faltantes, porRegla, marcas } = await solicitudesCalibracion(
-    db,
-    conjunto,
-    o.modelo,
-    o.ajustes,
-    o.saludosPorRegla ?? true,
-    o.formato ?? FORMATO_SALIDA_VIGENTE,
-  );
+  const { solicitudes, porCustomId, faltantes, porRegla, marcas, planes } =
+    await solicitudesCalibracion(
+      db,
+      conjunto,
+      o.modelo,
+      o.ajustes,
+      o.saludosPorRegla ?? true,
+      o.formato ?? FORMATO_SALIDA_VIGENTE,
+    );
   const obtenidos = new Map<string, EtiquetaCalidad>(porRegla);
   let costo = 0;
   let tokensEntrada = 0;
@@ -218,20 +249,28 @@ export async function calibrar(
         tokensSalida += r.uso.output_tokens;
       }
       const id = porCustomId.get(r.custom_id);
-      if (!id || r.tipo !== 'succeeded' || !r.texto || r.stopReason === 'refusal') continue;
+      const plan = planes.get(r.custom_id);
+      if (!id || !plan || r.tipo !== 'succeeded' || !r.texto || r.stopReason === 'refusal')
+        continue;
       const datos = esquemaRespuesta.safeParse(safeJson(r.texto));
-      const x = datos.success ? datos.data.mensajes.find((m) => m.n === 1) : undefined;
+      if (!datos.success) continue;
+      // Etiquetas del bloque (IA + regla), con "responde" unificado como al cerrar un análisis.
+      const bloque = new Map<string, EtiquetaCalidad>(plan.regla);
+      for (const x of datos.data.mensajes) {
+        const mid = plan.numeracion[x.n];
+        if (mid) bloque.set(mid, { categoria: x.categoria, criterios: x.criterios });
+      }
+      for (const [mid, criterios] of unificarRespuestaPorBloque(
+        [...bloque].map(([messageId, e]) => ({ messageId, criterios: e.criterios })),
+        plan.bloques,
+      ))
+        bloque.set(mid, { ...bloque.get(mid)!, criterios });
+      const x = bloque.get(id);
+      if (!x) continue;
       // Como en el análisis (v3): un mensaje de seguimiento queda con esa categoría.
       const seguimiento =
-        marcas.get(id) === 'S' &&
-        x &&
-        x.categoria !== 'seguimiento' &&
-        x.categoria !== 'multimedia';
-      if (x)
-        obtenidos.set(id, {
-          categoria: seguimiento ? 'seguimiento' : x.categoria,
-          criterios: x.criterios,
-        });
+        marcas.get(id) === 'S' && x.categoria !== 'seguimiento' && x.categoria !== 'multimedia';
+      obtenidos.set(id, seguimiento ? { ...x, categoria: 'seguimiento' } : x);
     }
   }
   const esperados = new Map(
