@@ -108,3 +108,84 @@ Observaciones para el cliente:
 - Carga histórica completa de 90 días en el servidor (≈ 125.000 llamadas; se reparte respetando el
   límite diario de GHL).
 - Horario real de cada asesora (el actual es provisional).
+
+## Fase 4 · primer análisis de calidad real (16 de noviembre de 2026)
+
+Jade18K, semana del 9 al 15 de noviembre, lanzado como análisis manual por la API
+(`POST /api/calidad/analisis`) y procesado con `calidad-revisar` (Batches API, `claude-haiku-5-5`,
+rúbrica `v1-2026-11`). Base local recreada con `docs/desarrollo-piloto.md`.
+
+### Costo y volumen
+
+| Concepto                    | Estimado | Real      | Diferencia |
+| --------------------------- | -------- | --------- | ---------- |
+| Solicitudes (una por conv.) | 452      | 452       | —          |
+| Mensajes calificados        | 1.212    | 1.212     | 0 fallidos |
+| Tokens de entrada           | 732.073  | 1.183.607 | +62 %      |
+| Tokens de salida            | 77.960   | 137.772   | +77 %      |
+| Costo (US$)                 | 0,0303   | 0,0523    | +73 %      |
+
+- El costo real quedó dentro de los US$ 0,06 aprobados, pero **la estimación se queda corta en
+  ~70 %**: hay que corregirla antes de que se use como control del tope mensual.
+- El lote tardó unos 6 minutos (enviado 08:53, terminado 09:00 UTC).
+- Universo: 454 conversaciones elegibles (todas entraron a la muestra); descartes: 284 fuera de las
+  etapas de calidad, 31 triviales, 63 por el tope de mensajes por conversación y 2 sin mensajes
+  calificables.
+
+### Resultado
+
+| Categoría                | Mensajes | Puntaje medio |
+| ------------------------ | -------- | ------------- |
+| Saludo o plantilla       | 350      | 2,1           |
+| Información/precio       | 324      | 3,0           |
+| Pregunta de calificación | 260      | 3,2           |
+| Seguimiento              | 85       | 2,7           |
+| Llamada a la acción      | 78       | 3,3           |
+| Respuesta a pregunta     | 66       | 2,7           |
+| Multimedia (sin puntaje) | 36       | —             |
+| Manejo de objeción       | 13       | 3,4           |
+
+De los 1.176 mensajes con puntaje, 310 obtuvieron 4–5 y 573 obtuvieron 1–2. Criterios cumplidos:
+extensión 74 %, tono 70 %, siguiente paso 52 %, responde 44 %, personalizado 34 %. El puntaje medio
+por asesora va de 2,7 a 2,9.
+
+### Revisión manual de 100 mensajes
+
+Muestra aleatoria y reproducible (orden por `md5(message_id || 'semilla42')`) de los 1.212 mensajes
+calificados, revisada con el contexto previo de cada conversación.
+
+| Resultado                                                    | Mensajes |
+| ------------------------------------------------------------ | -------- |
+| De acuerdo con la categoría y los cinco criterios            | 83       |
+| Categoría discutible (puntaje correcto)                      | 9        |
+| Un criterio discutible (puntaje a ±1)                        | 7        |
+| Error de puntaje de 2 o más puntos                           | 1        |
+| **Puntaje dentro de ±1 del que asignaría un revisor humano** | **99**   |
+
+Patrones observados:
+
+- **"personalizado" inconsistente en textos idénticos.** La misma frase de presentación recibió
+  "personalizado" verdadero en un caso y falso en otros; lo mismo ocurrió con la plantilla de
+  seguimiento ("retomar aquella joyita…": puntaje 4 en un caso y 2 en otro, el único error de 2
+  puntos) y con "Me envía captura de su modelo…". Conviene reforzar en la rúbrica que el nombre del
+  asesor o un trato genérico ("caballero", "señorita") no cuentan como personalización.
+- **"seguimiento" se usa para respuestas** que no retoman una conversación en silencio (por
+  ejemplo, "Perfecto señorita, estoy atenta" tras un mensaje del cliente).
+- Mensajes que solo envían un enlace de catálogo quedaron como "llamada a la acción" o "multimedia"
+  según el caso; lo esperable es "información de producto".
+- Los saludos sueltos ("Hola, buenos días ☺️") y los "ahora le brindo información" sin contenido se
+  califican de forma consistente como plantilla con puntaje 1–2, que es lo correcto.
+
+Observaciones para el cliente (sin datos personales):
+
+- Las asesoras dividen el saludo en varios mensajes cortos (saludo, presentación, "ahora le brindo
+  información"); cada uno se califica por separado y baja el promedio.
+- En al menos tres conversaciones de la muestra una asesora pide continuar por su número personal
+  porque "el programa se bloquea después de unas horas". Esas conversaciones dejan de quedar
+  registradas en GHL.
+- Varias cotizaciones se reenvían con pesos distintos sin explicar el cambio.
+
+### Pendiente
+
+- Corregir la estimación de tokens (subestima ~70 %).
+- Ajustar la rúbrica según los patrones anteriores y versionarla (`v2`).

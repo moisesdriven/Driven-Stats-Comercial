@@ -2,14 +2,17 @@
 
 Guía para recrear en una sesión nueva la base local de prueba y lanzar el primer análisis de
 calidad real. Requiere las variables del entorno: `GHL_PIT_PILOTO`, `GHL_LOCATION_ID_PILOTO` y
-`ANTHROPIC_API_KEY` (nunca se escriben en el repositorio).
+`ANTHROPIC_API_KEY` (nunca se escriben en el repositorio). En el entorno en la nube la clave de
+Anthropic llega como `DRIVEN_ANTHROPIC_API_KEY`: se pasa al worker con
+`export ANTHROPIC_API_KEY="$DRIVEN_ANTHROPIC_API_KEY"`.
 
 ## Estado pendiente (16 nov 2026)
 
 - Fase 4 construida y probada con Anthropic simulado.
-- Pendiente: primer análisis real de Jade18K, semana del 9 al 15 de noviembre. **Costo estimado
-  US$ 0,06, aprobado por el cliente.** Al terminar: comparar costo real con el estimado y revisar a
-  mano 100 mensajes calificados (anotar el resultado en `docs/validacion.md`).
+- Primer análisis real de Jade18K (semana del 9 al 15 de noviembre) hecho el 16 nov: costo real
+  US$ 0,0523 frente a US$ 0,0303 estimado; revisión manual de 100 mensajes en
+  `docs/validacion.md`.
+- Pendiente: corregir la estimación de tokens (subestima ~70 %) y ajustar la rúbrica.
 
 ## 1. PostgreSQL local
 
