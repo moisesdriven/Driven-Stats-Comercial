@@ -13,6 +13,7 @@
 #   bash servidor.sh revertir        vuelve a la versión anterior
 #   bash servidor.sh respaldo        pg_dump del esquema comercial en /opt/driven-comercial/respaldos
 #   bash servidor.sh historico [DIAS] [LOCATION_ID]
+#   bash servidor.sh recalcular [DIAS]  vuelve a calcular los indicadores (tras cambiar reglas)
 #
 # No toca contenedores, redes ni bases de otras aplicaciones. Solo usa la red "web" de Traefik.
 # =====================================================================================
@@ -283,7 +284,16 @@ cmd_historico() {
   listo 'Carga encolada. Avance: docker logs -f comercial-worker'
 }
 
-ayuda() { sed -n '3,17p' "$0" | sed 's/^# \{0,1\}//'; }
+# ------------------------------------------------------------------------------------- recalcular
+cmd_recalcular() {
+  local dias="${1:-90}"
+  [[ "$dias" =~ ^[0-9]+$ ]] && [ "$dias" -ge 1 ] && [ "$dias" -le 365 ] || fallo 'DIAS debe estar entre 1 y 365.'
+  paso 1 "Recalcular los indicadores de los últimos $dias días (no consulta GHL)"
+  docker exec comercial-worker node dist/cli.js resumen --dias "$dias"
+  listo 'Indicadores recalculados.'
+}
+
+ayuda() { sed -n '3,18p' "$0" | sed 's/^# \{0,1\}//'; }
 
 comando="${1:-ayuda}"; shift || true
 case "$comando" in
@@ -296,5 +306,6 @@ case "$comando" in
   revertir) cmd_revertir ;;
   respaldo) cmd_respaldo ;;
   historico) cmd_historico "$@" ;;
+  recalcular) cmd_recalcular "$@" ;;
   *) ayuda ;;
 esac

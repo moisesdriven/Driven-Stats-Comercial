@@ -2,6 +2,11 @@
  * Métricas por lead y agregación de los 8 indicadores (ESPECIFICACION.md §3 y §5) con las
  * decisiones del cliente (docs/mapeo-origen.md §5):
  * - Solo los mensajes `manual` cuentan como atención del asesor.
+ * - Reglas del cliente (16 nov 2026): los mensajes de entrada al CRM ("Headline" o "*Headline*") no
+ *   cuentan; mientras el lead está en la etapa Nuevo (lo atiende el workflow) sus mensajes no se miden;
+ *   se mide cada mensaje del cliente que responde el asesor, desde el primero sin responder; si el
+ *   agente IA responde antes, cuenta como respuesta ganada por la IA; "sin responder" es un mensaje
+ *   que no respondió ni el asesor ni el agente IA.
  * - Un lead perdido sale de las listas operativas (sin responder, en espera, pendientes,
  *   interesados) y se cuenta en leads perdidos; sigue contando como recibido para la conversión.
  * - Seguimiento vencido (requiere acción) frente a programado (tarea futura).
@@ -45,6 +50,29 @@ export interface MensajeLead {
   fecha: Date;
   direccion: 'inbound' | 'outbound';
   origen: Origen | null;
+  /** Mensaje de entrada al CRM ("Headline: …"): no es un mensaje del cliente y no se cuenta. */
+  entrada?: boolean;
+}
+
+/** Patrón de los mensajes de entrada al CRM: empiezan con "Headline" o "*Headline*". */
+export const PATRON_MENSAJE_ENTRADA = /^\s*\*?headline/i;
+/** El mismo patrón para PostgreSQL (operador `~*`). */
+export const PATRON_MENSAJE_ENTRADA_SQL = '^\\s*\\*?headline';
+
+export function esMensajeDeEntrada(texto: string | null | undefined): boolean {
+  return texto ? PATRON_MENSAJE_ENTRADA.test(texto) : false;
+}
+
+/** Periodo en que el lead estuvo en la etapa estándar Nuevo (`hasta` nulo = sigue ahí). */
+export interface PeriodoEtapa {
+  desde: Date;
+  hasta: Date | null;
+}
+
+/** Una respuesta del asesor: cuándo escribió el cliente (primer mensaje sin responder) y cuánto tardó. */
+export interface RespuestaAsesor {
+  clienteEn: Date;
+  minutos: number;
 }
 
 export interface TareaLead {
@@ -60,6 +88,8 @@ export interface DatosLead {
   etapaEstandar: string | null;
   ventaEn: Date | null;
   tareas?: readonly TareaLead[];
+  /** Periodos en la etapa Nuevo (historial de etapas). Sin historial, cuenta la etapa actual. */
+  periodosNuevo?: readonly PeriodoEtapa[];
 }
 
 export interface TiempoAsesor {
@@ -69,7 +99,14 @@ export interface TiempoAsesor {
 }
 
 export interface MetricasLead {
+  /** Tiempo de la primera respuesta del asesor (min laborales); null si no respondió. */
   minutosRespuesta: number | null;
+  /** Cada mensaje del cliente respondido por el asesor (el tiempo corre desde el primero sin responder). */
+  respuestasAsesor: RespuestaAsesor[];
+  /** Mensajes del cliente que el agente IA respondió antes que el asesor (fecha del mensaje del cliente). */
+  ganadasIa: Date[];
+  /** Primer mensaje del cliente aún sin respuesta del asesor ni del agente IA. */
+  pendienteDesde: Date | null;
   primeraHumanaEn: Date | null;
   sinResponder: boolean;
   enEspera: boolean;
@@ -128,9 +165,15 @@ export function metricasLead(
   u: Umbrales,
   ahora: Date,
 ): MetricasLead {
+  // Los mensajes de entrada al CRM ("Headline") no son mensajes del cliente: no se cuentan.
+  // A igual hora, primero el mensaje del cliente: una respuesta automática puede llevar el mismo segundo.
   const mensajes = d.mensajes
-    .filter((m) => m.fecha <= ahora)
-    .sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+    .filter((m) => m.fecha <= ahora && !m.entrada)
+    .sort(
+      (a, b) =>
+        a.fecha.getTime() - b.fecha.getTime() ||
+        (a.direccion === b.direccion ? 0 : a.direccion === 'inbound' ? -1 : 1),
+    );
   const desdeIngreso = mensajes.filter((m) => m.fecha >= d.ingresoEn);
   const humanos = desdeIngreso.filter((m) => m.direccion === 'outbound' && m.origen === 'manual');
   const entrantes = mensajes.filter((m) => m.direccion === 'inbound');
@@ -143,7 +186,36 @@ export function metricasLead(
   const vendido = d.ventaEn !== null && d.ventaEn <= ahora;
   const minLab = (a: Date, b: Date) => minutosLaborales(a, b, t.horario, t.ausencias, t.zona);
 
-  const minutosRespuesta = primeraHumana ? minLab(d.ingresoEn, primeraHumana) : null;
+  // Respuestas: cada mensaje medible del cliente abre una espera (si no había una) que cierra la
+  // primera respuesta del asesor (se mide) o del agente IA (ganada por la IA). Los workflows y las
+  // campañas no cuentan como respuesta. En la etapa Nuevo los mensajes del cliente no se miden.
+  const periodos = d.periodosNuevo ?? [];
+  const enNuevo = (f: Date) =>
+    periodos.length
+      ? periodos.some((p) => f >= p.desde && (p.hasta === null || f < p.hasta))
+      : d.etapaEstandar === 'nuevo';
+  const respuestasAsesor: RespuestaAsesor[] = [];
+  const ganadasIa: Date[] = [];
+  let pendienteDesde: Date | null = null;
+  let huboRespuesta = false;
+  for (const m of desdeIngreso) {
+    if (m.direccion === 'inbound') {
+      if (!pendienteDesde && !enNuevo(m.fecha)) pendienteDesde = m.fecha;
+      continue;
+    }
+    if (m.origen !== 'manual' && m.origen !== 'agente_ia') continue;
+    if (pendienteDesde) {
+      if (m.origen === 'manual')
+        respuestasAsesor.push({
+          clienteEn: pendienteDesde,
+          minutos: minLab(pendienteDesde, m.fecha),
+        });
+      else ganadasIa.push(pendienteDesde);
+      pendienteDesde = null;
+    }
+    huboRespuesta = true;
+  }
+  const minutosRespuesta = respuestasAsesor[0]?.minutos ?? null;
   const intentosInicios = bloquesDeIntentos(desdeIngreso, t, u);
 
   const respuestaEfectiva =
@@ -157,13 +229,10 @@ export function metricasLead(
     ultimo.direccion === 'outbound' &&
     ahora.getTime() - ultimo.fecha.getTime() >= u.abandonoHoras * 3_600_000;
 
-  const sinResponder = !perdido && primeraHumana === null;
-  const enEspera =
-    !perdido &&
-    primeraHumana !== null &&
-    ultimoEntrante !== null &&
-    (ultimoHumano === null || ultimoEntrante > ultimoHumano) &&
-    minLab(ultimoEntrante, ahora) > u.esperaMin;
+  // Sin responder: un mensaje del cliente que no respondió ni el asesor ni el agente IA, fuera de la
+  // etapa Nuevo. "En espera" es el subconjunto que ya venía conversando y lleva más de N minutos.
+  const sinResponder = !perdido && pendienteDesde !== null && d.etapaEstandar !== 'nuevo';
+  const enEspera = sinResponder && huboRespuesta && minLab(pendienteDesde!, ahora) > u.esperaMin;
 
   const enSeguimiento =
     abierto && d.etapaEstandar !== null && ETAPAS_SEGUIMIENTO.has(d.etapaEstandar);
@@ -196,6 +265,9 @@ export function metricasLead(
 
   return {
     minutosRespuesta,
+    respuestasAsesor,
+    ganadasIa,
+    pendienteDesde,
     primeraHumanaEn: primeraHumana,
     sinResponder,
     enEspera,
@@ -224,8 +296,10 @@ export function metricasLead(
  */
 export interface Acumulado {
   leadsRecibidos: number;
-  /** Minutos laborales hasta la primera respuesta humana de los leads recibidos ese día. */
+  /** Minutos laborales de cada respuesta del asesor a mensajes del cliente escritos ese día. */
   tiemposRespuesta: number[];
+  /** Mensajes del cliente de ese día que el agente IA respondió antes que el asesor. */
+  respuestasIa: number;
   leadsConRespuesta: number;
   respuestasEfectivas: number;
   abandonos: number;
@@ -254,6 +328,7 @@ export function acumuladoVacio(): Acumulado {
   return {
     leadsRecibidos: 0,
     tiemposRespuesta: [],
+    respuestasIa: 0,
     leadsConRespuesta: 0,
     respuestasEfectivas: 0,
     abandonos: 0,
@@ -292,6 +367,7 @@ export function sumarAcumulados(lista: readonly Acumulado[]): Acumulado {
   for (const a of lista) {
     r.leadsRecibidos += a.leadsRecibidos;
     r.tiemposRespuesta.push(...a.tiemposRespuesta);
+    r.respuestasIa += a.respuestasIa ?? 0;
     r.leadsConRespuesta += a.leadsConRespuesta;
     r.respuestasEfectivas += a.respuestasEfectivas;
     r.abandonos += a.abandonos;
@@ -338,6 +414,12 @@ export interface Indicadores {
   leadsRecibidos: number;
   tiempoRespuestaMediana: number | null;
   tiempoRespuestaPromedio: number | null;
+  /** Respuestas del asesor medidas en el periodo. */
+  respuestasAsesor: number;
+  /** Respuestas que ganó el agente IA (respondió antes que el asesor). */
+  respuestasIa: number;
+  /** % de las respuestas que ganó el agente IA. */
+  respuestasIaPct: number | null;
   /** Indicador 2: lo completa el último análisis de calidad (fase 4); null = "Sin análisis". */
   calidad: number | null;
   sinResponder: number;
@@ -376,6 +458,9 @@ export function calcularIndicadores(
       a.tiemposRespuesta.reduce((s, x) => s + x, 0),
       a.tiemposRespuesta.length,
     ),
+    respuestasAsesor: a.tiemposRespuesta.length,
+    respuestasIa: a.respuestasIa ?? 0,
+    respuestasIaPct: pct(a.respuestasIa ?? 0, a.tiemposRespuesta.length + (a.respuestasIa ?? 0)),
     calidad,
     sinResponder: a.fotoSinResponder,
     enEspera: a.fotoEnEspera,

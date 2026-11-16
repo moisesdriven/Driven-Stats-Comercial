@@ -39,9 +39,32 @@ const lead = (mensajes: MensajeLead[], extra: Partial<DatosLead> = {}): DatosLea
   ...extra,
 });
 
-describe('metricasLead: atención', () => {
-  it('el tiempo de respuesta usa la primera respuesta humana, en minutos laborales', () => {
-    // Entra a las 12:58, responden IA y workflow al instante; la asesora a las 14:03.
+const headline = (f: Date): MensajeLead => ({ ...ent(f), entrada: true });
+
+describe('metricasLead: atención (reglas del 16 nov 2026)', () => {
+  it('mide cada mensaje respondido por el asesor, desde el primero sin responder; el Headline no cuenta', () => {
+    const d = lead([
+      headline(L(16, '10:00')),
+      ent(L(16, '10:02')),
+      ent(L(16, '10:05')),
+      hum(L(16, '10:20')),
+      ent(L(16, '10:30')),
+      hum(L(16, '10:34')),
+    ]);
+    const m = metricasLead(d, T, U, L(16, '11:00'));
+    expect(m.respuestasAsesor.map((r) => r.minutos)).toEqual([18, 4]);
+    expect(m.respuestasAsesor[0]!.clienteEn).toEqual(L(16, '10:02'));
+    expect(m.minutosRespuesta).toBe(18);
+    expect(m.sinResponder).toBe(false);
+  });
+
+  it('un lead que solo trae el Headline no queda sin responder', () => {
+    const m = metricasLead(lead([headline(L(16, '10:00'))]), T, U, L(16, '12:00'));
+    expect(m.sinResponder).toBe(false);
+    expect(m.respuestasAsesor).toEqual([]);
+  });
+
+  it('si el agente IA responde antes que el asesor, es una respuesta ganada por la IA', () => {
     const d = lead([
       ent(L(16, '12:58')),
       wf(L(16, '12:58')),
@@ -49,15 +72,44 @@ describe('metricasLead: atención', () => {
       hum(L(16, '14:03')),
     ]);
     const m = metricasLead(d, T, U, L(16, '15:00'));
-    expect(m.minutosRespuesta).toBe(5); // 2 min antes del almuerzo + 3 después
+    expect(m.ganadasIa).toEqual([L(16, '12:58')]);
+    expect(m.respuestasAsesor).toEqual([]);
+    expect(m.minutosRespuesta).toBeNull();
     expect(m.sinResponder).toBe(false);
   });
 
-  it('un lead atendido solo por la IA o un workflow sigue sin responder', () => {
-    const d = lead([ent(L(16, '10:00')), ia(L(16, '10:00')), wf(L(16, '10:01'))]);
+  it('a igual hora, la respuesta del agente IA va después del mensaje del cliente', () => {
+    const m = metricasLead(lead([ia(L(16, '10:00')), ent(L(16, '10:00'))]), T, U, L(16, '11:00'));
+    expect(m.ganadasIa).toHaveLength(1);
+    expect(m.sinResponder).toBe(false);
+  });
+
+  it('el tiempo del asesor corre en minutos laborales', () => {
+    const d = lead([ent(L(16, '12:58')), wf(L(16, '12:58')), hum(L(16, '14:03'))]);
+    expect(metricasLead(d, T, U, L(16, '15:00')).minutosRespuesta).toBe(5); // 2 antes del almuerzo + 3
+  });
+
+  it('sin responder: mensaje sin respuesta del asesor ni del agente IA (un workflow no cuenta)', () => {
+    const d = lead([ent(L(16, '10:00')), wf(L(16, '10:01'))]);
     const m = metricasLead(d, T, U, L(16, '11:00'));
     expect(m.sinResponder).toBe(true);
-    expect(m.minutosRespuesta).toBeNull();
+    expect(m.pendienteDesde).toEqual(L(16, '10:00'));
+  });
+
+  it('en la etapa Nuevo no se mide nada', () => {
+    const periodosNuevo = [{ desde: L(16, '09:00'), hasta: L(16, '11:00') }];
+    const d = lead(
+      [ent(L(16, '10:00')), hum(L(16, '10:30')), ent(L(16, '11:30')), hum(L(16, '11:40'))],
+      { periodosNuevo },
+    );
+    expect(metricasLead(d, T, U, L(16, '12:00')).respuestasAsesor.map((r) => r.minutos)).toEqual([
+      10,
+    ]);
+    // Sigue en Nuevo y sin historial: su mensaje no queda como sin responder.
+    const nuevo = lead([ent(L(16, '10:00'))], { etapaEstandar: 'nuevo' });
+    const m = metricasLead(nuevo, T, U, L(16, '12:00'));
+    expect(m.sinResponder).toBe(false);
+    expect(m.pendienteDesde).toBeNull();
   });
 
   it('un lead perdido sale de sin responder', () => {
@@ -65,15 +117,14 @@ describe('metricasLead: atención', () => {
     expect(metricasLead(d, T, U, L(16, '11:00')).sinResponder).toBe(false);
   });
 
-  it('en espera: atendido y su último mensaje lleva más de 15 min laborales sin respuesta humana', () => {
-    const base = [
-      ent(L(16, '10:00')),
-      hum(L(16, '10:05')),
-      ent(L(16, '10:30')),
-      ia(L(16, '10:31')),
-    ];
+  it('en espera: ya conversaba y su mensaje lleva más de 15 min laborales sin respuesta', () => {
+    const base = [ent(L(16, '10:00')), hum(L(16, '10:05')), ent(L(16, '10:30'))];
     expect(metricasLead(lead(base), T, U, L(16, '10:50')).enEspera).toBe(true);
     expect(metricasLead(lead(base), T, U, L(16, '10:40')).enEspera).toBe(false);
+    // Si el agente IA lo respondió, ya no está esperando.
+    expect(metricasLead(lead([...base, ia(L(16, '10:31'))]), T, U, L(16, '10:50')).enEspera).toBe(
+      false,
+    );
     // Fuera de horario no corre el reloj: 12:55 → 14:05 = 5 + 5 min.
     const almuerzo = [ent(L(16, '10:00')), hum(L(16, '10:05')), ent(L(16, '12:55'))];
     expect(metricasLead(lead(almuerzo), T, U, L(16, '14:05')).enEspera).toBe(false);
