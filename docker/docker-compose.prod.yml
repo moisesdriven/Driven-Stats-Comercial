@@ -1,0 +1,24 @@
+# Producción en el servidor (se completa en la fase 7).
+# Red propia, sin tocar nada de Driven Conteo. La web solo escucha en 127.0.0.1.
+name: driven-comercial
+
+services:
+  web:
+    image: ${IMAGEN_WEB:-ghcr.io/moisesdriven/driven-comercial-web}:${ETIQUETA:-latest}
+    container_name: comercial-web
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '127.0.0.1:${PUERTO_WEB:-3100}:3100'
+    networks: [comercial]
+
+  worker:
+    image: ${IMAGEN_WORKER:-ghcr.io/moisesdriven/driven-comercial-worker}:${ETIQUETA:-latest}
+    container_name: comercial-worker
+    restart: unless-stopped
+    env_file: .env
+    networks: [comercial]
+
+networks:
+  comercial:
+    name: comercial

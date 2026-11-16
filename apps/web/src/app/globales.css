@@ -1,0 +1,30 @@
+:root {
+  --primario: #1f5bff;
+  --primario-hover: #0b3fd9;
+  --texto: #0b0d12;
+  --texto-secundario: #5b6475;
+  --borde: #e3e8f2;
+  --fondo-trabajo: linear-gradient(180deg, #ffffff 0%, #eef2f9 100%);
+  --fondo-menu: linear-gradient(180deg, #0b0d12 0%, #1b2030 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, system-ui, sans-serif;
+  color: var(--texto);
+  background: var(--fondo-trabajo);
+}
+
+a {
+  color: var(--primario);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--primario-hover);
+}

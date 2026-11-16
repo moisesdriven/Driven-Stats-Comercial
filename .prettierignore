@@ -1,0 +1,7 @@
+pnpm-lock.yaml
+diseno/
+PROMPT.md
+ESPECIFICACION.md
+.next/
+dist/
+coverage/
