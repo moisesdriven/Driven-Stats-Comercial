@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   INSTRUCCIONES_CALIDAD,
+  compararCalibracion,
+  unificarPorTexto,
+  type CalificacionTexto,
+  type Criterios,
+  type EtiquetaCalidad,
   costoReal,
   esTrivial,
   estimarCosto,
@@ -201,5 +206,105 @@ describe('mejor y peor mensaje', () => {
     ]);
     expect(r.get('A')).toEqual({ mejor: 'a2', peor: 'a3' });
     expect(r.get('B')).toEqual({ mejor: 'b1', peor: 'b1' });
+  });
+});
+
+const crit = (bits: string): Criterios => ({
+  responde: bits[0] === '1',
+  personalizado: bits[1] === '1',
+  siguiente_paso: bits[2] === '1',
+  tono: bits[3] === '1',
+  extension: bits[4] === '1',
+});
+
+describe('consistencia por texto', () => {
+  const cal = (
+    messageId: string,
+    conversationId: string,
+    texto: string,
+    bits: string,
+  ): CalificacionTexto => ({
+    messageId,
+    conversationId,
+    texto,
+    categoria: 'seguimiento',
+    criterios: crit(bits),
+  });
+  const plantilla = 'Buenas tardes 😊 ¿Aún tiene en mente la joyita que estuvimos viendo?';
+
+  it('un texto enviado a varias conversaciones nunca es personalizado', () => {
+    const r = unificarPorTexto([
+      cal('a', 'c1', plantilla, '11111'),
+      cal('b', 'c2', plantilla.toUpperCase(), '10111'),
+    ]);
+    expect(r.grupos).toBe(1);
+    expect(r.cambios.get('a')).toEqual(crit('10111'));
+    expect(r.cambios.has('b')).toBe(false);
+  });
+
+  it('tono y extensión por mayoría; empate = falso; responde y siguiente paso no se tocan', () => {
+    const r = unificarPorTexto([
+      cal('a', 'c1', plantilla, '00011'),
+      cal('b', 'c2', plantilla, '11110'),
+      cal('c', 'c3', plantilla, '00010'),
+      cal('d', 'c4', plantilla, '00001'),
+    ]);
+    // tono: 3 de 4 → verdadero; extensión: 2 de 4 → empate → falso.
+    expect(r.cambios.get('a')).toEqual(crit('00010'));
+    expect(r.cambios.get('b')).toEqual(crit('10110'));
+    expect(r.cambios.has('c')).toBe(false);
+    expect(r.cambios.get('d')).toEqual(crit('00010'));
+  });
+
+  it('dentro de una misma conversación, personalizado por mayoría', () => {
+    const r = unificarPorTexto([
+      cal('a', 'c1', plantilla, '01111'),
+      cal('b', 'c1', plantilla, '01111'),
+      cal('c', 'c1', plantilla, '00111'),
+    ]);
+    expect(r.cambios.get('c')).toEqual(crit('01111'));
+  });
+
+  it('no agrupa textos cortos, únicos ni multimedia', () => {
+    const r = unificarPorTexto([
+      cal('a', 'c1', 'Hola ☺️', '11111'),
+      cal('b', 'c2', 'Hola ☺️', '00000'),
+      cal('c', 'c3', plantilla, '11111'),
+      { ...cal('d', 'c4', plantilla, '00000'), categoria: 'multimedia' },
+    ]);
+    expect(r.grupos).toBe(0);
+    expect(r.cambios.size).toBe(0);
+  });
+});
+
+describe('calibración', () => {
+  const e = (categoria: EtiquetaCalidad['categoria'], bits: string): EtiquetaCalidad => ({
+    categoria,
+    criterios: crit(bits),
+  });
+
+  it('mide coincidencias por categoría, criterio y puntaje', () => {
+    const esperados = new Map([
+      ['m1', e('info_producto_precio', '11111')],
+      ['m2', e('saludo_plantilla', '00011')],
+      ['m3', e('seguimiento', '10011')],
+      ['m4', e('multimedia', '00000')],
+    ]);
+    const obtenidos = new Map([
+      ['m1', e('info_producto_precio', '11111')],
+      ['m2', e('pregunta_calificacion', '01011')], // categoría distinta y puntaje +1
+      ['m4', e('multimedia', '11111')], // sin puntaje en ambos
+    ]);
+    const r = compararCalibracion(esperados, obtenidos);
+    expect(r.total).toBe(4);
+    expect(r.sinRespuesta).toBe(1);
+    expect(r.categoria).toBe(2);
+    expect(r.criteriosCompletos).toBe(1);
+    expect(r.puntajeExacto).toBe(2);
+    expect(r.puntajeUnPunto).toBe(3);
+    expect(r.tasas.puntajeExacto).toBe(0.5);
+    expect(r.criterios.personalizado).toBe(1);
+    expect(r.diferencias.map((d) => `${d.messageId}:${d.campo}`)).toContain('m2:categoria');
+    expect(r.diferencias.map((d) => `${d.messageId}:${d.campo}`)).toContain('m3:respuesta');
   });
 });

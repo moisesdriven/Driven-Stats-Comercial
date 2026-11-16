@@ -16,7 +16,10 @@ import {
   costoReal,
   mejorYPeor,
   puntajeDeCriterios,
+  unificarPorTexto,
   type Calificacion,
+  type CategoriaCalidad,
+  type Criterios,
 } from '@driven/core';
 import {
   gastoDelMes,
@@ -29,7 +32,7 @@ import {
 import { enLotes, log } from '../sync/util';
 import { dividirEnLotes, type ProveedorLotes, type SolicitudLote } from './proveedor';
 
-const esquemaRespuesta = z.object({
+export const esquemaRespuesta = z.object({
   mensajes: z.array(
     z.object({
       n: z.number().int().min(1),
@@ -169,7 +172,7 @@ export async function prepararAnalisis(
     }
     const solicitudes: SolicitudLote[] = prep.solicitudes.map((s) => ({
       custom_id: s.customId,
-      params: parametrosSolicitud(s, cfg.modelo),
+      params: parametrosSolicitud(s, cfg.modelo, cfg.ajustes),
     }));
     const batchIds = await enviar(
       db,
@@ -364,7 +367,7 @@ export async function revisarAnalisis(
       analisisId,
       nuevas.map((s) => ({
         custom_id: s.customId,
-        params: parametrosSolicitud(s, a.modelo ?? cfg.modelo),
+        params: parametrosSolicitud(s, a.modelo ?? cfg.modelo, cfg.ajustes),
       })),
       nuevas.map((s) => s.conversationId),
     );
@@ -376,8 +379,49 @@ export async function revisarAnalisis(
   return 'terminado';
 }
 
-/** Cierra el análisis: mejor y peor mensaje por asesor y totales. */
+/**
+ * Misma frase, mismo resultado (§6.2): unifica tono, extensión y personalización entre mensajes con
+ * el mismo texto dentro del análisis y recalcula su puntaje. Devuelve cuántos mensajes cambiaron.
+ */
+export async function unificarAnalisis(db: Db, analisisId: number): Promise<number> {
+  const filas = await db.execute<{
+    message_id: string;
+    conversation_id: string;
+    categoria: string;
+    criterios: Criterios;
+    texto: string | null;
+  }>(sql`
+    select c.message_id, c.conversation_id, c.categoria, c.criterios, m.texto
+    from comercial.clasificaciones c
+    join comercial.mensajes m on m.message_id = c.message_id
+    where c.analisis_id = ${analisisId}`);
+  const { cambios, grupos } = unificarPorTexto(
+    filas.rows.map((f) => ({
+      messageId: f.message_id,
+      conversationId: f.conversation_id,
+      texto: f.texto ?? '',
+      categoria: f.categoria as CategoriaCalidad,
+      criterios: f.criterios,
+    })),
+  );
+  for (const [messageId, criterios] of cambios) {
+    await db
+      .update(tablas.clasificaciones)
+      .set({ criterios, puntaje: puntajeDeCriterios(criterios) })
+      .where(
+        and(
+          eq(tablas.clasificaciones.analisisId, analisisId),
+          eq(tablas.clasificaciones.messageId, messageId),
+        ),
+      );
+  }
+  if (cambios.size) log('calidad_unificado', { analisisId, grupos, mensajes: cambios.size });
+  return cambios.size;
+}
+
+/** Cierra el análisis: unificación por texto, mejor y peor mensaje por asesor y totales. */
 export async function cerrarAnalisis(db: Db, analisisId: number): Promise<void> {
+  await unificarAnalisis(db, analisisId);
   const cal = await db.execute<{
     message_id: string;
     asesor_id: string | null;

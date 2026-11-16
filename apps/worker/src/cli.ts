@@ -6,6 +6,7 @@
  *   node dist/cli.js resumen [--dias 7] [--subcuenta <locationId>]      recalcula resumen_diario
  *   node dist/cli.js calidad-estimar --subcuenta ID --desde F --hasta F   costo estimado (no envía nada)
  *   node dist/cli.js calidad-revisar                                     revisa lotes enviados ahora
+ *   node dist/cli.js calidad-calibrar --archivo F [--minimo 0.9] [--esfuerzo low] [--pensamiento si]  coincidencia con la revisión humana
  *   node dist/cli.js estado                                             últimas ejecuciones
  * Con --directo se ejecuta en este proceso en vez de encolar (útil en pruebas en modo sombra).
  */
@@ -16,9 +17,11 @@ import {
   crearConexion,
   ESQUEMA_COLA,
   gastoDelMes,
+  leerAjustesIa,
   prepararSolicitudes,
   tablas,
 } from '@driven/db';
+import { calibrar, leerConjunto } from './calidad/calibracion';
 import { procesarPendientes } from './calidad/proceso';
 import { ProveedorAnthropic } from './calidad/proveedor';
 import { leerConfiguracion } from './configuracion';
@@ -94,6 +97,25 @@ async function principal() {
     if (comando === 'calidad-revisar') {
       await procesarPendientes(db, new ProveedorAnthropic(), configuracionCalidad(), 'solicitudes');
       await procesarPendientes(db, new ProveedorAnthropic(), configuracionCalidad(), 'revisar');
+      return;
+    }
+    if (comando === 'calidad-calibrar') {
+      const archivo = arg('archivo');
+      if (!archivo) throw new Error('Falta --archivo con el conjunto de calibración.');
+      const minimo = Number(arg('minimo') ?? 0.9);
+      const informe = await calibrar(db, new ProveedorAnthropic(), await leerConjunto(archivo), {
+        modelo: arg('modelo') ?? configuracionCalidad().modelo,
+        ajustes: leerAjustesIa(
+          arg('esfuerzo') ?? process.env.IA_ESFUERZO,
+          arg('pensamiento') ?? process.env.IA_PENSAMIENTO,
+        ),
+      });
+      console.log(JSON.stringify(informe, null, 2));
+      const aprobado = informe.tasas.puntajeExacto >= minimo;
+      console.log(
+        `${aprobado ? 'APROBADO' : 'NO APROBADO'}: puntaje exacto ${(informe.tasas.puntajeExacto * 100).toFixed(1)} % (mínimo ${(minimo * 100).toFixed(0)} %), rúbrica ${informe.versionRubrica}, costo US$ ${informe.costoUsd}`,
+      );
+      if (!aprobado) process.exitCode = 1;
       return;
     }
     if (comando === 'resumen') {

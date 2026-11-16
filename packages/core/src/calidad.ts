@@ -4,7 +4,7 @@
  * mejor/peor mensaje. La E/S (base y Batches API) vive en el worker.
  */
 
-export const VERSION_RUBRICA = 'v1-2026-11';
+export const VERSION_RUBRICA = 'v2-2026-11';
 
 export const CATEGORIAS_CALIDAD = [
   'saludo_plantilla',
@@ -257,30 +257,37 @@ Los mensajes del asesor que debes calificar están marcados como [ASESOR #n]. Lo
 
 Para cada mensaje [ASESOR #n] devuelve:
 1. "categoria": exactamente una de:
-   - "saludo_plantilla": saludo o texto genérico de plantilla que no aporta a lo que el cliente pidió.
-   - "respuesta_pregunta": responde una pregunta concreta del cliente.
-   - "info_producto_precio": da información de producto, modelo, material, precio, envío o forma de pago.
-   - "pregunta_calificacion": pregunta para entender la necesidad del cliente (uso, presupuesto, talla, fecha, ciudad).
-   - "llamada_accion_cierre": invita a comprar, separar, pagar, enviar datos o agendar.
+   - "saludo_plantilla": saludo, presentación del asesor, frase de transición sin contenido ("ahora le brindo información") o confirmación breve ("perfecto, quedo atenta").
+   - "respuesta_pregunta": responde una pregunta concreta del cliente que no es de producto ni de precio (ubicación, plazos, envíos, cómo medir la talla).
+   - "info_producto_precio": da información de producto, modelo, material, precio, envío o forma de pago, incluido el envío de enlaces al catálogo o a un producto.
+   - "pregunta_calificacion": pregunta para entender la necesidad del cliente (tipo de joya, uso, presupuesto, talla, fecha, ciudad, modelo elegido).
+   - "llamada_accion_cierre": invita a comprar, separar, pagar, enviar datos, agendar o visitar la tienda.
    - "manejo_objecion": responde a una duda, desconfianza o queja sobre precio, calidad, tiempos o garantía.
-   - "seguimiento": retoma una conversación que había quedado en silencio.
-   - "multimedia": el mensaje es solo la descripción de una imagen, audio o catálogo.
+   - "seguimiento": el asesor retoma una conversación en la que el cliente llevaba tiempo sin escribir (horas o días). Responder a un mensaje reciente del cliente NUNCA es seguimiento.
+   - "multimedia": el mensaje es solo la descripción de una imagen, audio o video, sin texto propio del asesor.
+   Si el mensaje cumple varias funciones, elige la principal: la que más aporta a lo que el cliente pidió.
 2. "criterios": cinco valores verdadero/falso:
-   - "responde": responde lo que el cliente preguntó o pidió en sus mensajes previos. Si el cliente no preguntó nada, es verdadero cuando el mensaje es pertinente al momento de la conversación.
-   - "personalizado": usa el nombre del cliente o se refiere al contexto específico de su pedido; un texto que serviría igual para cualquier cliente es falso.
-   - "siguiente_paso": incluye un siguiente paso claro (una pregunta concreta, una acción a tomar o una fecha).
-   - "tono": tono cordial y profesional, y ortografía y redacción correctas en español.
+   - "responde": responde lo que el cliente preguntó o pidió en sus mensajes previos. Si el cliente pidió precio y el asesor solo envía un enlace, un saludo o una pregunta sin dar el precio, es falso. Pedir una aclaración necesaria para responder (por ejemplo, qué sistema de tallas usa) es verdadero. Si el cliente no preguntó nada, es verdadero cuando el mensaje es pertinente al momento de la conversación.
+   - "personalizado": verdadero solo si menciona el nombre del cliente o un dato concreto que el cliente dio en la conversación (su talla, su fecha, su ciudad, el modelo que envió o pidió). NO cuentan: el nombre del asesor o de la empresa, tratos genéricos ("caballero", "señorita", "estimado"), referencias vagas ("aquella joyita", "su modelo", "su pedido") ni textos de plantilla que servirían igual para cualquier cliente.
+   - "siguiente_paso": incluye un siguiente paso claro (una pregunta concreta, una acción a tomar o una fecha). Anunciar que se enviará algo ("ahora le brindo información") no es un siguiente paso.
+   - "tono": tono cordial y profesional, y ortografía y redacción correctas en español. Faltas de ortografía evidentes, palabras mal escritas o frases confusas lo hacen falso.
    - "extension": extensión adecuada para WhatsApp (ni un bloque excesivo para lo que se pidió, ni tan breve que deja la respuesta incompleta).
 3. "motivo": una frase breve en español (máximo 120 caracteres) con la razón principal de la evaluación.
 
 Reglas:
 - Evalúa cada mensaje en su contexto: lo que el cliente había escrito antes y lo que el asesor ya había dicho.
-- Sé consistente y estricto: un criterio es verdadero solo si se cumple claramente.
+- Sé consistente y estricto: un criterio es verdadero solo si se cumple claramente. Dos mensajes con el mismo texto y el mismo contexto deben recibir la misma evaluación.
 - Devuelve un elemento por cada [ASESOR #n], con el mismo "n", y nada más.
 - No incluyas datos personales del cliente (teléfonos, correos, direcciones) en "motivo".
 
-Ejemplo de criterios para "Hola María 😊 El anillo solitario en oro 18K de 2 g cuesta S/ 890. ¿Para qué fecha lo necesitas?" tras "¿cuánto cuesta el solitario?": responde=true, personalizado=true, siguiente_paso=true, tono=true, extension=true; categoria="info_producto_precio".
-Ejemplo para "Hola, buenas tardes ☺️ Soy asesora de ventas" tras una pregunta de precio: responde=false, personalizado=false, siguiente_paso=false, tono=true, extension=true; categoria="saludo_plantilla".`;
+Ejemplos (cliente → mensaje del asesor → evaluación):
+- "¿cuánto cuesta el solitario?" → "Hola María 😊 El anillo solitario en oro 18K de 2 g cuesta S/ 890. ¿Para qué fecha lo necesitas?" → info_producto_precio; responde, personalizado, siguiente_paso, tono y extension verdaderos.
+- "Precio por favor" → "Hola, buenas tardes ☺️ Soy Carla, asesora de ventas" → saludo_plantilla; responde=false, personalizado=false (el nombre es de la asesora), siguiente_paso=false, tono=true, extension=true.
+- "¿Cuánto cuesta un anillo de compromiso?" → "Compromiso: https://tienda.ejemplo/anillos" → info_producto_precio; responde=false (no da el precio), personalizado=false, siguiente_paso=false, tono=true, extension=false (incompleto).
+- "Soy talla 7" → "¿Talla 7 estándar o americana? Así le confirmo el peso" → pregunta_calificacion; responde=true (aclaración necesaria), personalizado=true (usa su talla), siguiente_paso=true, tono=true, extension=true.
+- (el cliente no escribe desde hace tres días) → "Buenas tardes 😊 Quería saber si aún tiene en mente aquella joyita que estuvimos viendo" → seguimiento; responde=true, personalizado=false (referencia vaga, sirve para cualquiera), siguiente_paso=false, tono=true, extension=true.
+- "Claro, el fin de semana le aviso" → "Perfecto señorita, quedo atenta" → saludo_plantilla; responde=true, personalizado=false, siguiente_paso=false, tono=true, extension=true.
+- "¿Hacen envíos?" → "si claro ennviamos a todo el peru" → respuesta_pregunta; responde=true, personalizado=false, siguiente_paso=false, tono=false (ortografía), extension=true.`;
 
 /** Esquema JSON de la respuesta (structured outputs). El puntaje se deriva de los criterios. */
 export const ESQUEMA_RESPUESTA_CALIDAD = {
@@ -449,4 +456,157 @@ export function mejorYPeor(
       actual.peor = c;
   }
   return new Map([...r].map(([a, x]) => [a, { mejor: x.mejor.messageId, peor: x.peor.messageId }]));
+}
+
+// ------------------------------------------------------------------ Consistencia por texto
+
+/** Criterios que dependen sobre todo del texto y no del contexto: se unifican entre textos iguales. */
+export const CRITERIOS_DEL_TEXTO = ['tono', 'extension', 'personalizado'] as const;
+
+export interface CalificacionTexto {
+  messageId: string;
+  conversationId: string;
+  texto: string;
+  categoria: CategoriaCalidad;
+  criterios: Criterios;
+}
+
+export interface Unificacion {
+  /** Criterios finales de los mensajes que cambiaron. */
+  cambios: Map<string, Criterios>;
+  /** Grupos de textos iguales (2 o más mensajes) revisados. */
+  grupos: number;
+}
+
+/**
+ * Misma frase, mismo resultado: agrupa los mensajes por texto normalizado y unifica los criterios
+ * que dependen del texto (tono, extensión y personalización). Tono y extensión por mayoría (empate =
+ * falso, criterio estricto). Personalizado es falso si el mismo texto se envió en 2 o más
+ * conversaciones: un texto idéntico para clientes distintos no usa el nombre ni el contexto de
+ * ninguno (§6.2); si se repite dentro de una sola conversación, por mayoría. "Responde" y "siguiente
+ * paso" dependen del contexto y no se tocan. Los textos de menos de 15 caracteres no se agrupan.
+ */
+export function unificarPorTexto(calificaciones: readonly CalificacionTexto[]): Unificacion {
+  const grupos = new Map<string, CalificacionTexto[]>();
+  for (const c of calificaciones) {
+    if (c.categoria === 'multimedia') continue;
+    const clave = normalizarTexto(c.texto);
+    if (clave.length < 15) continue;
+    const lista = grupos.get(clave) ?? [];
+    lista.push(c);
+    grupos.set(clave, lista);
+  }
+  const cambios = new Map<string, Criterios>();
+  let revisados = 0;
+  for (const lista of grupos.values()) {
+    if (lista.length < 2) continue;
+    revisados++;
+    const conversaciones = new Set(lista.map((c) => c.conversationId)).size;
+    const final: Partial<Criterios> = {};
+    for (const k of CRITERIOS_DEL_TEXTO) {
+      const si = lista.filter((c) => c.criterios[k]).length;
+      final[k] = k === 'personalizado' && conversaciones > 1 ? false : si * 2 > lista.length;
+    }
+    for (const c of lista) {
+      const nuevo: Criterios = { ...c.criterios, ...final };
+      if (CRITERIOS_DEL_TEXTO.some((k) => nuevo[k] !== c.criterios[k]))
+        cambios.set(c.messageId, nuevo);
+    }
+  }
+  return { cambios, grupos: revisados };
+}
+
+// ------------------------------------------------------------------ Calibración
+
+export interface EtiquetaCalidad {
+  categoria: CategoriaCalidad;
+  criterios: Criterios;
+}
+
+export interface ResultadoCalibracion {
+  total: number;
+  /** Mensajes del conjunto sin respuesta de la IA (error, rechazo o JSON inválido). */
+  sinRespuesta: number;
+  categoria: number;
+  criterios: Record<Criterio, number>;
+  /** Los cinco criterios iguales. */
+  criteriosCompletos: number;
+  puntajeExacto: number;
+  puntajeUnPunto: number;
+  /** Proporciones (0–1) sobre `total`; los mensajes sin respuesta cuentan como desacuerdo. */
+  tasas: {
+    categoria: number;
+    criteriosCompletos: number;
+    puntajeExacto: number;
+    puntajeUnPunto: number;
+  };
+  diferencias: { messageId: string; campo: string; esperado: string; obtenido: string }[];
+}
+
+const puntajeDe = (e: EtiquetaCalidad) =>
+  e.categoria === 'multimedia' ? null : puntajeDeCriterios(e.criterios);
+
+/** Compara las etiquetas de la IA con las de referencia (revisión humana) mensaje por mensaje. */
+export function compararCalibracion(
+  esperados: ReadonlyMap<string, EtiquetaCalidad>,
+  obtenidos: ReadonlyMap<string, EtiquetaCalidad>,
+): ResultadoCalibracion {
+  const r: ResultadoCalibracion = {
+    total: esperados.size,
+    sinRespuesta: 0,
+    categoria: 0,
+    criterios: Object.fromEntries(CRITERIOS.map((c) => [c, 0])) as Record<Criterio, number>,
+    criteriosCompletos: 0,
+    puntajeExacto: 0,
+    puntajeUnPunto: 0,
+    tasas: { categoria: 0, criteriosCompletos: 0, puntajeExacto: 0, puntajeUnPunto: 0 },
+    diferencias: [],
+  };
+  for (const [id, e] of esperados) {
+    const o = obtenidos.get(id);
+    if (!o) {
+      r.sinRespuesta++;
+      r.diferencias.push({
+        messageId: id,
+        campo: 'respuesta',
+        esperado: 'calificación',
+        obtenido: 'ninguna',
+      });
+      continue;
+    }
+    if (o.categoria === e.categoria) r.categoria++;
+    else
+      r.diferencias.push({
+        messageId: id,
+        campo: 'categoria',
+        esperado: e.categoria,
+        obtenido: o.categoria,
+      });
+    let iguales = 0;
+    for (const c of CRITERIOS) {
+      if (o.criterios[c] === e.criterios[c]) {
+        r.criterios[c]++;
+        iguales++;
+      } else
+        r.diferencias.push({
+          messageId: id,
+          campo: c,
+          esperado: String(e.criterios[c]),
+          obtenido: String(o.criterios[c]),
+        });
+    }
+    if (iguales === CRITERIOS.length) r.criteriosCompletos++;
+    const pe = puntajeDe(e);
+    const po = puntajeDe(o);
+    if (pe === po) r.puntajeExacto++;
+    if (pe === po || (pe !== null && po !== null && Math.abs(pe - po) <= 1)) r.puntajeUnPunto++;
+  }
+  const tasa = (n: number) => (r.total ? Math.round((n / r.total) * 1000) / 1000 : 0);
+  r.tasas = {
+    categoria: tasa(r.categoria),
+    criteriosCompletos: tasa(r.criteriosCompletos),
+    puntajeExacto: tasa(r.puntajeExacto),
+    puntajeUnPunto: tasa(r.puntajeUnPunto),
+  };
+  return r;
 }
