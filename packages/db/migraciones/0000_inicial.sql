@@ -42,6 +42,7 @@ CREATE TABLE "comercial"."analisis_calidad_muestra" (
 	"numeracion" jsonb,
 	"batch_id" text,
 	"error" text,
+	"huella" text,
 	"creado_en" timestamp with time zone DEFAULT now() NOT NULL,
 	"actualizado_en" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "analisis_calidad_muestra_analisis_id_conversation_id_pk" PRIMARY KEY("analisis_id","conversation_id")
@@ -398,6 +399,7 @@ ALTER TABLE "comercial"."usuario_asesor" ADD CONSTRAINT "usuario_asesor_usuario_
 ALTER TABLE "comercial"."usuario_subcuenta" ADD CONSTRAINT "usuario_subcuenta_usuario_id_usuarios_id_fk" FOREIGN KEY ("usuario_id") REFERENCES "comercial"."usuarios"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "comercial"."usuario_subcuenta" ADD CONSTRAINT "usuario_subcuenta_location_id_subcuentas_location_id_fk" FOREIGN KEY ("location_id") REFERENCES "comercial"."subcuentas"("location_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "analisis_calidad_location" ON "comercial"."analisis_calidad" USING btree ("location_id","creado_en");--> statement-breakpoint
+CREATE INDEX "analisis_calidad_muestra_huella_idx" ON "comercial"."analisis_calidad_muestra" USING btree ("huella");--> statement-breakpoint
 CREATE INDEX "auditoria_cuando" ON "comercial"."auditoria" USING btree ("cuando");--> statement-breakpoint
 CREATE INDEX "auditoria_que_cuando" ON "comercial"."auditoria" USING btree ("que","cuando");--> statement-breakpoint
 CREATE INDEX "ausencias_location_user" ON "comercial"."ausencias" USING btree ("location_id","user_id");--> statement-breakpoint

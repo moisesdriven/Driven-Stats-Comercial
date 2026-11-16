@@ -4,7 +4,7 @@
  * mejor/peor mensaje. La E/S (base y Batches API) vive en el worker.
  */
 
-export const VERSION_RUBRICA = 'v1-2026-11';
+export const VERSION_RUBRICA = 'v2-2026-11';
 
 export const CATEGORIAS_CALIDAD = [
   'saludo_plantilla',
@@ -159,6 +159,115 @@ export function recortarContexto(
   return [...elegidos].sort((a, b) => a - b).map((i) => orden[i]!);
 }
 
+// ------------------------------------------------------------------ Saludos sueltos por regla
+
+/** Versión de la regla de saludos (se guarda como `modelo` de la calificación). */
+export const MODELO_REGLA_SALUDOS = 'regla-saludos-v1';
+
+/** Minúsculas, sin emojis ni signos y con espacios simples, pero conservando las tildes. */
+const normalizarConTildes = (t: string) =>
+  t
+    .toLowerCase()
+    .normalize('NFC')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const PALABRA = String.raw`\p{L}+`;
+/** Piezas que forman un saludo suelto, escritas con ortografía correcta (las tildes cuentan). */
+const PIEZAS_SALUDO = [
+  String.raw`hola`,
+  String.raw`buen día`,
+  String.raw`buenos días`,
+  String.raw`buenas tardes`,
+  String.raw`buenas noches`,
+  // Tratos genéricos: según la rúbrica no son personalización.
+  String.raw`caballero|señorita|señor|señora|estimado|estimada|joven`,
+  // Presentación del asesor, con su nombre y, opcionalmente, el de la empresa.
+  String.raw`(?:soy|le saluda|te saluda|le escribe|te escribe|mi nombre es)(?: ${PALABRA}){0,3}(?: (?:su|tu))? asesora?(?: de ventas| comercial)(?: de(?: ${PALABRA}){1,4})?`,
+  // Frases de transición sin contenido.
+  String.raw`(?:ahora|enseguida|en un momento|deme un momento y|un momento y) (?:le|te) (?:brindo|envío|doy|comparto) (?:más )?información`,
+  String.raw`gracias por (?:escribirnos|comunicarse|comunicarte|contactarnos)`,
+];
+const PIEZA = `(?:${PIEZAS_SALUDO.join('|')})`;
+const RE_SALUDO_SUELTO = new RegExp(`^${PIEZA}(?: ${PIEZA})*$`, 'u');
+const RE_SOLO_SALUDO_CLIENTE = new RegExp(
+  `^(?:${['hola', 'buen día', 'buenos días', 'buenas tardes', 'buenas noches', 'buenas', 'saludos'].join('|')})(?: (?:${['hola', 'buen día', 'buenos días', 'buenas tardes', 'buenas noches', 'buenas', 'saludos'].join('|')}))*$`,
+  'u',
+);
+
+/**
+ * ¿Es un saludo suelto? Solo saludos, tratos genéricos, la presentación del asesor y frases de
+ * transición sin contenido, con ortografía correcta. Si menciona algo más (un nombre del cliente,
+ * una pregunta, un dato o una palabra mal escrita) no lo es y se califica con la IA.
+ */
+export function esSaludoSuelto(texto: string): boolean {
+  const t = normalizarConTildes(texto);
+  return t.length > 0 && RE_SALUDO_SUELTO.test(t);
+}
+
+/** ¿El mensaje del cliente es solo un saludo (no pide nada)? */
+export const esSoloSaludoCliente = (texto: string) => {
+  const t = normalizarConTildes(texto);
+  return t.length === 0 || RE_SOLO_SALUDO_CLIENTE.test(t);
+};
+
+/**
+ * Califica un saludo suelto sin IA (aprobado por el cliente el 16 nov 2026), con los mismos
+ * criterios que la rúbrica aplica a estos mensajes: categoría saludo o plantilla, no personalizado
+ * ni con siguiente paso, tono y extensión correctos. "Responde" es falso si el cliente tiene un
+ * pedido pendiente (escribió algo más que un saludo y el asesor aún no le contestó con contenido):
+ * un saludo no responde un pedido.
+ */
+export function calificarSaludoPorRegla(
+  texto: string,
+  pedidoPendiente: boolean,
+): EtiquetaCalidad | null {
+  if (!esSaludoSuelto(texto)) return null;
+  return {
+    categoria: 'saludo_plantilla',
+    criterios: {
+      responde: !pedidoPendiente,
+      personalizado: false,
+      siguiente_paso: false,
+      tono: true,
+      extension: true,
+    },
+  };
+}
+
+/**
+ * Separa los mensajes elegidos de una conversación en los que se califican por regla (saludos
+ * sueltos) y los que van a la IA. Recorre el contexto en orden para saber si el cliente tenía un
+ * pedido pendiente: lo abre un mensaje del cliente que no es solo un saludo y lo cierra un mensaje
+ * del asesor con contenido (los saludos y los mensajes automáticos no lo cierran).
+ */
+export function separarSaludos(
+  contexto: readonly MensajeCalidad[],
+  elegidos: ReadonlySet<string>,
+): { porRegla: Map<string, EtiquetaCalidad>; paraIa: Set<string> } {
+  const porRegla = new Map<string, EtiquetaCalidad>();
+  const paraIa = new Set<string>();
+  let pendiente = false;
+  for (const m of contexto) {
+    if (m.direccion === 'inbound') {
+      if (!esSoloSaludoCliente(m.texto)) pendiente = true;
+      continue;
+    }
+    if (m.automatico) continue;
+    const saludo = esSaludoSuelto(m.texto);
+    if (elegidos.has(m.id)) {
+      const e = saludo ? calificarSaludoPorRegla(m.texto, pendiente) : null;
+      if (e) porRegla.set(m.id, e);
+      else paraIa.add(m.id);
+    }
+    if (!saludo) pendiente = false;
+  }
+  // Elegidos que no estaban en el contexto (no debería pasar): a la IA.
+  for (const id of elegidos) if (!porRegla.has(id)) paraIa.add(id);
+  return { porRegla, paraIa };
+}
+
 // ------------------------------------------------------------------ Muestra estratificada
 
 /** PRNG determinista (mulberry32) a partir de una semilla de texto: la muestra es reproducible. */
@@ -257,30 +366,37 @@ Los mensajes del asesor que debes calificar están marcados como [ASESOR #n]. Lo
 
 Para cada mensaje [ASESOR #n] devuelve:
 1. "categoria": exactamente una de:
-   - "saludo_plantilla": saludo o texto genérico de plantilla que no aporta a lo que el cliente pidió.
-   - "respuesta_pregunta": responde una pregunta concreta del cliente.
-   - "info_producto_precio": da información de producto, modelo, material, precio, envío o forma de pago.
-   - "pregunta_calificacion": pregunta para entender la necesidad del cliente (uso, presupuesto, talla, fecha, ciudad).
-   - "llamada_accion_cierre": invita a comprar, separar, pagar, enviar datos o agendar.
+   - "saludo_plantilla": saludo, presentación del asesor, frase de transición sin contenido ("ahora le brindo información") o confirmación breve ("perfecto, quedo atenta").
+   - "respuesta_pregunta": responde una pregunta concreta del cliente que no es de producto ni de precio (ubicación, plazos, envíos, cómo medir la talla).
+   - "info_producto_precio": da información de producto, modelo, material, precio, envío o forma de pago, incluido el envío de enlaces al catálogo o a un producto.
+   - "pregunta_calificacion": pregunta para entender la necesidad del cliente (tipo de joya, uso, presupuesto, talla, fecha, ciudad, modelo elegido).
+   - "llamada_accion_cierre": invita a comprar, separar, pagar, enviar datos, agendar o visitar la tienda.
    - "manejo_objecion": responde a una duda, desconfianza o queja sobre precio, calidad, tiempos o garantía.
-   - "seguimiento": retoma una conversación que había quedado en silencio.
-   - "multimedia": el mensaje es solo la descripción de una imagen, audio o catálogo.
+   - "seguimiento": el asesor retoma una conversación en la que el cliente llevaba tiempo sin escribir (horas o días). Responder a un mensaje reciente del cliente NUNCA es seguimiento.
+   - "multimedia": el mensaje es solo la descripción de una imagen, audio o video, sin texto propio del asesor.
+   Si el mensaje cumple varias funciones, elige la principal: la que más aporta a lo que el cliente pidió.
 2. "criterios": cinco valores verdadero/falso:
-   - "responde": responde lo que el cliente preguntó o pidió en sus mensajes previos. Si el cliente no preguntó nada, es verdadero cuando el mensaje es pertinente al momento de la conversación.
-   - "personalizado": usa el nombre del cliente o se refiere al contexto específico de su pedido; un texto que serviría igual para cualquier cliente es falso.
-   - "siguiente_paso": incluye un siguiente paso claro (una pregunta concreta, una acción a tomar o una fecha).
-   - "tono": tono cordial y profesional, y ortografía y redacción correctas en español.
+   - "responde": responde lo que el cliente preguntó o pidió en sus mensajes previos. Si el cliente pidió precio y el asesor solo envía un enlace, un saludo o una pregunta sin dar el precio, es falso. Pedir una aclaración necesaria para responder (por ejemplo, qué sistema de tallas usa) es verdadero. Si el cliente no preguntó nada, es verdadero cuando el mensaje es pertinente al momento de la conversación.
+   - "personalizado": verdadero solo si menciona el nombre del cliente o un dato concreto que el cliente dio en la conversación (su talla, su fecha, su ciudad, el modelo que envió o pidió). NO cuentan: el nombre del asesor o de la empresa, tratos genéricos ("caballero", "señorita", "estimado"), referencias vagas ("aquella joyita", "su modelo", "su pedido") ni textos de plantilla que servirían igual para cualquier cliente.
+   - "siguiente_paso": incluye un siguiente paso claro (una pregunta concreta, una acción a tomar o una fecha). Anunciar que se enviará algo ("ahora le brindo información") no es un siguiente paso.
+   - "tono": tono cordial y profesional, y ortografía y redacción correctas en español. Faltas de ortografía evidentes, palabras mal escritas o frases confusas lo hacen falso.
    - "extension": extensión adecuada para WhatsApp (ni un bloque excesivo para lo que se pidió, ni tan breve que deja la respuesta incompleta).
 3. "motivo": una frase breve en español (máximo 120 caracteres) con la razón principal de la evaluación.
 
 Reglas:
 - Evalúa cada mensaje en su contexto: lo que el cliente había escrito antes y lo que el asesor ya había dicho.
-- Sé consistente y estricto: un criterio es verdadero solo si se cumple claramente.
+- Sé consistente y estricto: un criterio es verdadero solo si se cumple claramente. Dos mensajes con el mismo texto y el mismo contexto deben recibir la misma evaluación.
 - Devuelve un elemento por cada [ASESOR #n], con el mismo "n", y nada más.
 - No incluyas datos personales del cliente (teléfonos, correos, direcciones) en "motivo".
 
-Ejemplo de criterios para "Hola María 😊 El anillo solitario en oro 18K de 2 g cuesta S/ 890. ¿Para qué fecha lo necesitas?" tras "¿cuánto cuesta el solitario?": responde=true, personalizado=true, siguiente_paso=true, tono=true, extension=true; categoria="info_producto_precio".
-Ejemplo para "Hola, buenas tardes ☺️ Soy asesora de ventas" tras una pregunta de precio: responde=false, personalizado=false, siguiente_paso=false, tono=true, extension=true; categoria="saludo_plantilla".`;
+Ejemplos (cliente → mensaje del asesor → evaluación):
+- "¿cuánto cuesta el solitario?" → "Hola María 😊 El anillo solitario en oro 18K de 2 g cuesta S/ 890. ¿Para qué fecha lo necesitas?" → info_producto_precio; responde, personalizado, siguiente_paso, tono y extension verdaderos.
+- "Precio por favor" → "Hola, buenas tardes ☺️ Soy Carla, asesora de ventas" → saludo_plantilla; responde=false, personalizado=false (el nombre es de la asesora), siguiente_paso=false, tono=true, extension=true.
+- "¿Cuánto cuesta un anillo de compromiso?" → "Compromiso: https://tienda.ejemplo/anillos" → info_producto_precio; responde=false (no da el precio), personalizado=false, siguiente_paso=false, tono=true, extension=false (incompleto).
+- "Soy talla 7" → "¿Talla 7 estándar o americana? Así le confirmo el peso" → pregunta_calificacion; responde=true (aclaración necesaria), personalizado=true (usa su talla), siguiente_paso=true, tono=true, extension=true.
+- (el cliente no escribe desde hace tres días) → "Buenas tardes 😊 Quería saber si aún tiene en mente aquella joyita que estuvimos viendo" → seguimiento; responde=true, personalizado=false (referencia vaga, sirve para cualquiera), siguiente_paso=false, tono=true, extension=true.
+- "Claro, el fin de semana le aviso" → "Perfecto señorita, quedo atenta" → saludo_plantilla; responde=true, personalizado=false, siguiente_paso=false, tono=true, extension=true.
+- "¿Hacen envíos?" → "si claro ennviamos a todo el peru" → respuesta_pregunta; responde=true, personalizado=false, siguiente_paso=false, tono=false (ortografía), extension=true.`;
 
 /** Esquema JSON de la respuesta (structured outputs). El puntaje se deriva de los criterios. */
 export const ESQUEMA_RESPUESTA_CALIDAD = {
@@ -309,6 +425,86 @@ export const ESQUEMA_RESPUESTA_CALIDAD = {
   required: ['mensajes'],
   additionalProperties: false,
 } as const;
+
+// ------------------------------------------------------------------ Formato de la respuesta
+
+/**
+ * Formatos de respuesta de la IA. `v2` es el original (motivo al final). `motivo_primero` pide el
+ * motivo antes de decidir, para que el modelo razone brevemente primero. `compacto` además acorta el
+ * motivo y usa claves cortas, para gastar menos tokens de salida (la más cara).
+ */
+export const FORMATOS_SALIDA = ['v2', 'motivo_primero', 'compacto'] as const;
+export type FormatoSalida = (typeof FORMATOS_SALIDA)[number];
+
+/** Formato con el que se califica en producción. */
+export const FORMATO_SALIDA_VIGENTE: FormatoSalida = 'v2';
+
+/** Claves cortas del formato compacto. */
+export const CLAVES_COMPACTAS = {
+  motivo: 'm',
+  categoria: 'cat',
+  responde: 'r',
+  personalizado: 'p',
+  siguiente_paso: 's',
+  tono: 't',
+  extension: 'e',
+} as const;
+
+const BLOQUE_FORMATO: Record<FormatoSalida, string> = {
+  v2: '',
+  motivo_primero: `
+
+Formato de la respuesta: para cada mensaje escribe primero "motivo" (una frase breve, máximo 120 caracteres, con lo que observas del mensaje en su contexto: qué había pedido el cliente y qué hizo el asesor) y después "categoria" y "criterios", coherentes con ese motivo.`,
+  compacto: `
+
+Formato de la respuesta: para cada mensaje escribe primero "m", el motivo (una frase muy breve, máximo 60 caracteres, con lo que observas del mensaje en su contexto; reemplaza al límite de 120), y después "cat" (la categoría) y los criterios con claves cortas: "r" = responde, "p" = personalizado, "s" = siguiente_paso, "t" = tono, "e" = extension. Deben ser coherentes con el motivo.`,
+};
+
+/** Instrucciones que se envían como `system` para un formato de respuesta. */
+export const instruccionesCalidad = (f: FormatoSalida = FORMATO_SALIDA_VIGENTE) =>
+  INSTRUCCIONES_CALIDAD + BLOQUE_FORMATO[f];
+
+const esquemaMensajes = (item: object) => ({
+  type: 'object',
+  properties: { mensajes: { type: 'array', items: item } },
+  required: ['mensajes'],
+  additionalProperties: false,
+});
+
+/** Esquema JSON (structured outputs) de un formato de respuesta. */
+export function esquemaRespuestaCalidad(f: FormatoSalida = FORMATO_SALIDA_VIGENTE): object {
+  if (f === 'v2') return ESQUEMA_RESPUESTA_CALIDAD;
+  const criterios = {
+    type: 'object',
+    properties: Object.fromEntries(CRITERIOS.map((c) => [c, { type: 'boolean' }])),
+    required: [...CRITERIOS],
+    additionalProperties: false,
+  };
+  if (f === 'motivo_primero')
+    return esquemaMensajes({
+      type: 'object',
+      properties: {
+        n: { type: 'integer' },
+        motivo: { type: 'string' },
+        categoria: { type: 'string', enum: [...CATEGORIAS_CALIDAD] },
+        criterios,
+      },
+      required: ['n', 'motivo', 'categoria', 'criterios'],
+      additionalProperties: false,
+    });
+  const k = CLAVES_COMPACTAS;
+  return esquemaMensajes({
+    type: 'object',
+    properties: {
+      n: { type: 'integer' },
+      [k.motivo]: { type: 'string' },
+      [k.categoria]: { type: 'string', enum: [...CATEGORIAS_CALIDAD] },
+      ...Object.fromEntries(CRITERIOS.map((c) => [k[c], { type: 'boolean' }])),
+    },
+    required: ['n', k.motivo, k.categoria, ...CRITERIOS.map((c) => k[c])],
+    additionalProperties: false,
+  });
+}
 
 /** Arma el texto de la conversación con los mensajes a calificar numerados. */
 export function textoConversacion(
@@ -358,42 +554,138 @@ export const PRECIOS_POR_DEFECTO: Precios = {
   factorLote: 0.5,
 };
 
-/** Tokens aproximados de un texto en español (≈ 3,5 caracteres por token). */
-export const tokensAproximados = (texto: string) => Math.ceil(texto.length / 3.5);
+/**
+ * Calibración de la estimación con el primer análisis real (Jade18K, 9–15 nov 2026: 452 solicitudes,
+ * 1.212 mensajes, 1.183.607 tokens de entrada, 137.772 de salida, US$ 0,0523). La primera versión
+ * suponía 3,5 caracteres por token, 300 tokens para el esquema y 25 + 55 tokens de salida por
+ * mensaje, y se quedó corta en ~70 %. Ver `docs/validacion.md` y `docs/decisiones.md`.
+ */
+export const CALIBRACION_CALIDAD = {
+  /**
+   * Caracteres por token del texto que se envía (español de chat con emojis, precios, nombres y
+   * las marcas `[CLIENTE]`/`[ASESOR #n]`). Despejado del costo real: el tokenizador de Haiku 5.5
+   * rinde ~2,1 caracteres por token en este texto, no 3,5.
+   */
+  caracteresPorToken: 2.1,
+  /** Envoltura fija de cada solicitud: prompt que la API agrega para structured outputs, roles. */
+  tokensEnvoltura: 40,
+  /** Salida fija por solicitud (`{"mensajes":[ … ]}`). */
+  salidaPorSolicitud: 10,
+  /** Salida por mensaje calificado según el formato: n, categoría, cinco criterios y `motivo`. */
+  salidaPorMensaje: {
+    /** ~114 medidos en los análisis reales con v1 y v2. */
+    v2: 110,
+    motivo_primero: 110,
+    compacto: 75,
+  } satisfies Record<FormatoSalida, number>,
+} as const;
+
+/** Tokens aproximados de un texto en español según la calibración. */
+export const tokensAproximados = (texto: string) =>
+  Math.ceil(texto.length / CALIBRACION_CALIDAD.caracteresPorToken);
+
+/**
+ * Tokens de entrada que se repiten en todas las solicitudes y que la caché de prompts reutiliza:
+ * instrucciones (`system`), esquema JSON de structured outputs y envoltura. En el análisis real
+ * ~2.040 tokens por solicitud se leyeron de caché (se deduce del costo), frente a los ~1.270 que
+ * suponía la estimación original.
+ */
+export const tokensFijosSolicitud = (f: FormatoSalida = FORMATO_SALIDA_VIGENTE) =>
+  tokensAproximados(instruccionesCalidad(f)) +
+  tokensAproximados(JSON.stringify(esquemaRespuestaCalidad(f))) +
+  CALIBRACION_CALIDAD.tokensEnvoltura;
+
+/** Tokens de salida esperados de una solicitud con `mensajes` mensajes a calificar. */
+export const tokensSalidaEstimados = (
+  mensajes: number,
+  f: FormatoSalida = FORMATO_SALIDA_VIGENTE,
+) => CALIBRACION_CALIDAD.salidaPorSolicitud + CALIBRACION_CALIDAD.salidaPorMensaje[f] * mensajes;
+
+/**
+ * Tokens adicionales que se reservan en `max_tokens` por solicitud cuando el pensamiento adaptativo
+ * está activo (el pensamiento se cobra como salida). Es también el peor caso de la estimación.
+ */
+export const TOKENS_MARGEN_PENSAMIENTO = 8000;
 
 export interface EstimacionCosto {
   solicitudes: number;
+  /** Entrada total (sin caché + escrita en caché + leída de caché), comparable con la real. */
   tokensEntrada: number;
   tokensSalida: number;
+  /** Costo esperado: la parte fija se escribe en caché una vez y se lee en las demás solicitudes. */
   costoUsd: number;
+  /**
+   * Peor caso, para el control del tope mensual: ninguna solicitud lee de caché (todas pagan la
+   * escritura) y, con pensamiento, cada solicitud usa todo su margen de pensamiento.
+   */
+  costoMaximoUsd: number;
+}
+
+export interface OpcionesEstimacion {
+  /** Pensamiento adaptativo activo (`IA_PENSAMIENTO`). */
+  pensamiento?: boolean;
+  /** Parte fija por solicitud; por defecto la de la rúbrica vigente (`tokensFijosSolicitud`). */
+  tokensFijos?: number;
+  /** Formato de la respuesta; por defecto el vigente. */
+  formato?: FormatoSalida;
 }
 
 /**
- * Costo estimado de un análisis. Supone que las instrucciones se leen de caché en todas las
- * solicitudes salvo la primera (si no hay caché, el costo sube poco: las instrucciones son cortas).
+ * Costo estimado de un análisis. `tokensConversacion` es lo propio de cada solicitud (el texto de
+ * la conversación, contado con `tokensAproximados`). En el costo esperado la parte fija se escribe
+ * en caché en la primera solicitud y se lee de caché en las demás, como se observó en los lotes
+ * reales; la caché de la Batches API es de mejor esfuerzo, por eso `costoMaximoUsd` supone que no
+ * se lee nunca. Con pensamiento no hay datos para un valor esperado (en la calibración con
+ * esfuerzo bajo costó lo mismo): el esperado no lo suma y el máximo suma todo el margen.
  */
 export function estimarCosto(
   solicitudes: { tokensConversacion: number; mensajes: number }[],
   p: Precios = PRECIOS_POR_DEFECTO,
+  opciones: OpcionesEstimacion = {},
 ): EstimacionCosto {
-  const instrucciones = tokensAproximados(INSTRUCCIONES_CALIDAD) + 300; // + esquema
+  const formato = opciones.formato ?? FORMATO_SALIDA_VIGENTE;
+  const fijos = opciones.tokensFijos ?? tokensFijosSolicitud(formato);
+  const pensamientoMax = opciones.pensamiento ? TOKENS_MARGEN_PENSAMIENTO : 0;
   let entrada = 0;
-  let costoEntrada = 0;
   let salida = 0;
+  let costoEntrada = 0;
+  let costoEntradaMax = 0;
   solicitudes.forEach((s, i) => {
-    entrada += instrucciones + s.tokensConversacion;
+    entrada += fijos + s.tokensConversacion;
     costoEntrada +=
-      (instrucciones * (i === 0 ? p.escrituraCache : p.lecturaCache) + s.tokensConversacion) *
+      (fijos * (i === 0 ? p.escrituraCache : p.lecturaCache) + s.tokensConversacion) *
       p.entradaMTok;
-    salida += 25 + 55 * s.mensajes;
+    costoEntradaMax += (fijos * p.escrituraCache + s.tokensConversacion) * p.entradaMTok;
+    salida += tokensSalidaEstimados(s.mensajes, formato);
   });
-  const costo = ((costoEntrada + salida * p.salidaMTok) / 1_000_000) * p.factorLote;
+  const salidaMax = salida + pensamientoMax * solicitudes.length;
+  const usd = (entradaPonderada: number, tokensSalida: number) =>
+    ((entradaPonderada + tokensSalida * p.salidaMTok) / 1_000_000) * p.factorLote;
   return {
     solicitudes: solicitudes.length,
     tokensEntrada: entrada,
     tokensSalida: salida,
-    costoUsd: Math.round(costo * 10_000) / 10_000,
+    costoUsd: Math.round(usd(costoEntrada, salida) * 10_000) / 10_000,
+    // Redondeado hacia arriba: es un límite.
+    costoMaximoUsd: Math.ceil(usd(costoEntradaMax, salidaMax) * 10_000) / 10_000,
   };
+}
+
+/**
+ * Desvío del costo real frente al estimado, en % con un decimal (positivo = el real costó más). Se
+ * registra al cerrar cada análisis para vigilar la calibración.
+ */
+export function desvioCostoPct(
+  estimado: number | null | undefined,
+  real: number | null | undefined,
+): number | null {
+  if (!estimado || real == null) return null;
+  return Math.round(((real - estimado) / estimado) * 1000) / 10;
+}
+
+/** Porcentaje de la entrada que se leyó de caché, con un decimal. */
+export function cacheLeidaPct(tokensEntrada: number, tokensLeidosCache: number): number | null {
+  return tokensEntrada ? Math.round((tokensLeidosCache / tokensEntrada) * 1000) / 10 : null;
 }
 
 export interface UsoTokens {
@@ -449,4 +741,157 @@ export function mejorYPeor(
       actual.peor = c;
   }
   return new Map([...r].map(([a, x]) => [a, { mejor: x.mejor.messageId, peor: x.peor.messageId }]));
+}
+
+// ------------------------------------------------------------------ Consistencia por texto
+
+/** Criterios que dependen sobre todo del texto y no del contexto: se unifican entre textos iguales. */
+export const CRITERIOS_DEL_TEXTO = ['tono', 'extension', 'personalizado'] as const;
+
+export interface CalificacionTexto {
+  messageId: string;
+  conversationId: string;
+  texto: string;
+  categoria: CategoriaCalidad;
+  criterios: Criterios;
+}
+
+export interface Unificacion {
+  /** Criterios finales de los mensajes que cambiaron. */
+  cambios: Map<string, Criterios>;
+  /** Grupos de textos iguales (2 o más mensajes) revisados. */
+  grupos: number;
+}
+
+/**
+ * Misma frase, mismo resultado: agrupa los mensajes por texto normalizado y unifica los criterios
+ * que dependen del texto (tono, extensión y personalización). Tono y extensión por mayoría (empate =
+ * falso, criterio estricto). Personalizado es falso si el mismo texto se envió en 2 o más
+ * conversaciones: un texto idéntico para clientes distintos no usa el nombre ni el contexto de
+ * ninguno (§6.2); si se repite dentro de una sola conversación, por mayoría. "Responde" y "siguiente
+ * paso" dependen del contexto y no se tocan. Los textos de menos de 15 caracteres no se agrupan.
+ */
+export function unificarPorTexto(calificaciones: readonly CalificacionTexto[]): Unificacion {
+  const grupos = new Map<string, CalificacionTexto[]>();
+  for (const c of calificaciones) {
+    if (c.categoria === 'multimedia') continue;
+    const clave = normalizarTexto(c.texto);
+    if (clave.length < 15) continue;
+    const lista = grupos.get(clave) ?? [];
+    lista.push(c);
+    grupos.set(clave, lista);
+  }
+  const cambios = new Map<string, Criterios>();
+  let revisados = 0;
+  for (const lista of grupos.values()) {
+    if (lista.length < 2) continue;
+    revisados++;
+    const conversaciones = new Set(lista.map((c) => c.conversationId)).size;
+    const final: Partial<Criterios> = {};
+    for (const k of CRITERIOS_DEL_TEXTO) {
+      const si = lista.filter((c) => c.criterios[k]).length;
+      final[k] = k === 'personalizado' && conversaciones > 1 ? false : si * 2 > lista.length;
+    }
+    for (const c of lista) {
+      const nuevo: Criterios = { ...c.criterios, ...final };
+      if (CRITERIOS_DEL_TEXTO.some((k) => nuevo[k] !== c.criterios[k]))
+        cambios.set(c.messageId, nuevo);
+    }
+  }
+  return { cambios, grupos: revisados };
+}
+
+// ------------------------------------------------------------------ Calibración
+
+export interface EtiquetaCalidad {
+  categoria: CategoriaCalidad;
+  criterios: Criterios;
+}
+
+export interface ResultadoCalibracion {
+  total: number;
+  /** Mensajes del conjunto sin respuesta de la IA (error, rechazo o JSON inválido). */
+  sinRespuesta: number;
+  categoria: number;
+  criterios: Record<Criterio, number>;
+  /** Los cinco criterios iguales. */
+  criteriosCompletos: number;
+  puntajeExacto: number;
+  puntajeUnPunto: number;
+  /** Proporciones (0–1) sobre `total`; los mensajes sin respuesta cuentan como desacuerdo. */
+  tasas: {
+    categoria: number;
+    criteriosCompletos: number;
+    puntajeExacto: number;
+    puntajeUnPunto: number;
+  };
+  diferencias: { messageId: string; campo: string; esperado: string; obtenido: string }[];
+}
+
+const puntajeDe = (e: EtiquetaCalidad) =>
+  e.categoria === 'multimedia' ? null : puntajeDeCriterios(e.criterios);
+
+/** Compara las etiquetas de la IA con las de referencia (revisión humana) mensaje por mensaje. */
+export function compararCalibracion(
+  esperados: ReadonlyMap<string, EtiquetaCalidad>,
+  obtenidos: ReadonlyMap<string, EtiquetaCalidad>,
+): ResultadoCalibracion {
+  const r: ResultadoCalibracion = {
+    total: esperados.size,
+    sinRespuesta: 0,
+    categoria: 0,
+    criterios: Object.fromEntries(CRITERIOS.map((c) => [c, 0])) as Record<Criterio, number>,
+    criteriosCompletos: 0,
+    puntajeExacto: 0,
+    puntajeUnPunto: 0,
+    tasas: { categoria: 0, criteriosCompletos: 0, puntajeExacto: 0, puntajeUnPunto: 0 },
+    diferencias: [],
+  };
+  for (const [id, e] of esperados) {
+    const o = obtenidos.get(id);
+    if (!o) {
+      r.sinRespuesta++;
+      r.diferencias.push({
+        messageId: id,
+        campo: 'respuesta',
+        esperado: 'calificación',
+        obtenido: 'ninguna',
+      });
+      continue;
+    }
+    if (o.categoria === e.categoria) r.categoria++;
+    else
+      r.diferencias.push({
+        messageId: id,
+        campo: 'categoria',
+        esperado: e.categoria,
+        obtenido: o.categoria,
+      });
+    let iguales = 0;
+    for (const c of CRITERIOS) {
+      if (o.criterios[c] === e.criterios[c]) {
+        r.criterios[c]++;
+        iguales++;
+      } else
+        r.diferencias.push({
+          messageId: id,
+          campo: c,
+          esperado: String(e.criterios[c]),
+          obtenido: String(o.criterios[c]),
+        });
+    }
+    if (iguales === CRITERIOS.length) r.criteriosCompletos++;
+    const pe = puntajeDe(e);
+    const po = puntajeDe(o);
+    if (pe === po) r.puntajeExacto++;
+    if (pe === po || (pe !== null && po !== null && Math.abs(pe - po) <= 1)) r.puntajeUnPunto++;
+  }
+  const tasa = (n: number) => (r.total ? Math.round((n / r.total) * 1000) / 1000 : 0);
+  r.tasas = {
+    categoria: tasa(r.categoria),
+    criteriosCompletos: tasa(r.criteriosCompletos),
+    puntajeExacto: tasa(r.puntajeExacto),
+    puntajeUnPunto: tasa(r.puntajeUnPunto),
+  };
+  return r;
 }

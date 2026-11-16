@@ -2,43 +2,76 @@
  * Análisis de calidad (§6) — parte con base de datos, compartida por la web (estimación previa al
  * botón) y el worker (preparación y envío). El envío a la Batches API vive en el worker.
  */
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { and, eq, gte, inArray, notInArray, sql } from 'drizzle-orm';
 import {
-  ESQUEMA_RESPUESTA_CALIDAD,
-  INSTRUCCIONES_CALIDAD,
+  FORMATO_SALIDA_VIGENTE,
+  TOKENS_MARGEN_PENSAMIENTO,
+  esquemaRespuestaCalidad,
+  instruccionesCalidad,
   VERSION_RUBRICA,
   estimarCosto,
   maxTokensPara,
   muestraEstratificada,
   recortarContexto,
+  separarSaludos,
   seleccionarMensajes,
   textoConversacion,
   tokensAproximados,
   type EstimacionCosto,
+  type EtiquetaCalidad,
+  type FormatoSalida,
   type MensajeCalidad,
 } from '@driven/core';
 import type { Db } from './cliente';
 import { analisisCalidad } from './esquema/index';
 
+export type EsfuerzoIa = 'low' | 'medium' | 'high';
+
+/** Cómo razona el modelo al calificar: esfuerzo y pensamiento adaptativo (activo o no). */
+export interface AjustesIa {
+  esfuerzo: EsfuerzoIa;
+  pensamiento: boolean;
+}
+
+export const AJUSTES_IA_POR_DEFECTO: AjustesIa = { esfuerzo: 'low', pensamiento: false };
+
 export interface ConfiguracionCalidad {
   modelo: string;
+  ajustes: AjustesIa;
   tamanoMuestra: number;
   maxMensajesConversacion: number;
   minimoPorAsesor: number;
   topeMensualUsd: number;
   maxManualesMes: number;
+  /** Saludos sueltos calificados por regla, sin IA (`CALIDAD_SALUDOS_POR_REGLA`, por defecto sí). */
+  saludosPorRegla: boolean;
 }
 
 export function configuracionCalidad(env: NodeJS.ProcessEnv = process.env): ConfiguracionCalidad {
   const n = (v: string | undefined, d: number) => (v && Number.isFinite(Number(v)) ? Number(v) : d);
   return {
     modelo: env.IA_MODELO || 'claude-haiku-5-5',
+    ajustes: leerAjustesIa(env.IA_ESFUERZO, env.IA_PENSAMIENTO),
     tamanoMuestra: n(env.CALIDAD_MUESTRA_CONVERSACIONES, 1000),
     maxMensajesConversacion: n(env.CALIDAD_MAX_MENSAJES_CONVERSACION, 10),
     minimoPorAsesor: 20,
     topeMensualUsd: n(env.IA_TOPE_MENSUAL_USD, 10),
     maxManualesMes: n(env.CALIDAD_MAX_MANUALES_MES, 3),
+    saludosPorRegla: !['no', 'false', '0'].includes(
+      (env.CALIDAD_SALUDOS_POR_REGLA ?? 'si').toLowerCase(),
+    ),
+  };
+}
+
+/** Lee esfuerzo (low | medium | high) y pensamiento (si | no); valores desconocidos → por defecto. */
+export function leerAjustesIa(esfuerzo?: string, pensamiento?: string): AjustesIa {
+  const e = (['low', 'medium', 'high'] as const).find((x) => x === esfuerzo);
+  return {
+    esfuerzo: e ?? AJUSTES_IA_POR_DEFECTO.esfuerzo,
+    pensamiento: pensamiento
+      ? ['si', 'sí', 'true', '1'].includes(pensamiento.toLowerCase())
+      : false,
   };
 }
 
@@ -111,6 +144,87 @@ export interface SolicitudPreparada {
   numeracion: Record<number, string>;
   mensajes: number;
   tokensConversacion: number;
+  /**
+   * Saludos sueltos de la conversación calificados por regla (no van a la IA). Si `mensajes` es 0,
+   * la conversación no se envía: todo lo elegido se calificó por regla.
+   */
+  porRegla: { messageId: string; etiqueta: EtiquetaCalidad }[];
+  /** SHA-256 de lo que se enviaría a la IA (ver `huellaSolicitud`). */
+  huella: string;
+  /**
+   * Calificación previa que se reutiliza (misma huella: misma rúbrica, modelo, ajustes y texto, sin
+   * mensajes nuevos). Puede venir de otra conversación con el mismo texto; los mensajes se
+   * emparejan por su número `n`. `null` = hay que enviarla.
+   */
+  reutilizarDe: CalificacionPrevia | null;
+}
+
+export interface CalificacionPrevia {
+  analisisId: number;
+  conversationId: string;
+  numeracion: Record<string, string>;
+}
+
+/**
+ * Huella de una solicitud: cambia si cambia cualquier cosa que reciba la IA (instrucciones,
+ * esquema, modelo, ajustes o el texto de la conversación con sus mensajes numerados). Dos
+ * solicitudes con la misma huella dan, en esencia, la misma calificación (§6 "sin trabajo repetido").
+ */
+export function huellaSolicitud(
+  texto: string,
+  modelo: string,
+  ajustes: AjustesIa,
+  formato: FormatoSalida = FORMATO_SALIDA_VIGENTE,
+): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify([
+        VERSION_RUBRICA,
+        instruccionesCalidad(formato),
+        esquemaRespuestaCalidad(formato),
+        modelo,
+        ajustes.esfuerzo,
+        ajustes.pensamiento,
+        texto,
+      ]),
+    )
+    .digest('hex');
+}
+
+/** Para cada huella, la calificación más reciente de la subcuenta en un análisis terminado. */
+async function calificacionesPrevias(
+  db: Db,
+  locationId: string,
+  huellas: string[],
+  excluirAnalisisId: number | undefined,
+): Promise<Map<string, CalificacionPrevia>> {
+  const r = new Map<string, CalificacionPrevia>();
+  for (let i = 0; i < huellas.length; i += 500) {
+    const parte = huellas.slice(i, i + 500);
+    const filas = await db.execute<{
+      huella: string;
+      analisis_id: string;
+      conversation_id: string;
+      numeracion: Record<string, string>;
+    }>(sql`
+      select distinct on (m.huella) m.huella, m.analisis_id::text, m.conversation_id, m.numeracion
+      from comercial.analisis_calidad_muestra m
+      join comercial.analisis_calidad a on a.id = m.analisis_id
+      where a.location_id = ${locationId} and a.estado = 'terminado'
+        and m.estado in ('calificado', 'reutilizado') and a.id <> ${excluirAnalisisId ?? -1}
+        and m.huella in (${sql.join(
+          parte.map((h) => sql`${h}`),
+          sql`, `,
+        )})
+      order by m.huella, m.analisis_id desc`);
+    for (const f of filas.rows)
+      r.set(f.huella, {
+        analisisId: Number(f.analisis_id),
+        conversationId: f.conversation_id,
+        numeracion: f.numeracion ?? {},
+      });
+  }
+  return r;
 }
 
 export interface Preparacion {
@@ -202,8 +316,16 @@ export async function prepararSolicitudes(
         sinMensajes.push(x.conversationId);
         continue;
       }
+      // El contexto se arma con todo lo elegido; los saludos por regla quedan como contexto sin
+      // número y no se piden a la IA.
       const contexto = recortarContexto(msgs, sel.ids);
-      const { texto, numeracion } = textoConversacion(contexto, sel.ids);
+      const { porRegla, paraIa } = cfg.saludosPorRegla
+        ? separarSaludos(
+            [...msgs].sort((a, b) => a.fecha.getTime() - b.fecha.getTime()),
+            sel.ids,
+          )
+        : { porRegla: new Map<string, EtiquetaCalidad>(), paraIa: sel.ids };
+      const { texto, numeracion } = textoConversacion(contexto, paraIa);
       solicitudes.push({
         conversationId: x.conversationId,
         asesorId: x.asesorId,
@@ -214,33 +336,57 @@ export async function prepararSolicitudes(
         numeracion: Object.fromEntries(numeracion),
         mensajes: numeracion.size,
         tokensConversacion: tokensAproximados(texto),
+        porRegla: [...porRegla].map(([messageId, etiqueta]) => ({ messageId, etiqueta })),
+        huella: huellaSolicitud(texto, cfg.modelo, cfg.ajustes),
+        reutilizarDe: null,
       });
     }
   }
+  // Sin trabajo repetido (§6): lo ya calificado con la misma huella no se vuelve a enviar.
+  const previas = await calificacionesPrevias(
+    db,
+    p.locationId,
+    solicitudes.map((s) => s.huella),
+    p.analisisId,
+  );
+  for (const s of solicitudes) if (s.mensajes) s.reutilizarDe = previas.get(s.huella) ?? null;
   const estimacion = estimarCosto(
-    solicitudes.map((s) => ({ tokensConversacion: s.tokensConversacion, mensajes: s.mensajes })),
+    solicitudes
+      .filter((s) => s.mensajes > 0 && s.reutilizarDe === null)
+      .map((s) => ({ tokensConversacion: s.tokensConversacion, mensajes: s.mensajes })),
+    undefined,
+    { pensamiento: cfg.ajustes.pensamiento },
   );
   return { semilla, universo, muestra, solicitudes, sinMensajes, descartes, estimacion };
 }
 
-/** Parámetros de una solicitud para la Messages / Batches API. */
-export function parametrosSolicitud(s: SolicitudPreparada, modelo: string) {
+/**
+ * Parámetros de una solicitud para la Messages / Batches API. Haiku 5.5 no admite `temperature`
+ * distinta de la predeterminada: la consistencia se busca con la rúbrica, el esfuerzo y el
+ * pensamiento (medidos con la calibración), y con la unificación por texto al cerrar.
+ */
+export function parametrosSolicitud(
+  s: Pick<SolicitudPreparada, 'texto' | 'mensajes'>,
+  modelo: string,
+  ajustes: AjustesIa = AJUSTES_IA_POR_DEFECTO,
+  formato: FormatoSalida = FORMATO_SALIDA_VIGENTE,
+) {
   return {
     model: modelo,
-    max_tokens: maxTokensPara(s.mensajes),
+    // Con pensamiento, sus tokens cuentan dentro de max_tokens: se deja margen.
+    max_tokens: maxTokensPara(s.mensajes) + (ajustes.pensamiento ? TOKENS_MARGEN_PENSAMIENTO : 0),
     system: [
       {
         type: 'text' as const,
-        text: INSTRUCCIONES_CALIDAD,
+        text: instruccionesCalidad(formato),
         cache_control: { type: 'ephemeral' as const },
       },
     ],
     messages: [{ role: 'user' as const, content: s.texto }],
-    // Salida compacta y validable; clasificación simple: sin pensamiento extendido y esfuerzo bajo.
-    thinking: { type: 'disabled' as const },
+    thinking: ajustes.pensamiento ? { type: 'adaptive' as const } : { type: 'disabled' as const },
     output_config: {
-      effort: 'low' as const,
-      format: { type: 'json_schema' as const, schema: ESQUEMA_RESPUESTA_CALIDAD },
+      effort: ajustes.esfuerzo,
+      format: { type: 'json_schema' as const, schema: esquemaRespuestaCalidad(formato) },
     },
   };
 }

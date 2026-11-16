@@ -1,5 +1,5 @@
 {
-  "id": "cc554df2-6045-4378-95d8-21e8007c0c40",
+  "id": "01d9d815-2259-47ce-81ae-4ea14d1e1b2f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -251,6 +251,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "huella": {
+          "name": "huella",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "creado_en": {
           "name": "creado_en",
           "type": "timestamp with time zone",
@@ -266,7 +272,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "analisis_calidad_muestra_huella_idx": {
+          "name": "analisis_calidad_muestra_huella_idx",
+          "columns": [
+            {
+              "expression": "huella",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "analisis_calidad_muestra_analisis_id_analisis_calidad_id_fk": {
           "name": "analisis_calidad_muestra_analisis_id_analisis_calidad_id_fk",
