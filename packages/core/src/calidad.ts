@@ -4,7 +4,7 @@
  * mejor/peor mensaje. La E/S (base y Batches API) vive en el worker.
  */
 
-export const VERSION_RUBRICA = 'v3-2026-11';
+export const VERSION_RUBRICA = 'v3.1-2026-11';
 
 export const CATEGORIAS_CALIDAD = [
   'saludo_plantilla',
@@ -405,7 +405,7 @@ Solo "responde" se evalúa sobre el bloque. La categoría y los demás criterios
 
 Para cada mensaje [ASESOR #n] devuelve:
 1. "categoria": exactamente una de:
-   - "saludo_plantilla": saludo, presentación del asesor, frase de transición sin contenido ("ahora le brindo información") o confirmación breve ("perfecto, quedo atenta").
+   - "saludo_plantilla": saludo, presentación del asesor, frase de transición sin contenido ("ahora le brindo información") o confirmación breve ("perfecto, quedo atenta"), SOLO si el mensaje no tiene otro contenido. Un mensaje que saluda o presenta al asesor y además pregunta, informa (precio, catálogo, ubicación, envíos) o invita a una acción se clasifica por ese contenido, no como saludo.
    - "respuesta_pregunta": responde una pregunta concreta del cliente que no es de producto ni de precio (ubicación, plazos, envíos, cómo medir la talla).
    - "info_producto_precio": da información de producto, modelo, material, precio, envío o forma de pago, incluido el envío de enlaces al catálogo o a un producto.
    - "pregunta_calificacion": pregunta para entender la necesidad del cliente (tipo de joya, uso, presupuesto, talla, fecha, ciudad, modelo elegido).
@@ -413,7 +413,7 @@ Para cada mensaje [ASESOR #n] devuelve:
    - "manejo_objecion": responde a una duda, desconfianza o queja sobre precio, calidad, tiempos o garantía.
    - "seguimiento": todo mensaje marcado "seguimiento" tiene esta categoría, y ningún mensaje marcado "respuesta" la tiene.
    - "multimedia": el mensaje es solo la descripción de una imagen, audio o video, sin texto propio del asesor.
-   Si el mensaje cumple varias funciones, elige la principal: la que más aporta a lo que el cliente pidió.
+   Si el mensaje cumple varias funciones, elige la principal: la que más aporta a lo que el cliente pidió (el saludo nunca es la principal si hay otro contenido).
 2. "criterios": cinco valores verdadero/falso:
    - "responde": se evalúa sobre el bloque completo y todos los mensajes del mismo bloque llevan el mismo valor: es verdadero si el bloque, en conjunto, responde lo que el cliente preguntó o pidió en sus mensajes previos. Si el cliente pidió precio, el bloque debe dar el precio; preguntar además la talla en el mismo bloque es válido, pero un bloque con saludos, enlaces o preguntas (incluida la talla) sin el precio es falso. Si el cliente no pidió precio, pedir una aclaración necesaria para responder (por ejemplo, qué sistema de tallas usa) es verdadero. Si el cliente no preguntó nada, y en los mensajes de seguimiento, es verdadero cuando el mensaje es pertinente al momento de la conversación.
    - "personalizado": verdadero solo si menciona el nombre del cliente o un dato concreto que el cliente dio en la conversación (su talla, su fecha, su ciudad, el modelo que envió o pidió). NO cuentan: el nombre del asesor o de la empresa, tratos genéricos ("caballero", "señorita", "estimado"), referencias vagas ("aquella joyita", "su modelo", "su pedido") ni textos de plantilla que servirían igual para cualquier cliente.
@@ -436,6 +436,7 @@ Ejemplos (cliente → mensaje del asesor → evaluación):
 - "¿Cuánto cuesta un anillo de compromiso?" → [respuesta R1] "Compromiso: https://tienda.ejemplo/anillos" (único mensaje del bloque) → info_producto_precio; responde=false (no da el precio), personalizado=false, siguiente_paso=false, tono=true, extension=false (incompleto).
 - "Soy talla 7" → "¿Talla 7 estándar o americana? Así le confirmo el peso" → pregunta_calificacion; responde=true (aclaración necesaria), personalizado=true (usa su talla), siguiente_paso=true, tono=true, extension=true.
 - (el cliente no escribe desde hace tres días) → [seguimiento] "Buenas tardes 😊 Quería saber si aún tiene en mente aquella joyita que estuvimos viendo" → seguimiento; responde=true, personalizado=false (referencia vaga, sirve para cualquiera), siguiente_paso=false, tono=true, extension=true.
+- "Quiero información" → [respuesta R1] "Buenos días, le saluda Ana, asesora de ventas 😊 ¿Qué modelo le interesa?" → pregunta_calificacion (saluda, pero el contenido es la pregunta); responde=true, personalizado=false, siguiente_paso=true, tono=true, extension=true.
 - "Claro, el fin de semana le aviso" → "Perfecto señorita, quedo atenta" → saludo_plantilla; responde=true, personalizado=false, siguiente_paso=false, tono=true, extension=true.
 - "¿Hacen envíos?" → "si claro ennviamos a todo el peru" → respuesta_pregunta; responde=true, personalizado=false, siguiente_paso=false, tono=false (ortografía), extension=true.`;
 
