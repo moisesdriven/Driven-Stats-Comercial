@@ -411,3 +411,69 @@ el puntaje a ±1, 12 de 13.
 No se implementó. Requiere rangos de largo que el cliente no ha definido, y la calibración muestra que
 las diferencias de extensión no son de largo sino de mensajes cortos que completan a otro (punto 3 de
 arriba): es una aclaración de la rúbrica, no una regla de largo.
+
+## Calidad · rúbrica v3 (16 de noviembre de 2026)
+
+Decisiones del cliente sobre las tres ambigüedades de la v2:
+
+1. **Tildes:** las tildes faltantes hacen falso el tono.
+2. **Bloques de respuesta:** una respuesta es el primer mensaje del asesor después de que el cliente
+   escribe y lo que envía en los 5 minutos siguientes; si el cliente vuelve a escribir dentro del
+   margen, el bloque se corta y lo que sigue se califica aparte. Lo enviado después del margen sin un
+   mensaje nuevo del cliente es seguimiento. "Responde" se evalúa por bloque: si el cliente pidió
+   precio, el bloque debe darlo; preguntar la talla en el mismo bloque es válido.
+3. **Extensión:** un mensaje corto que completa a otro del mismo bloque tiene extensión adecuada.
+
+Implementación: los bloques se calculan en código (`bloquesDeRespuesta`, margen
+`MARGEN_BLOQUE_MS`) y se marcan en el texto que recibe la IA (`[ASESOR #n | respuesta R2]`,
+`[ASESOR | seguimiento]`). Al cerrar el análisis, todos los mensajes de un bloque reciben el
+"responde" del bloque (verdadero si alguno responde) y los de seguimiento quedan con esa categoría.
+La regla de saludos solo se usa dentro de un bloque de respuesta y exige tildes también en el nombre
+de la empresa ("Joyeria" va a la IA).
+
+### Conjunto independiente reetiquetado con la v3
+
+30 de las 100 etiquetas cambiaron, sobre todo "responde" de saludos cuyo bloque sí da el precio,
+categorías de seguimiento según el margen de 5 minutos y extensión de enlaces que completan un
+bloque. La calibración ahora califica el bloque completo del mensaje y unifica "responde" igual que
+el análisis.
+
+| Configuración (contra la referencia v3)                | Puntaje ±1  | Categoría | Exacto  |
+| ------------------------------------------------------ | ----------- | --------- | ------- |
+| v2 (respuestas de las corridas anteriores)             | 84–85 %     | 68–69 %   | 45 %    |
+| Sonnet 5.5 con la v2                                   | 85 %        | 83 %      | 47 %    |
+| v3, mensaje suelto (primera prueba)                    | 85–88 %     | 61–65 %   | 39–44 % |
+| v3, bloque completo, con regla de saludos (2 corridas) | **92–94 %** | 69–73 %   | 50–52 % |
+| v3, bloque completo, sin regla                         | 89 %        | 72 %      | 57 %    |
+
+- **La v3 aprueba el puntaje a ±1** (mínimo 90 %) y sube el exacto 5–12 puntos.
+- **La categoría no aprueba** (69–73 %, mínimo 85 %). Los desacuerdos estables son mensajes mixtos:
+  saludo + pregunta (la IA dice "saludo", la referencia "pregunta de calificación") y saludo +
+  catálogo o ubicación (la IA dice "saludo", la referencia "información/precio"). Es una decisión
+  pendiente del cliente: si un mensaje que saluda y además pregunta o informa se clasifica por su
+  contenido.
+- La primera prueba de la v3, que calificaba solo el mensaje suelto, empeoró: la IA trasladaba el
+  contenido del bloque a cada mensaje (un saludo con "siguiente paso"). Se aclaró en la rúbrica que
+  solo "responde" es del bloque.
+- El conjunto anterior (`jade18k-2026-11.json`) sigue etiquetado con la v2: hay que reetiquetarlo
+  antes de usarlo con la v3.
+
+### Análisis real con la v3 (semana 9–15 nov, 761 conversaciones)
+
+| Concepto                    | v2 con regla    | v3                       |
+| --------------------------- | --------------- | ------------------------ |
+| Mensajes calificados        | 2.048           | 2.051                    |
+| Saludos por regla           | 460             | 387                      |
+| Costo estimado → real (US$) | 0,0793 → 0,0801 | 0,0853 → 0,0882 (+3,4 %) |
+| Duración del lote           | 28 min          | 12 min                   |
+| Puntaje medio               | 2,56            | 2,34                     |
+| Mensajes con 4–5 / con 1–2  | 306 / 976       | 193 / 1.227              |
+| Tono correcto               | 66 %            | 42 %                     |
+| Seguimiento (categoría)     | 72              | 183                      |
+
+- La v3 cuesta ~10 % más que la v2 con regla: instrucciones más largas, marcas de bloque en el texto
+  y 73 saludos menos por regla (los de seguimiento y los que tienen faltas van a la IA).
+- El tono correcto cae de 66 % a 42 % por la regla de tildes, y el puntaje medio baja de 2,56 a
+  2,34. El cierre ajustó "responde" o la categoría por bloque en 457 mensajes.
+- Por asesora el orden cambia poco arriba (la de mayor puntaje se mantiene en 2,77) y las demás bajan
+  entre 0,2 y 0,45 puntos, sobre todo por tildes.
