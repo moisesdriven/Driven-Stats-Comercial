@@ -35,6 +35,11 @@ ALTER ROLE comercial_web CONNECTION LIMIT 20;
 -- Solo pueden conectarse a esta base.
 SELECT format('GRANT CONNECT ON DATABASE %I TO comercial_migrador, comercial_worker, comercial_web', current_database())
 \gexec
+-- pg-boss ejecuta "CREATE SCHEMA IF NOT EXISTS comercial_cola" en cada arranque, y PostgreSQL exige
+-- el permiso CREATE sobre la base aunque el esquema ya exista. La base es exclusiva de Driven
+-- Comercial (contenedor comercial-db), así que este permiso no alcanza a ninguna otra aplicación.
+SELECT format('GRANT CREATE ON DATABASE %I TO comercial_worker', current_database())
+\gexec
 
 -- 2. Esquemas propios.
 CREATE SCHEMA IF NOT EXISTS comercial AUTHORIZATION comercial_migrador;

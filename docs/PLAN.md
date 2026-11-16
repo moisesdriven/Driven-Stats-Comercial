@@ -12,8 +12,8 @@ siguiente.
 | 3    | `packages/core`: horario laboral, indicadores, semáforo, cuello de botella, alertas | Terminada              |
 | 4    | Historial de etapas y análisis de calidad por muestra                               | Construida, validando  |
 | 5    | Interfaz: vista general, subcuenta, asesor, horarios, usuarios, configuración       | Terminada              |
-| 6    | Purga de textos (alertas y resumen diario por WhatsApp: versión 2)                  | Terminada, en revisión |
-| 7    | Scripts de despliegue en PowerShell y `docs/DEPLOY.md`                              | Pendiente              |
+| 6    | Purga de textos (alertas y resumen diario por WhatsApp: versión 2)                  | Terminada              |
+| 7    | Scripts de despliegue en PowerShell y `docs/DEPLOY.md`                              | Terminada, en revisión |
 
 ## Decisiones tomadas al inicio
 
@@ -114,3 +114,19 @@ Detalle en [`decisiones.md`](decisiones.md).
   una recarga histórica no deshaga la purga.
 - En la web, un ejemplo de calidad cuyo texto ya se borró lo indica, y "Mensajes para mejorar" solo
   muestra mensajes que aún conservan su texto.
+
+## Fase 7 · resultado
+
+- `scripts/deploy/`: `config.example.psd1`, `comun.ps1` y los scripts `00` a `08` de la §13
+  (PowerShell 5.1 y 7, `Set-StrictMode`, pasos numerados, secretos con `Read-Host -AsSecureString`
+  que viajan por la entrada estándar de ssh, nunca en la línea de comandos ni en disco local).
+- Adaptaciones al servidor real: PostgreSQL propio (`02` entra por el socket local del contenedor,
+  sin pedir la contraseña del administrador) y Traefik por etiquetas (no se edita ni se recarga el
+  proxy). `Transporte = 'local'` permite ejecutar los scripts en el propio servidor.
+- Reversión: `03` guarda las imágenes en marcha como `:anterior` antes de cambiar; `06` vuelve a
+  ellas.
+- Despliegue de prueba completo (ver `docs/DEPLOY.md`, sección final). Encontró dos errores ya
+  corregidos: el worker necesitaba `CREATE` sobre la base para pg-boss (`esquema_y_roles.sql`) y el
+  despliegue no detectaba un worker que se reiniciaba.
+- CI revisa la sintaxis de los scripts de PowerShell.
+- Pendiente: la primera ejecución real por SSH desde Windows contra el servidor.

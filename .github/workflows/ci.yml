@@ -49,6 +49,16 @@ jobs:
             psql -h localhost -U postgres -d comercial_test -v ON_ERROR_STOP=1 \
               -v clave_migrador=m -v clave_worker=w -v clave_web=x -f scripts/sql/esquema_y_roles.sql
           done
+      - name: Sintaxis de los scripts de despliegue (PowerShell)
+        shell: pwsh
+        run: |
+          $errores = 0
+          Get-ChildItem scripts/deploy/*.ps1 | ForEach-Object {
+            $err = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$err) | Out-Null
+            foreach ($e in $err) { $errores++; Write-Host "$($_.Name):$($e.Extent.StartLineNumber) $($e.Message)" }
+          }
+          if ($errores) { exit 1 }
       - run: pnpm build
       - name: Prueba de punta a punta (Playwright, contra el build y la base desechable)
         run: |
