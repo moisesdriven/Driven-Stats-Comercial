@@ -7,11 +7,20 @@ export async function cargarConversaciones(
   db: Db,
   cliente: ClienteGhl,
   desde?: Date,
-): Promise<{ conversaciones: number; ids: string[]; contactos: Set<string> }> {
+): Promise<{
+  conversaciones: number;
+  ids: string[];
+  contactos: Set<string>;
+  /** Fecha (ms) del último mensaje de cada conversación, sin actividades (no salen en la exportación). */
+  ultimosMensajes: number[];
+}> {
   const ids: string[] = [];
   const contactos = new Set<string>();
+  const ultimosMensajes: number[] = [];
   for await (const lote of cliente.conversaciones(desde ? { desde } : {})) {
     for (const c of lote) {
+      if (c.lastMessageDate && !c.lastMessageType?.startsWith('TYPE_ACTIVITY'))
+        ultimosMensajes.push(c.lastMessageDate);
       if (!c.contactId) continue;
       ids.push(c.id);
       contactos.add(c.contactId);
@@ -26,5 +35,5 @@ export async function cargarConversaciones(
           actualizado_en = now()`);
     }
   }
-  return { conversaciones: ids.length, ids, contactos };
+  return { conversaciones: ids.length, ids, contactos, ultimosMensajes };
 }

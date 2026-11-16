@@ -116,7 +116,7 @@ export async function ejecutarCarga(
       const desde = new Date(marca.getTime() - 10 * 60_000); // solape de 10 min por mensajes tardíos
       resumen.catalogos = await sincronizarCatalogos(db, cliente);
       const conv = await cargarConversaciones(db, cliente, desde);
-      const men = await cargarMensajes(db, cliente, desde, ahora);
+      const men = await cargarMensajes(db, cliente, desde, ahora, 4, conv.ultimosMensajes);
       const contactos = [...new Set([...men.contactos, ...conv.contactos])];
       const opp = await cargarOportunidades(db, cliente, { contactIds: contactos });
       resumen.conversaciones = conv.conversaciones;
@@ -173,7 +173,7 @@ export async function ejecutarCarga(
       };
       while (desde < ahora) {
         const hasta = new Date(Math.min(desde.getTime() + 86_400_000, ahora.getTime()));
-        const r = await cargarMensajes(db, cliente, desde, hasta);
+        const r = await cargarMensajes(db, cliente, desde, hasta, 4, conv.ultimosMensajes);
         total.mensajes += r.mensajes;
         total.totalGhl += r.totalGhl;
         total.verificadosIa += r.verificadosIa;

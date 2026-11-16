@@ -109,6 +109,34 @@ Observaciones para el cliente:
   límite diario de GHL).
 - Horario real de cada asesora (el actual es provisional).
 
+## Fase 4 · preparación del primer análisis de calidad (16 de noviembre de 2026)
+
+Base local recreada con `docs/desarrollo-piloto.md` y carga histórica de 8 días. Mensajes por día
+(desde las 08:12 UTC), todos iguales al `total` que informa GHL: 777 · 2.658 · 4.928 · 4.404 ·
+3.905 · 4.292 · 4.049 · 3.417. En la semana del 9 al 15 de noviembre (hora de Bogotá): 27.443
+mensajes.
+
+**Incidente:** la exportación de mensajes de GHL respondió `total: 0` durante varios minutos, en
+dos momentos, para días con miles de mensajes. La carga anterior lo aceptaba como día vacío y
+avanzaba la marca. Corregido: un rango vacío se confirma y se contrasta con la fecha del último
+mensaje de las conversaciones; si no cuadra, la carga falla sin avanzar la marca.
+
+### Estimación (`calidad-estimar`, semana del 9 al 15 de noviembre)
+
+| Concepto                           | Valor                                                                           |
+| ---------------------------------- | ------------------------------------------------------------------------------- |
+| Conversaciones elegibles / muestra | 921 / 921                                                                       |
+| Solicitudes al lote                | 917                                                                             |
+| Mensajes a calificar               | 2.492                                                                           |
+| Descartes                          | 711 fuera de etapas · 48 triviales · 124 por tope · 4 sin mensajes calificables |
+| Tokens estimados                   | 1.499.506 de entrada · 159.985 de salida                                        |
+| **Costo estimado**                 | **US$ 0,0625** (aprobado: unos US$ 0,06)                                        |
+| Modelo                             | `claude-haiku-5-5`, Batches API (precios verificados)                           |
+
+~~Pendiente: enviar el lote, comparar el costo real con el estimado y revisar a mano 100 mensajes
+calificados.~~ El análisis real se hizo en otra base local: ver la sección siguiente (sus cifras de
+universo no coinciden con esta estimación).
+
 ## Fase 4 · primer análisis de calidad real (16 de noviembre de 2026)
 
 Jade18K, semana del 9 al 15 de noviembre, lanzado como análisis manual por la API

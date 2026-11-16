@@ -72,6 +72,21 @@ describe('ClienteGhl', () => {
     ).rejects.toThrow(/vacía/);
   });
 
+  it('confirma un rango vacío (total 0) antes de aceptarlo', async () => {
+    const mensajes = Array.from({ length: 30 }, (_, i) => msg(i));
+    // Falla breve de GHL: responde `total: 0` dos veces y luego bien.
+    const { c } = cliente({ locationId: LOC, mensajes, exportacionesEnCero: 2 });
+    expect(
+      await todos(c.exportarMensajes({ desde: new Date(0), hasta: new Date('2030-01-01') })),
+    ).toHaveLength(30);
+    // Si sigue en cero tras las confirmaciones, se acepta como vacío (el worker lo contrasta).
+    const otro = cliente({ locationId: LOC, mensajes, exportacionesEnCero: 99 });
+    expect(
+      await todos(otro.c.exportarMensajes({ desde: new Date(0), hasta: new Date('2030-01-01') })),
+    ).toHaveLength(0);
+    expect(otro.c.llamadas).toBe(3);
+  });
+
   it('la exportación no incluye actividades; los mensajes de conversación sí', async () => {
     const mensajes = [
       msg(1),
