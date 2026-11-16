@@ -19,17 +19,27 @@ siguiente.
 
 Detalle en [`decisiones.md`](decisiones.md).
 
-## Fase 1 · plan corto
+## Fase 1 · resultado
 
-1. `packages/db`: esquema Drizzle completo de la sección 8 (con `mensajes` particionada por mes),
-   `drizzle.config.ts` con `schemaFilter: ['comercial']`, primera migración.
-2. `scripts/sql/esquema_y_roles.sql`: esquemas `comercial` y `comercial_cola`, los 3 roles y sus
-   permisos, idempotente.
-3. Cifrado AES-256-GCM de tokens y secretos TOTP, con pruebas.
-4. Autenticación: Argon2id, sesión en cookie `httpOnly` + `SameSite=Lax` + `Secure`, cambio de
-   contraseña obligatorio, TOTP opcional, comando `crear-admin`.
-5. Permisos: matriz de la §10.1 sembrada en `permisos_rol`, excepciones por usuario, filtro por
-   subcuenta en una sola capa de acceso a datos y auditoría de cambios.
-6. Pruebas de integración con PostgreSQL desechable: un dueño no puede leer una subcuenta que no
-   tiene asignada aunque cambie la URL o llame la API, y solo el administrador puede lanzar el
-   análisis de calidad.
+- Esquema completo de la §8 (más `sesiones`), `mensajes` particionada por mes, migración inicial.
+- `scripts/sql/esquema_y_roles.sql` idempotente; verifica que los roles propios no tengan acceso a
+  otros esquemas (`ghl`, `app`).
+- Cifrado AES-256-GCM, Argon2id, sesiones con vencimiento deslizante, 2FA TOTP, cambio de
+  contraseña obligatorio, bloqueo tras 5 intentos fallidos, CSP con nonce.
+- Permisos de la §10.1 con excepciones por usuario; filtro por subcuenta en cada consulta.
+- API: ingreso, salida, cambio de contraseña, 2FA, `/api/yo`, subcuentas, detalle de asesor,
+  usuarios (alta, edición, restablecer contraseña) y el resguardo del análisis de calidad.
+- `crear-admin` dentro de la imagen web; `migrar` dentro de la imagen del worker.
+- 55 pruebas (unitarias e integración con PostgreSQL).
+
+## Fase 2 · plan corto
+
+1. `packages/ghl`: cliente de solo lectura (header `Version` y paginación verificados en la
+   documentación oficial), límite de ráfaga, reintentos 429/5xx con backoff y jitter, registro de
+   llamadas sin tokens, verificación de permisos del PIT. Pruebas con un GHL simulado.
+2. Inspección de mensajes reales de Jade18K y `docs/mapeo-origen.md` (manual, workflow, agente IA,
+   campaña) para aprobación. Verificar si los registros de actividad traen los cambios de etapa.
+3. Alta de subcuentas y tokens (API + verificación de permisos), cifrados en `credenciales`.
+4. Worker con pg-boss (`comercial_cola`): `sync:incremental`, `sync:nocturno`, `sync:historico`,
+   upserts idempotentes, `sync_estado` y construcción de `historial_etapas`.
+5. Carga real de Jade18K en modo sombra.

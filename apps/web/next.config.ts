@@ -13,7 +13,16 @@ const config: NextConfig = {
   poweredByHeader: false,
   transpilePackages: ['@driven/core', '@driven/ui', '@driven/db', '@driven/ghl'],
   async headers() {
-    return [{ source: '/:path*', headers: cabecerasSeguridad }];
+    return [
+      { source: '/:path*', headers: cabecerasSeguridad },
+      // La API solo devuelve JSON: no carga nada.
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Content-Security-Policy', value: "default-src 'none'; frame-ancestors 'none'" },
+        ],
+      },
+    ];
   },
 };
 

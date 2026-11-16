@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@driven/core": "workspace:*",
-    "@driven/db": "workspace:*"
+    "@driven/db": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "tsup": "^9.0.0",

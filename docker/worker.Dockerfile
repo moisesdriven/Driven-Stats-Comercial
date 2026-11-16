@@ -18,5 +18,7 @@ RUN addgroup -S app && adduser -S app -G app
 COPY --from=build --chown=app:app /out/node_modules ./node_modules
 COPY --from=build --chown=app:app /out/package.json ./package.json
 COPY --from=build --chown=app:app /repo/apps/worker/dist ./dist
+# Migraciones del esquema comercial: node dist/migrar.js (con DATABASE_URL_MIGRADOR).
+COPY --from=build --chown=app:app /repo/packages/db/migraciones ./migraciones
 USER app
 CMD ["node", "dist/index.js"]

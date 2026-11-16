@@ -5,3 +5,4 @@ ESPECIFICACION.md
 .next/
 dist/
 coverage/
+apps/web/cli/

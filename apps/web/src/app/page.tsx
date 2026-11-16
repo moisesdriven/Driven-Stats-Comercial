@@ -1,25 +1,39 @@
-import { ETAPAS_PROCESO } from '@driven/core';
-import { colores, tipografia } from '@driven/ui';
+import { MODULOS, NOMBRES_MODULO, NOMBRES_ROL } from '@driven/core';
+import { BotonSalir } from '@/componentes/BotonSalir';
+import { requerirSesionPagina } from '@/servidor/pagina';
 
-const NOMBRES: Record<(typeof ETAPAS_PROCESO)[number], string> = {
-  atencion: 'Atención',
-  seguimiento: 'Seguimiento',
-  negociacion: 'Negociación',
-  cierre: 'Cierre',
-};
+export const dynamic = 'force-dynamic';
 
-export default function Inicio() {
+/** Página provisional: las vistas reales (general, subcuenta, asesor…) llegan en la fase 5. */
+export default async function Inicio() {
+  const { ctx } = await requerirSesionPagina();
+  const modulos = MODULOS.filter((m) => ctx.modulos[m] !== 'ninguno');
   return (
-    <main style={{ padding: 32, maxWidth: 960, margin: '0 auto' }}>
-      <h1 style={{ fontFamily: tipografia.titulos, fontWeight: 700 }}>Driven Comercial</h1>
-      <p style={{ color: colores.textoSecundario }}>
-        Sistema en construcción. Las vistas llegan en la fase 5.
-      </p>
-      <ul>
-        {ETAPAS_PROCESO.map((e) => (
-          <li key={e}>{NOMBRES[e]}</li>
-        ))}
-      </ul>
+    <main className="inicio">
+      <header className="inicio__cabecera">
+        <div>
+          <h1>Hola, {ctx.nombre}</h1>
+          <p>
+            {NOMBRES_ROL[ctx.rol]} ·{' '}
+            {ctx.rol === 'admin'
+              ? 'todas las subcuentas'
+              : `${ctx.subcuentas.length} subcuenta(s) asignada(s)`}
+          </p>
+        </div>
+        <BotonSalir />
+      </header>
+      <section className="inicio__tarjeta">
+        <h2>Módulos con acceso</h2>
+        <ul>
+          {modulos.map((m) => (
+            <li key={m}>
+              {NOMBRES_MODULO[m]} ·{' '}
+              <strong>{ctx.modulos[m] === 'editar' ? 'editar' : 'ver'}</strong>
+            </li>
+          ))}
+        </ul>
+        <p className="inicio__nota">Las vistas de indicadores se habilitan en la fase 5.</p>
+      </section>
     </main>
   );
 }

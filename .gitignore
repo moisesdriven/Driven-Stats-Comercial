@@ -12,3 +12,4 @@ scripts/deploy/config.psd1
 *.log
 .DS_Store
 next-env.d.ts
+apps/web/cli/

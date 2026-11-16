@@ -52,6 +52,37 @@ pnpm verificar                     # todo lo anterior, como en CI
 
 Al terminar cada fase: `pnpm verificar` en verde, commit y resumen.
 
+### Pruebas de integración
+
+Necesitan un PostgreSQL desechable en `DATABASE_URL_TEST` (si falta, se omiten; en CI siempre
+corren). Recrean el esquema `comercial` desde cero. Nunca apuntar a una base real.
+
+```bash
+DATABASE_URL_TEST=postgres://postgres@127.0.0.1:5432/comercial_test pnpm test
+```
+
+## Base de datos
+
+- Esquema en `packages/db/src/esquema/index.ts`. Para un cambio: editar el esquema y
+  `pnpm --filter @driven/db generar` (drizzle-kit). Revisar el SQL generado antes de confirmarlo.
+- `mensajes` está particionada por mes (editado a mano en `0000_inicial.sql`): drizzle-kit no
+  modela particiones. Su PK es `(message_id, fecha)`. Las particiones se crean con
+  `comercial.asegurar_particiones_mensajes(desde, meses)`; no hay partición por defecto.
+- Las migraciones se aplican con `migrar()` de `@driven/db/migrar` (no con el migrador de Drizzle:
+  ese ejecuta `CREATE SCHEMA` y el rol migrador no tiene ese permiso, a propósito). La web nunca
+  importa `@driven/db/migrar`.
+- `scripts/sql/esquema_y_roles.sql` crea esquemas y roles; es idempotente.
+
+## Seguridad y permisos (apps/web/src/servidor)
+
+- `acceso.ts`: `cargarContexto` recalcula rol, subcuentas y módulos en **cada** petición.
+  Toda consulta nueva recibe el `ContextoAcceso`, llama a `exigirModulo`/`exigirSubcuenta` y
+  además filtra por `ctx.subcuentas` dentro del SQL (`consultas/`).
+- `http.ts`: `requerirSesion`, `leerJson` (Zod), `manejar` (errores → JSON) y control de Origin.
+- Contraseñas Argon2id (`claves.ts`), sesiones en tabla `sesiones` (se guarda el SHA-256 del
+  token), TOTP propio (`totp.ts`), CSP con nonce en `src/proxy.ts`.
+- Cada acción relevante se registra con `auditar()`; nunca guardar contraseñas ni tokens ahí.
+
 ## Stack y versiones
 
 Node 22 · pnpm 10 · TypeScript 6.0 estricto (`noUncheckedIndexedAccess`,
@@ -62,6 +93,11 @@ TypeScript se mantiene en 6.0.x porque `typescript-eslint` aún no soporta la 7.
 
 ## Entorno de desarrollo en la nube
 
-Variables disponibles: el PIT de la subcuenta piloto llega como `GHL_LOCATION_TOKEN` /
-`GHL_LOCATION_ID` (nombres equivalentes a `GHL_PIT_PILOTO` / `GHL_LOCATION_ID_PILOTO`). El código
-de inspección acepta ambos nombres.
+- Subcuenta piloto: **Jade18K** (`93mgPQwURqpEvyzZcf9m`). Su PIT de solo lectura llega en
+  `GHL_PIT_PILOTO` (y el id en `GHL_LOCATION_ID_PILOTO`). `GHL_LOCATION_TOKEN`/`GHL_LOCATION_ID`
+  son de otra subcuenta (ETT) y **no** se usan para el piloto. `GHL_AGENCY_TOKEN` solo para listar
+  subcuentas.
+- PostgreSQL 16 local para pruebas: binarios en `/usr/lib/postgresql/16/bin` (initdb como usuario
+  `postgres`).
+- Para construir imágenes Docker aquí, el proxy del entorno exige su certificado dentro del build;
+  se usa una copia temporal del Dockerfile (nunca se modifica el del repositorio).
