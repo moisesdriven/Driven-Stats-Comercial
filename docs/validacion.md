@@ -214,5 +214,5 @@ token; salida = 10 + 110 por mensaje. Con el caso del piloto:
 
 La calibración sale de un solo análisis, así que el ajuste exacto a este caso es esperable; la
 prueba exige ±15 %. Si el lote no aprovecha la caché (es de mejor esfuerzo en la Batches API), el
-costo real puede superar al estimado: en el peor caso, sin ninguna lectura de caché, este análisis
-habría costado unos US$ 0,09. Conviene recalibrar con los próximos análisis.
+costo real puede superar al estimado: en el peor caso, si ninguna solicitud lee de caché y todas
+pagan la escritura (1,25×), este análisis habría costado unos US$ 0,11. Conviene recalibrar con los próximos análisis.
