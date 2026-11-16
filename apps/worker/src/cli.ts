@@ -28,6 +28,7 @@ import { ProveedorAnthropic } from './calidad/proveedor';
 import { leerConfiguracion } from './configuracion';
 import { subcuentasActivas } from './subcuentas';
 import { calcularResumen, hoyEn, sumarDias } from './calculo/resumen';
+import { purgarTextos } from './mantenimiento/purga';
 
 /** Formato de respuesta pedido por línea de comandos (por defecto el vigente). */
 function leerFormato(v: string | undefined): FormatoSalida {
@@ -142,6 +143,10 @@ async function principal() {
       if (!aprobado) process.exitCode = 1;
       return;
     }
+    if (comando === 'purga') {
+      console.log(`Textos borrados: ${await purgarTextos(db)}`);
+      return;
+    }
     if (comando === 'resumen') {
       const dias = Number(arg('dias') ?? 7);
       const filas = await db.select().from(tablas.subcuentas);
@@ -161,7 +166,7 @@ async function principal() {
     }
     if (!comando || !(comando in COLAS)) {
       console.error(
-        'Uso: cli.js <historico|incremental|nocturno|estado> [--dias N] [--subcuenta ID] [--directo]',
+        'Uso: cli.js <historico|incremental|nocturno|estado|resumen|purga> [--dias N] [--subcuenta ID] [--directo]',
       );
       process.exitCode = 2;
       return;

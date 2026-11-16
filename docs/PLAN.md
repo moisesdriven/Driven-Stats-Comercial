@@ -12,7 +12,7 @@ siguiente.
 | 3    | `packages/core`: horario laboral, indicadores, semáforo, cuello de botella, alertas | Terminada              |
 | 4    | Historial de etapas y análisis de calidad por muestra                               | Construida, validando  |
 | 5    | Interfaz: vista general, subcuenta, asesor, horarios, usuarios, configuración       | Terminada              |
-| 6    | Alertas y purga                                                                     | Pendiente              |
+| 6    | Purga de textos (alertas y resumen diario por WhatsApp: versión 2)                  | Terminada, en revisión |
 | 7    | Scripts de despliegue en PowerShell y `docs/DEPLOY.md`                              | Pendiente              |
 
 ## Decisiones tomadas al inicio
@@ -101,3 +101,16 @@ Detalle en [`decisiones.md`](decisiones.md).
 - Las tarjetas y tablas muestran las metas reales de cada subcuenta (antes había valores fijos).
 - Pendiente: el filtro por canal de la vista general (§10.2). `resumen_diario` no guarda la
   dimensión canal; agregarla requiere cambiar el resumen del worker y regenerarlo.
+
+## Fase 6 · resultado
+
+- Decisión del cliente (16 nov 2026): **no hay envío por correo**. Las alertas en tiempo real y el
+  resumen diario irán por WhatsApp en la versión 2. Se quitaron las variables SMTP de
+  `.env.example`; `MODO_ALERTAS` sigue en `sombra`.
+- `purga-textos` (worker, diario a las 03:30 hora de Lima): borra `mensajes.texto` con más de 90
+  días, por lotes de 5.000. Conserva el resto del mensaje y las clasificaciones de calidad. También
+  a mano: `node dist/cli.js purga`.
+- La carga de mensajes ya no guarda ni restaura el texto de un mensaje con más de 90 días, para que
+  una recarga histórica no deshaga la purga.
+- En la web, un ejemplo de calidad cuyo texto ya se borró lo indica, y "Mensajes para mejorar" solo
+  muestra mensajes que aún conservan su texto.

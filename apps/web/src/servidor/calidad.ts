@@ -371,7 +371,7 @@ export async function peoresMensajes(db: Db, ctx: ContextoAcceso, locationId: st
     from comercial.clasificaciones c
     join comercial.mensajes m on m.message_id = c.message_id and m.location_id = ${locationId}
     left join comercial.asesores a on a.user_id = c.asesor_id
-    where c.analisis_id = ${resumen.analisisId} and c.puntaje is not null
+    where c.analisis_id = ${resumen.analisisId} and c.puntaje is not null and m.texto is not null
     order by c.puntaje asc, length(m.texto) desc
     limit ${limite}`);
   return { analisis: resumen, mensajes: r.rows };

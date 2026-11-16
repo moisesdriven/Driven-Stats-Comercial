@@ -4,11 +4,13 @@
  *   sync-nocturno     diario a SYNC_NOCTURNO_HORA, hora de Lima (02:30 por defecto)
  *   sync-historico    manual: node dist/cli.js historico --dias 90 [--subcuenta <locationId>]
  *   resumen-pendiente cada 5 min: recalcula el resumen diario de las subcuentas marcadas desde la web
+ *   purga-textos      diario a las 03:30: borra el texto de los mensajes con más de 90 días
  * Una sola ejecución activa por cola (política singleton). Modo `sombra` por defecto.
  */
 import { PgBoss } from 'pg-boss';
 import { configuracionCalidad, crearConexion, ESQUEMA_COLA, tablas } from '@driven/db';
 import { recalcularPendientes } from './calculo/pendientes';
+import { purgarTextos } from './mantenimiento/purga';
 import { procesarPendientes, solicitarAnalisis } from './calidad/proceso';
 import { ProveedorAnthropic } from './calidad/proveedor';
 import { leerConfiguracion } from './configuracion';
@@ -91,6 +93,17 @@ async function principal() {
     await recalcularPendientes(db);
   });
 
+  // ---------------------------------------------------------------- Purga de textos (90 días)
+  await boss.createQueue('purga-textos', {
+    policy: 'singleton',
+    retryLimit: 1,
+    expireInSeconds: 3600,
+  });
+  await boss.schedule('purga-textos', '30 3 * * *', {}, { tz: cfg.ZONA_HORARIA_DEFECTO });
+  await boss.work('purga-textos', async () => {
+    await purgarTextos(db);
+  });
+
   // ---------------------------------------------------------------- Análisis de calidad (§6.5)
   const cfgCalidad = configuracionCalidad();
   const proveedor = process.env.ANTHROPIC_API_KEY ? new ProveedorAnthropic() : null;
@@ -134,7 +147,7 @@ async function principal() {
 
   log('worker_iniciado', {
     modo: cfg.MODO_ALERTAS,
-    colas: [...Object.values(COLAS), 'resumen-pendiente', ...COLAS_CALIDAD],
+    colas: [...Object.values(COLAS), 'resumen-pendiente', 'purga-textos', ...COLAS_CALIDAD],
   });
 
   const detener = async (senal: string) => {

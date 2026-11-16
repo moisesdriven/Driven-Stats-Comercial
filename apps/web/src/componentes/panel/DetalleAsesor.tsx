@@ -230,7 +230,7 @@ export function RanuraEjemplos() {
                   }
                 >
                   <span className="burbuja__quien">{nombre}</span>
-                  {m.texto}
+                  {m.texto ?? 'El texto ya no está disponible: se borra a los 90 días.'}
                 </div>
               </div>
               <div
