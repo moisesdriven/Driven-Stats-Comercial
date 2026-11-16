@@ -118,6 +118,22 @@ CREATE TABLE "comercial"."ejemplos_calidad" (
 	CONSTRAINT "ejemplos_calidad_analisis_id_asesor_id_pk" PRIMARY KEY("analisis_id","asesor_id")
 );
 --> statement-breakpoint
+CREATE TABLE "comercial"."eventos" (
+	"id" bigserial PRIMARY KEY NOT NULL,
+	"clave" text NOT NULL,
+	"location_id" text NOT NULL,
+	"contact_id" text,
+	"opportunity_id" text,
+	"conversation_id" text,
+	"tipo" text NOT NULL,
+	"ocurrido_en" timestamp with time zone NOT NULL,
+	"asesor_id" text,
+	"datos" jsonb,
+	"fuente" text NOT NULL,
+	"creado_en" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "eventos_clave" UNIQUE("clave")
+);
+--> statement-breakpoint
 CREATE TABLE "comercial"."historial_etapas" (
 	"id" bigserial PRIMARY KEY NOT NULL,
 	"opportunity_id" text NOT NULL,
@@ -148,25 +164,33 @@ CREATE TABLE "comercial"."horarios" (
 );
 --> statement-breakpoint
 CREATE TABLE "comercial"."leads" (
-	"conversation_id" text PRIMARY KEY NOT NULL,
 	"location_id" text NOT NULL,
 	"contact_id" text NOT NULL,
+	"conversation_id" text,
 	"opportunity_id" text,
 	"canal" text,
+	"campana" text,
 	"asesor_id" text,
+	"asignado_en" timestamp with time zone,
+	"asignado_conversacion" text,
+	"conversacion_creada_en" timestamp with time zone,
 	"ingreso_en" timestamp with time zone,
+	"ingreso_anterior_a_carga" boolean DEFAULT false NOT NULL,
 	"primera_resp_auto_en" timestamp with time zone,
 	"primera_resp_humana_en" timestamp with time zone,
+	"primera_resp_humana_por" text,
 	"minutos_laborales_respuesta" numeric,
 	"ultimo_inbound_en" timestamp with time zone,
 	"ultimo_outbound_en" timestamp with time zone,
+	"ultimo_humano_en" timestamp with time zone,
 	"intentos" integer DEFAULT 0 NOT NULL,
 	"respuesta_efectiva" boolean,
 	"abandono" boolean DEFAULT false NOT NULL,
 	"estado" text,
 	"etapa_estandar" text,
 	"creado_en" timestamp with time zone DEFAULT now() NOT NULL,
-	"actualizado_en" timestamp with time zone DEFAULT now() NOT NULL
+	"actualizado_en" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "leads_location_id_contact_id_pk" PRIMARY KEY("location_id","contact_id")
 );
 --> statement-breakpoint
 CREATE TABLE "comercial"."mapa_etapas" (
@@ -184,16 +208,32 @@ CREATE TABLE "comercial"."mensajes" (
 	"message_id" text NOT NULL,
 	"location_id" text NOT NULL,
 	"conversation_id" text NOT NULL,
+	"contact_id" text,
 	"direccion" text NOT NULL,
 	"tipo" text,
+	"canal" text,
+	"contenido" text,
+	"adjuntos" smallint DEFAULT 0 NOT NULL,
+	"estado" text,
+	"source" text,
 	"origen" text,
 	"user_id" text,
+	"origen_verificado_en" timestamp with time zone,
 	"texto" text,
 	"fecha" timestamp with time zone NOT NULL,
 	"creado_en" timestamp with time zone DEFAULT now() NOT NULL,
 	"actualizado_en" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "mensajes_message_id_fecha_pk" PRIMARY KEY("message_id","fecha")
 ) PARTITION BY RANGE ("fecha");
+--> statement-breakpoint
+CREATE TABLE "comercial"."motivos_perdida" (
+	"location_id" text NOT NULL,
+	"motivo_id" text NOT NULL,
+	"nombre" text NOT NULL,
+	"creado_en" timestamp with time zone DEFAULT now() NOT NULL,
+	"actualizado_en" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "motivos_perdida_location_id_motivo_id_pk" PRIMARY KEY("location_id","motivo_id")
+);
 --> statement-breakpoint
 CREATE TABLE "comercial"."oportunidades" (
 	"opportunity_id" text PRIMARY KEY NOT NULL,
@@ -208,6 +248,12 @@ CREATE TABLE "comercial"."oportunidades" (
 	"cambio_etapa_en" timestamp with time zone,
 	"motivo_perdida" text,
 	"asesor_id" text,
+	"fuente" text,
+	"etapa_estandar" text,
+	"venta_en" timestamp with time zone,
+	"venta_cancelada_en" timestamp with time zone,
+	"perdida_en" timestamp with time zone,
+	"etapa_perdida" text,
 	"creado_en" timestamp with time zone DEFAULT now() NOT NULL,
 	"actualizado_en" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -263,6 +309,19 @@ CREATE TABLE "comercial"."subcuentas" (
 	"creado_en" timestamp with time zone DEFAULT now() NOT NULL,
 	"actualizado_en" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "etapas_calidad_tres" CHECK ("comercial"."subcuentas"."etapas_calidad" IS NULL OR cardinality("comercial"."subcuentas"."etapas_calidad") = 3)
+);
+--> statement-breakpoint
+CREATE TABLE "comercial"."sync_ejecuciones" (
+	"id" bigserial PRIMARY KEY NOT NULL,
+	"location_id" text NOT NULL,
+	"tipo" text NOT NULL,
+	"modo" text NOT NULL,
+	"inicio" timestamp with time zone DEFAULT now() NOT NULL,
+	"fin" timestamp with time zone,
+	"estado" text NOT NULL,
+	"llamadas" integer DEFAULT 0 NOT NULL,
+	"resumen" jsonb,
+	"error" text
 );
 --> statement-breakpoint
 CREATE TABLE "comercial"."sync_estado" (
@@ -334,15 +393,23 @@ CREATE INDEX "analisis_calidad_location" ON "comercial"."analisis_calidad" USING
 CREATE INDEX "auditoria_cuando" ON "comercial"."auditoria" USING btree ("cuando");--> statement-breakpoint
 CREATE INDEX "auditoria_que_cuando" ON "comercial"."auditoria" USING btree ("que","cuando");--> statement-breakpoint
 CREATE INDEX "ausencias_location_user" ON "comercial"."ausencias" USING btree ("location_id","user_id");--> statement-breakpoint
+CREATE INDEX "eventos_location_tipo_fecha" ON "comercial"."eventos" USING btree ("location_id","tipo","ocurrido_en");--> statement-breakpoint
+CREATE INDEX "eventos_contacto" ON "comercial"."eventos" USING btree ("location_id","contact_id","ocurrido_en");--> statement-breakpoint
+CREATE INDEX "eventos_oportunidad" ON "comercial"."eventos" USING btree ("opportunity_id");--> statement-breakpoint
+CREATE INDEX "eventos_asesor_fecha" ON "comercial"."eventos" USING btree ("asesor_id","ocurrido_en");--> statement-breakpoint
 CREATE INDEX "historial_etapas_oportunidad" ON "comercial"."historial_etapas" USING btree ("opportunity_id","desde");--> statement-breakpoint
 CREATE INDEX "historial_etapas_contacto" ON "comercial"."historial_etapas" USING btree ("location_id","contact_id","desde");--> statement-breakpoint
 CREATE INDEX "horarios_location_user" ON "comercial"."horarios" USING btree ("location_id","user_id");--> statement-breakpoint
 CREATE INDEX "leads_location_ingreso" ON "comercial"."leads" USING btree ("location_id","ingreso_en");--> statement-breakpoint
 CREATE INDEX "leads_asesor_ingreso" ON "comercial"."leads" USING btree ("asesor_id","ingreso_en");--> statement-breakpoint
 CREATE INDEX "mensajes_conversacion_fecha" ON "comercial"."mensajes" USING btree ("conversation_id","fecha");--> statement-breakpoint
+CREATE INDEX "mensajes_contacto_fecha" ON "comercial"."mensajes" USING btree ("location_id","contact_id","fecha");--> statement-breakpoint
 CREATE INDEX "oportunidades_location_status_cambio" ON "comercial"."oportunidades" USING btree ("location_id","status","cambio_estado_en");--> statement-breakpoint
+CREATE INDEX "oportunidades_contacto" ON "comercial"."oportunidades" USING btree ("location_id","contact_id");--> statement-breakpoint
+CREATE INDEX "oportunidades_venta" ON "comercial"."oportunidades" USING btree ("location_id","venta_en");--> statement-breakpoint
 CREATE INDEX "resumen_diario_fecha_location" ON "comercial"."resumen_diario" USING btree ("fecha","location_id");--> statement-breakpoint
 CREATE INDEX "sesiones_usuario" ON "comercial"."sesiones" USING btree ("usuario_id");--> statement-breakpoint
+CREATE INDEX "sync_ejecuciones_location_inicio" ON "comercial"."sync_ejecuciones" USING btree ("location_id","inicio");--> statement-breakpoint
 CREATE INDEX "tareas_location_vence" ON "comercial"."tareas" USING btree ("location_id","vence_en");
 --> statement-breakpoint
 -- Particiones mensuales de "mensajes" (editado a mano: Drizzle no modela particiones).

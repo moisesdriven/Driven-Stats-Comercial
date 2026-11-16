@@ -175,29 +175,51 @@ export const mapaEtapas = comercial.table(
 
 // ---------------------------------------------------------------- Datos cargados desde GHL
 
+/**
+ * Un lead por contacto y subcuenta (no por conversación): un cliente que escribe por varios canales
+ * o varias veces se cuenta una sola vez (decisión del cliente, docs/mapeo-origen.md §5).
+ */
 export const leads = comercial.table(
   'leads',
   {
-    conversationId: text('conversation_id').primaryKey(),
     locationId: text('location_id').notNull(),
     contactId: text('contact_id').notNull(),
+    /** Conversación del primer mensaje entrante (para el enlace a GHL). */
+    conversationId: text('conversation_id'),
+    /** Oportunidad vigente (la más reciente del contacto). */
     opportunityId: text('opportunity_id'),
     canal: text('canal'),
+    /** Campaña o fuente de procedencia (atribución de GHL). */
+    campana: text('campana'),
     asesorId: text('asesor_id'),
+    asignadoEn: ts('asignado_en'),
+    /** Asignado a la conversación en GHL (respaldo si el contacto aún no tiene oportunidad). */
+    asignadoConversacion: text('asignado_conversacion'),
+    /** Creación de la conversación más antigua del contacto. */
+    conversacionCreadaEn: ts('conversacion_creada_en'),
     ingresoEn: ts('ingreso_en'),
+    /**
+     * El contacto ya conversaba antes del inicio de la carga histórica: su "primer entrante" visto no
+     * es su ingreso real. No cuenta como lead recibido en el periodo.
+     */
+    ingresoAnteriorACarga: boolean('ingreso_anterior_a_carga').notNull().default(false),
     primeraRespAutoEn: ts('primera_resp_auto_en'),
     primeraRespHumanaEn: ts('primera_resp_humana_en'),
+    primeraRespHumanaPor: text('primera_resp_humana_por'),
     minutosLaboralesRespuesta: numeric('minutos_laborales_respuesta', { mode: 'number' }),
     ultimoInboundEn: ts('ultimo_inbound_en'),
     ultimoOutboundEn: ts('ultimo_outbound_en'),
+    ultimoHumanoEn: ts('ultimo_humano_en'),
     intentos: integer('intentos').notNull().default(0),
     respuestaEfectiva: boolean('respuesta_efectiva'),
     abandono: boolean('abandono').notNull().default(false),
+    /** abierto · ganado · perdido. Un lead perdido sale de las listas operativas (§5 del mapeo). */
     estado: text('estado'),
     etapaEstandar: text('etapa_estandar'),
     ...auditoriaFilas,
   },
   (t) => [
+    primaryKey({ columns: [t.locationId, t.contactId] }),
     index('leads_location_ingreso').on(t.locationId, t.ingresoEn),
     index('leads_asesor_ingreso').on(t.asesorId, t.ingresoEn),
   ],
@@ -209,10 +231,21 @@ export const mensajes = comercial.table(
     messageId: text('message_id').notNull(),
     locationId: text('location_id').notNull(),
     conversationId: text('conversation_id').notNull(),
+    contactId: text('contact_id'),
     direccion: text('direccion', { enum: ['inbound', 'outbound'] }).notNull(),
+    /** messageType de GHL (TYPE_WHATSAPP, TYPE_SMS…). */
     tipo: text('tipo'),
+    canal: text('canal'),
+    /** texto · imagen · audio · video · documento · plantilla · multimedia */
+    contenido: text('contenido'),
+    adjuntos: smallint('adjuntos').notNull().default(0),
+    /** Estado de entrega de GHL (sent, delivered, read, failed…). */
+    estado: text('estado'),
+    source: text('source'),
     origen: text('origen', { enum: ['manual', 'workflow', 'agente_ia', 'campana', 'sin_origen'] }),
     userId: text('user_id'),
+    /** Cuándo se confirmó el origen con GHL (generations de Conversation AI). */
+    origenVerificadoEn: ts('origen_verificado_en'),
     /** Se purga a los 90 días (job purga:textos); las clasificaciones se conservan. */
     texto: text('texto'),
     fecha: ts('fecha').notNull(),
@@ -221,6 +254,7 @@ export const mensajes = comercial.table(
   (t) => [
     primaryKey({ columns: [t.messageId, t.fecha] }),
     index('mensajes_conversacion_fecha').on(t.conversationId, t.fecha),
+    index('mensajes_contacto_fecha').on(t.locationId, t.contactId, t.fecha),
   ],
 );
 
@@ -240,10 +274,73 @@ export const oportunidades = comercial.table(
     cambioEtapaEn: ts('cambio_etapa_en'),
     motivoPerdida: text('motivo_perdida'),
     asesorId: text('asesor_id'),
+    /** Fuente de la oportunidad en GHL (campaña o procedencia). */
+    fuente: text('fuente'),
+    etapaEstandar: text('etapa_estandar'),
+    /** Primera entrada a una etapa "ganado" (o `won`). Nulo si nunca fue venta. */
+    ventaEn: ts('venta_en'),
+    /** Cancelación de la venta vigente (salió de "ganado" o terminó perdida). */
+    ventaCanceladaEn: ts('venta_cancelada_en'),
+    perdidaEn: ts('perdida_en'),
+    etapaPerdida: text('etapa_perdida'),
     ...auditoriaFilas,
   },
   (t) => [
     index('oportunidades_location_status_cambio').on(t.locationId, t.status, t.cambioEstadoEn),
+    index('oportunidades_contacto').on(t.locationId, t.contactId),
+    index('oportunidades_venta').on(t.locationId, t.ventaEn),
+  ],
+);
+
+export const motivosPerdida = comercial.table(
+  'motivos_perdida',
+  {
+    locationId: text('location_id').notNull(),
+    motivoId: text('motivo_id').notNull(),
+    nombre: text('nombre').notNull(),
+    ...auditoriaFilas,
+  },
+  (t) => [primaryKey({ columns: [t.locationId, t.motivoId] })],
+);
+
+export const TIPOS_EVENTO = [
+  'lead_recibido',
+  'asignacion',
+  'primera_respuesta_auto',
+  'primera_respuesta_humana',
+  'cambio_etapa',
+  'venta',
+  'venta_cancelada',
+  'perdida',
+  'reapertura',
+] as const;
+
+/**
+ * Eventos comerciales con su fecha: la estructura central de la que salen los indicadores
+ * (decisión del cliente). Los mensajes viven en `mensajes`. `clave` hace idempotentes las cargas.
+ */
+export const eventos = comercial.table(
+  'eventos',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    clave: text('clave').notNull(),
+    locationId: text('location_id').notNull(),
+    contactId: text('contact_id'),
+    opportunityId: text('opportunity_id'),
+    conversationId: text('conversation_id'),
+    tipo: text('tipo', { enum: TIPOS_EVENTO }).notNull(),
+    ocurridoEn: ts('ocurrido_en').notNull(),
+    asesorId: text('asesor_id'),
+    datos: jsonb('datos'),
+    fuente: text('fuente', { enum: ['carga', 'actividad', 'webhook', 'calculo'] }).notNull(),
+    creadoEn: ts('creado_en').notNull().defaultNow(),
+  },
+  (t) => [
+    unique('eventos_clave').on(t.clave),
+    index('eventos_location_tipo_fecha').on(t.locationId, t.tipo, t.ocurridoEn),
+    index('eventos_contacto').on(t.locationId, t.contactId, t.ocurridoEn),
+    index('eventos_oportunidad').on(t.opportunityId),
+    index('eventos_asesor_fecha').on(t.asesorId, t.ocurridoEn),
   ],
 );
 
@@ -492,6 +589,24 @@ export const auditoria = comercial.table(
     index('auditoria_cuando').on(t.cuando),
     index('auditoria_que_cuando').on(t.que, t.cuando),
   ],
+);
+
+/** Una ejecución de carga (incremental, nocturna o histórica) con su resumen. */
+export const syncEjecuciones = comercial.table(
+  'sync_ejecuciones',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    locationId: text('location_id').notNull(),
+    tipo: text('tipo', { enum: ['incremental', 'nocturno', 'historico'] }).notNull(),
+    modo: text('modo', { enum: ['sombra', 'activo'] }).notNull(),
+    inicio: ts('inicio').notNull().defaultNow(),
+    fin: ts('fin'),
+    estado: text('estado', { enum: ['en_curso', 'ok', 'error'] }).notNull(),
+    llamadas: integer('llamadas').notNull().default(0),
+    resumen: jsonb('resumen'),
+    error: text('error'),
+  },
+  (t) => [index('sync_ejecuciones_location_inicio').on(t.locationId, t.inicio)],
 );
 
 export const syncEstado = comercial.table(

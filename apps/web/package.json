@@ -12,6 +12,7 @@
   "dependencies": {
     "@driven/core": "workspace:*",
     "@driven/db": "workspace:*",
+    "@driven/ghl": "workspace:*",
     "@driven/ui": "workspace:*",
     "@node-rs/argon2": "^2.2.2",
     "drizzle-orm": "^0.45.4",

@@ -119,6 +119,11 @@ pregunta 1.
   `driven-comercial/<versión>`.
 - `GET /conversations/messages/{id}` no acepta PIT ("Token source/channel mismatch"); no se usa.
 - `POST /locations/{id}/tasks/search` respondió con el PIT actual: se usará para las tareas.
+- En la primera carga histórica real, la exportación devolvió 0 mensajes en cada día (una sola
+  página por día) justo después de una carga incremental; minutos después, el mismo rango devolvió
+  todos los mensajes. La causa no está confirmada. Defensa: el cliente reintenta con espera una
+  página vacía cuando `total` indica mensajes pendientes, y si persiste falla de forma visible. La
+  validación de cada carga compara los mensajes guardados con el `total` de GHL.
 
 ## 3. Regla de origen propuesta
 
@@ -172,7 +177,18 @@ si su origen es `manual`.
 4. **Leads con oportunidad perdida:** salen de las listas y conteos operativos (sin responder, en
    espera, pendientes de seguimiento, interesados de días anteriores) y se cuentan en
    **leads perdidos**, con su motivo. Siguen contando como leads recibidos en el periodo para la tasa
-   de conversión (por confirmar).
+   de conversión (confirmado).
 5. Las preguntas 3 a 6 de la sección 4 quedan con la propuesta: `api` como `workflow`, el modo
    sugerencia como `agente_ia`, asignación registrada desde la primera vez que se ve el lead, y
    `conversation-ai.readonly` como permiso obligatorio del PIT.
+6. **Asignación:** los asesores no cambian, salvo cuando aparece una oportunidad nueva y se
+   reasigna. Por eso la asignación se registra por oportunidad: el asesor de un lead es el asignado a
+   su oportunidad vigente (o el de la conversación si aún no hay oportunidad), y cada oportunidad nueva
+   genera un evento `asignacion` con su fecha (`createdAt`).
+7. **Venta cancelada:** una venta (entró a Adelanto o más, o `won`) que después sale de esas etapas o
+   termina perdida o abandonada genera un evento `venta_cancelada` y deja de contar como venta
+   concretada.
+8. **Modelo de eventos (aprobado):** tabla central `eventos` (lead recibido, asignación, primera
+   respuesta, cambio de etapa, venta, venta cancelada, pérdida) con su fecha; un lead por contacto y
+   subcuenta (no por conversación); pendiente frente a vencido; tipo y estado de entrega de cada
+   mensaje; filtros por canal y campaña de procedencia.

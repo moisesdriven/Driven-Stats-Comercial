@@ -32,14 +32,30 @@ Detalle en [`decisiones.md`](decisiones.md).
 - `crear-admin` dentro de la imagen web; `migrar` dentro de la imagen del worker.
 - 55 pruebas (unitarias e integración con PostgreSQL).
 
-## Fase 2 · plan corto
+## Fase 2 · resultado
 
-1. `packages/ghl`: cliente de solo lectura (header `Version` y paginación verificados en la
-   documentación oficial), límite de ráfaga, reintentos 429/5xx con backoff y jitter, registro de
-   llamadas sin tokens, verificación de permisos del PIT. Pruebas con un GHL simulado.
-2. Inspección de mensajes reales de Jade18K y `docs/mapeo-origen.md` (manual, workflow, agente IA,
-   campaña) para aprobación. Verificar si los registros de actividad traen los cambios de etapa.
-3. Alta de subcuentas y tokens (API + verificación de permisos), cifrados en `credenciales`.
-4. Worker con pg-boss (`comercial_cola`): `sync:incremental`, `sync:nocturno`, `sync:historico`,
-   upserts idempotentes, `sync_estado` y construcción de `historial_etapas`.
-5. Carga real de Jade18K en modo sombra.
+- `docs/mapeo-origen.md` aprobado: origen de cada mensaje (el agente de IA envía como `app` con el
+  `userId` de la asesora; se separa con `GET /conversation-ai/generations`), historial de etapas
+  desde actividades, ventas por etapa (Adelanto o posterior en Jade18K) y modelo de eventos.
+- `packages/ghl`: cliente de solo lectura (Version y paginación verificados en la documentación
+  oficial), límite de 80 llamadas cada 10 s por subcuenta, reintentos con backoff y jitter,
+  `User-Agent` propio (Cloudflare bloquea los genéricos), verificación de 7 permisos y un GHL
+  simulado para las pruebas.
+- Modelo de datos: un lead por contacto y subcuenta, tabla central `eventos` (lead recibido,
+  asignación, primeras respuestas, cambio de etapa, venta, venta cancelada, pérdida, reapertura),
+  estado de entrega y tipo de contenido por mensaje, motivos de pérdida y registro de cada carga.
+- Worker con pg-boss: `sync-incremental` (15 min), `sync-nocturno` (02:30 Lima) y
+  `sync-historico` (manual, reanudable por día). Comando `node dist/cli.js`.
+- API de configuración: alta de subcuenta con verificación del PIT, mapa de etapas, 3 etapas de
+  calidad y estado de las cargas.
+- Carga real de Jade18K en modo sombra (ver `docs/validacion.md`).
+
+## Fase 3 · plan corto
+
+1. `packages/core`: horario laboral por asesor (`minutosLaborales`, `sumarTiempoLaboral`,
+   `diasLaborales`) con todas las pruebas de la §4.
+2. Los 8 indicadores y las 12 preguntas, semáforo, estado por etapa, cuello de botella y alertas
+   cruzadas, calculados desde `eventos`, `mensajes`, `leads` y `oportunidades`.
+3. Intentos de contacto, respuesta efectiva, abandono, pendientes frente a vencidos y perdidos por
+   falta de seguimiento.
+4. `calcular:resumen` → `resumen_diario`; validación de 20 leads a mano en `docs/validacion.md`.

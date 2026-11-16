@@ -67,6 +67,8 @@ DATABASE_URL_TEST=postgres://postgres@127.0.0.1:5432/comercial_test pnpm test
 
 - Esquema en `packages/db/src/esquema/index.ts`. Para un cambio: editar el esquema y
   `pnpm --filter @driven/db generar` (drizzle-kit). Revisar el SQL generado antes de confirmarlo.
+  Mientras no haya nada desplegado se regenera `0000_inicial.sql` y se le aplica
+  `node scripts/ajustar-migracion.mjs migraciones/0000_inicial.sql` (desde `packages/db`).
 - `mensajes` está particionada por mes (editado a mano en `0000_inicial.sql`): drizzle-kit no
   modela particiones. Su PK es `(message_id, fecha)`. Las particiones se crean con
   `comercial.asegurar_particiones_mensajes(desde, meses)`; no hay partición por defecto.
