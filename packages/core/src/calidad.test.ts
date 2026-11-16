@@ -506,6 +506,26 @@ describe('saludos sueltos por regla', () => {
     expect(porRegla.get('a5')?.criterios.responde).toBe(true);
     expect(puntajeDeCriterios(porRegla.get('a2')!.criterios)).toBe(2);
   });
+
+  it('sin mensajes del cliente a la vista se supone un pedido pendiente', () => {
+    const m = (id: string, direccion: 'inbound' | 'outbound', texto: string): MensajeCalidad => ({
+      id,
+      fecha: new Date(0),
+      direccion,
+      calificable: direccion === 'outbound',
+      automatico: false,
+      texto,
+    });
+    // El tramo en las etapas de calidad empieza con el saludo: el pedido del cliente quedó antes.
+    const r = separarSaludos([m('a1', 'outbound', 'Hola, buenos días ☺️')], new Set(['a1']));
+    expect(r.porRegla.get('a1')?.criterios.responde).toBe(false);
+    // Si el cliente solo saludó, no hay pedido.
+    const r2 = separarSaludos(
+      [m('c1', 'inbound', 'Hola'), m('a1', 'outbound', 'Hola, buenos días ☺️')],
+      new Set(['a1']),
+    );
+    expect(r2.porRegla.get('a1')?.criterios.responde).toBe(true);
+  });
 });
 
 describe('formatos de respuesta', () => {

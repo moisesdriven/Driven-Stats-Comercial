@@ -239,8 +239,9 @@ export function calificarSaludoPorRegla(
 /**
  * Separa los mensajes elegidos de una conversación en los que se califican por regla (saludos
  * sueltos) y los que van a la IA. Recorre el contexto en orden para saber si el cliente tenía un
- * pedido pendiente: lo abre un mensaje del cliente que no es solo un saludo y lo cierra un mensaje
- * del asesor con contenido (los saludos y los mensajes automáticos no lo cierran).
+ * pedido pendiente: lo abre un mensaje del cliente que no es solo un saludo (y se supone abierto al
+ * inicio), lo cierra un mensaje del asesor con contenido y lo deja cerrado un cliente que solo
+ * saluda (los saludos del asesor y los mensajes automáticos no lo cierran).
  */
 export function separarSaludos(
   contexto: readonly MensajeCalidad[],
@@ -248,10 +249,17 @@ export function separarSaludos(
 ): { porRegla: Map<string, EtiquetaCalidad>; paraIa: Set<string> } {
   const porRegla = new Map<string, EtiquetaCalidad>();
   const paraIa = new Set<string>();
-  let pendiente = false;
+  // Si el contexto no muestra ningún mensaje del cliente antes del saludo (empieza al entrar a las
+  // etapas de calidad, a veces con el saludo del asesor), se asume un pedido pendiente: el cliente
+  // escribe primero (un anuncio, una consulta) y un saludo no lo responde.
+  let pendiente = true;
+  let vioCliente = false;
   for (const m of contexto) {
     if (m.direccion === 'inbound') {
+      // Un cliente que solo saluda, tras una respuesta del asesor o al inicio, no pide nada nuevo.
       if (!esSoloSaludoCliente(m.texto)) pendiente = true;
+      else if (!vioCliente) pendiente = false;
+      vioCliente = true;
       continue;
     }
     if (m.automatico) continue;

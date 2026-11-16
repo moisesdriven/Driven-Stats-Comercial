@@ -321,3 +321,93 @@ solicitud). Para este análisis: US$ 0,055 esperado y ~US$ 0,14 máximo con la v
 v1). Ambos costos reales quedaron por debajo del máximo. Desde ahora, cada cierre registra el desvío
 (`desvioCostoPct` en `calidad_terminado`) y cada revisión de lotes el porcentaje leído de caché
 (`cacheLeidaPct` en `calidad_uso`).
+
+## Calidad · optimizaciones de calidad y costo (16 de noviembre de 2026)
+
+Base local recreada con 15 días de Jade18K (1–16 nov). Esa carga trae más conversaciones de la semana
+del 9 al 15 que la de los análisis anteriores (761 frente a 452, y 32 de los 100 mensajes del primer
+conjunto de calibración no están): por eso las comparaciones de esta sección se hacen entre análisis
+de la misma base. Gasto total en pruebas: ~US$ 0,51 (análisis US$ 0,17, calibraciones con Haiku
+US$ 0,06, diagnóstico con Sonnet ~US$ 0,28).
+
+### Conjunto de calibración independiente
+
+`docs/calibracion/jade18k-2026-11-semana2.json`: 100 mensajes al azar de la semana del 2 al 8 de
+noviembre (de 1.889 posibles), etiquetados a mano con la rúbrica v2 en una sola pasada y **sin ver
+respuestas de la IA**. Distribución: información/precio 38, saludo 24, calificación 22, respuesta 7,
+llamada a la acción 4, seguimiento 3, objeción 2.
+
+### Resultados de calibración (Haiku 5.5 salvo indicación)
+
+| Configuración                | Conjunto      | Puntaje ±1 | Categoría | Exacto  | Salida (tokens) |
+| ---------------------------- | ------------- | ---------- | --------- | ------- | --------------- |
+| v2, sin regla (dos corridas) | nuevo (100)   | 87 / 86 %  | 72 / 71 % | 45–49 % | ~12.400         |
+| v2, con regla de saludos     | nuevo (100)   | 86 %       | 72 %      | 47 %    | 10.502          |
+| Motivo primero, con regla    | nuevo (100)   | 84 %       | 73 %      | 44 %    | 11.554          |
+| Compacto, con regla          | nuevo (100)   | 82 %       | 74 %      | 44 %    | 8.718           |
+| Sonnet 5.5, v2, sin regla    | nuevo (100)   | **94 %**   | **85 %**  | 45 %    | 12.487          |
+| v2, sin regla                | anterior (68) | 89,7 %     | 75,0 %    | 54,4 %  | 8.400           |
+| v2, con regla de saludos     | anterior (68) | 91,2 %     | 80,9 %    | 48,5 %  | 6.817           |
+| Motivo primero, con regla    | anterior (68) | 91,2 %     | 77,9 %    | 55,9 %  | 7.421           |
+| Compacto, con regla          | anterior (68) | 85,3 %     | 79,4 %    | 47,1 %  | 5.297           |
+| Sonnet 5.5, v2, sin regla    | anterior (68) | 86,8 %     | 82,4 %    | 38,2 %  | 8.461           |
+
+- **La v2 no aprueba con el conjunto independiente** (87 % a ±1 y 72 % en categoría, frente a 90 % y
+  85 % exigidos). Su aprobación anterior estaba inflada porque ese conjunto se corrigió mirando las
+  respuestas de la v2.
+- **Formatos de respuesta:** "motivo primero" no mejora; "compacto" ahorra ~17 % de salida por
+  solicitud pero baja ~4 puntos el puntaje a ±1 en ambos conjuntos. **Se mantiene el formato v2.**
+- **Sonnet 5.5** mejora la categoría (+7 a +13 puntos) pero no los criterios, y en el conjunto
+  anterior empeora el puntaje. Cuesta ~20 veces más. **Se mantiene Haiku 5.5.**
+- **El límite está en la rúbrica, no en el modelo.** Con los dos modelos, la mayoría de las
+  diferencias con la referencia son siempre las mismas tres:
+  1. **Tono y tildes** (~24 de 100): la IA no penaliza tildes faltantes ("dias", "que", "catalogo",
+     "Joyeria"); la referencia sí las considera faltas.
+  2. **"Responde" cuando el pedido ya se atendió antes** (~25–31): una pregunta de seguimiento ("¿para
+     cuándo desea su anillo?") después de que el asesor ya dio el precio; o una pregunta de talla
+     cuando el cliente pidió precio (la rúbrica dice a la vez "sin precio es falso" y "una aclaración
+     necesaria es verdadero").
+  3. **Extensión de mensajes cortos que completan a otros** (~18–31): un enlace o una frase breve
+     que sigue a un mensaje anterior del mismo asesor.
+
+  Resolverlas es una decisión del cliente (pendiente) y daría una rúbrica v3.
+
+### Saludos sueltos por regla
+
+En el análisis real (761 conversaciones, 2.051 mensajes), **460 mensajes (22 %) son saludos
+sueltos** y se califican sin IA. Comparada con lo que la IA calificó para esos mismos mensajes: misma
+categoría en el 100 %, los cinco criterios iguales en el 85 % y puntaje a ±1 en el 100 %. Todas las
+diferencias están en "responde": en 57 casos la regla dice falso y la IA verdadero, cuando el cliente
+había pedido algo que solo respondió el bot (la rúbrica pide que el asesor igual lo atienda, así que la
+regla aplica mejor la rúbrica); en 13, al revés.
+
+Corrección hecha durante la validación: el contexto empieza al entrar a las etapas de calidad, a
+menudo con el saludo de la asesora, y el pedido del cliente queda antes. Si no se ve ningún mensaje
+del cliente, la regla supone un pedido pendiente (antes daba "responde" verdadero en 165 casos en
+los que la IA y la rúbrica dicen falso).
+
+En el conjunto independiente la regla coincide 16 de 16 con la referencia (sesgado: se diseñó antes
+de etiquetar); en el conjunto anterior, etiquetado por otra persona, la categoría coincide 13 de 13 y
+el puntaje a ±1, 12 de 13.
+
+### Análisis reales: costo y reutilización
+
+| Análisis (semana 9–15 nov)          | Solicitudes          | Mensajes          | Estimado | Real   | Salida  | Caché  | Duración |
+| ----------------------------------- | -------------------- | ----------------- | -------- | ------ | ------- | ------ | -------- |
+| 1 · v2 sin regla (línea base)       | 761                  | 2.051             | 0,0922   | 0,0913 | 230.629 | 83,9 % | 29 min   |
+| 2 · v2 con regla de saludos         | 755                  | 2.048 (460 regla) | 0,0793   | 0,0801 | 186.154 | 83,8 % | 28 min   |
+| 3 · repetido (sin trabajo repetido) | 0 (755 reutilizadas) | 2.048             | 0        | **0**  | 0       | —      | 2 s      |
+
+- La regla de saludos baja el costo **12 %** y la salida **19 %**. El estimado queda a ±1 % del real
+  en los dos análisis.
+- Repetir un análisis ya hecho no cuesta nada: se copian las calificaciones de las conversaciones con
+  la misma huella (misma rúbrica, modelo, ajustes y texto). Una conversación con un mensaje nuevo
+  dentro del contexto se vuelve a enviar.
+- 3 mensajes de los 2.051 quedaron sin calificación en el análisis 2 (la IA no devolvió su número);
+  no cuentan como fallidos porque la conversación sí respondió.
+
+### Extensión por regla
+
+No se implementó. Requiere rangos de largo que el cliente no ha definido, y la calibración muestra que
+las diferencias de extensión no son de largo sino de mensajes cortos que completan a otro (punto 3 de
+arriba): es una aclaración de la rúbrica, no una regla de largo.
