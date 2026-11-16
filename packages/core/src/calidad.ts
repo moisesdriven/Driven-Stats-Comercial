@@ -639,7 +639,12 @@ export function textoConversacion(
     return !b ? '' : b === 'S' ? ' | seguimiento' : ` | respuesta ${b}`;
   };
   const lineas = contexto.map((m) => {
-    const t = m.texto.replace(/<\/?conversacion>/gi, '').slice(0, 1500);
+    // Un mensaje por línea: los saltos de línea internos se unen con " / " para que la IA no lea
+    // la segunda línea de una plantilla como otro mensaje.
+    const t = m.texto
+      .replace(/<\/?conversacion>/gi, '')
+      .slice(0, 1500)
+      .replace(/\s*\n+\s*/g, ' / ');
     if (m.direccion === 'inbound') return `[CLIENTE] ${t}`;
     if (m.automatico) return `[AUTOMATICO] ${t}`;
     if (aCalificar.has(m.id)) {

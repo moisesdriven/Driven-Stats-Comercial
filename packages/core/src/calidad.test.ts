@@ -684,3 +684,22 @@ describe('bloques de respuesta (rúbrica v3)', () => {
     expect([...r.paraIa]).toEqual(['a2']);
   });
 });
+
+describe('texto de la conversación', () => {
+  it('cada mensaje ocupa una sola línea', () => {
+    const { texto } = textoConversacion(
+      [
+        {
+          id: 'a',
+          fecha: new Date(0),
+          direccion: 'outbound',
+          calificable: true,
+          automatico: false,
+          texto: 'Hola, le saluda Ana\n\nnúmero de atención: 999\ncatálogo: https://x',
+        },
+      ],
+      new Set(['a']),
+    );
+    expect(texto).toContain('[ASESOR #1] Hola, le saluda Ana / número de atención: 999 / catálogo');
+  });
+});
