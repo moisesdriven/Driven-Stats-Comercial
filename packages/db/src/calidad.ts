@@ -14,6 +14,7 @@ import {
   maxTokensPara,
   muestraEstratificada,
   bloquesDeRespuesta,
+  preciosDe,
   recortarContexto,
   separarSaludos,
   seleccionarMensajes,
@@ -358,7 +359,7 @@ export async function prepararSolicitudes(
     solicitudes
       .filter((s) => s.mensajes > 0 && s.reutilizarDe === null)
       .map((s) => ({ tokensConversacion: s.tokensConversacion, mensajes: s.mensajes })),
-    undefined,
+    preciosDe(cfg.modelo),
     { pensamiento: cfg.ajustes.pensamiento },
   );
   return { semilla, universo, muestra, solicitudes, sinMensajes, descartes, estimacion };

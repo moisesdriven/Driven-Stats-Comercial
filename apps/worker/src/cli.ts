@@ -6,7 +6,7 @@
  *   node dist/cli.js resumen [--dias 7] [--subcuenta <locationId>]      recalcula resumen_diario
  *   node dist/cli.js calidad-estimar --subcuenta ID --desde F --hasta F   costo estimado (no envía nada)
  *   node dist/cli.js calidad-revisar                                     revisa lotes enviados ahora
- *   node dist/cli.js calidad-calibrar --archivo F [--minimo 0.9] [--minimo-categoria 0.85] [--esfuerzo low] [--pensamiento si] [--saludos-por-regla no] [--modelo M] [--formato v2|motivo_primero|compacto]  coincidencia con la revisión humana
+ *   node dist/cli.js calidad-calibrar --archivo F [--minimo 0.9] [--minimo-categoria 0.75] [--esfuerzo low] [--pensamiento si] [--saludos-por-regla no] [--modelo M] [--formato v2|motivo_primero|compacto]  coincidencia con la revisión humana
  *   node dist/cli.js estado                                             últimas ejecuciones
  * Con --directo se ejecuta en este proceso en vez de encolar (útil en pruebas en modo sombra).
  */
@@ -119,7 +119,7 @@ async function principal() {
       // Umbrales realistas: una misma configuración coincide consigo misma ~77 % en puntaje exacto
       // (Haiku 5.5 no admite temperature fija), así que se exige el puntaje a ±1 y la categoría.
       const minimo = Number(arg('minimo') ?? 0.9);
-      const minimoCategoria = Number(arg('minimo-categoria') ?? 0.85);
+      const minimoCategoria = Number(arg('minimo-categoria') ?? 0.75);
       const informe = await calibrar(db, new ProveedorAnthropic(), await leerConjunto(archivo), {
         modelo: arg('modelo') ?? configuracionCalidad().modelo,
         ajustes: leerAjustesIa(
