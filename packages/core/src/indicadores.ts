@@ -187,9 +187,6 @@ export function metricasLead(
     (ultimoFueCliente || intentosTrasSilencio < u.intentosMinimosTrasSilencio);
 
   const hoy = inicioDelDia(ahora, t.zona);
-  const ultimoContacto = [ultimoHumano, ultimoEntrante]
-    .filter((x): x is Date => x !== null)
-    .sort((a, b) => b.getTime() - a.getTime());
   const contactoAntesDeHoy = mensajes
     .filter((m) => m.fecha < hoy && (m.direccion === 'inbound' || m.origen === 'manual'))
     .at(-1);
