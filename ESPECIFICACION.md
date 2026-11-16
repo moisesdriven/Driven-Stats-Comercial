@@ -19,6 +19,7 @@ La evaluación responde cuatro preguntas:
 
 **Alcance de la versión 1**
 
+- **Piloto con una sola subcuenta.** Todo se construye multi-subcuenta desde el inicio, pero la primera puesta en marcha y las validaciones se hacen con una subcuenta; las demás se agregan después desde la interfaz, sin cambios de código.
 - Todas las subcuentas de la agencia (hoy: ECOM - Bria Import, Driven IA 1, Ecommerce, Driven Automations). Una subcuenta nueva se agrega desde la interfaz y entra en la siguiente carga.
 - Dos vistas: **general** (todas las subcuentas) y **por subcuenta**, con detalle por asesor.
 - Solo lectura sobre GHL: el sistema nunca escribe ni envía nada en GHL.
@@ -115,7 +116,7 @@ Pruebas obligatorias: tramos partidos, intervalos que cruzan varios días, lead 
 | # | Indicador | Cálculo |
 | --- | --- | --- |
 | 1 | Tiempo de respuesta | Hora de primera respuesta humana − hora de ingreso del lead, en minutos laborales. Se reporta mediana (principal) y promedio. |
-| 2 | Calidad de los mensajes | Puntaje promedio 1–5 de los mensajes salientes humanos (§6). Distribución por categoría. |
+| 2 | Calidad de los mensajes | Puntaje promedio 1–5 de los mensajes de los asesores en el último análisis por muestra (1,000 conversaciones por subcuenta, §6). Distribución por categoría. |
 | 3 | Leads sin responder | Conteo de leads sin primera respuesta humana (más el conteo aparte de “en espera”). |
 | 4 | Leads pendientes de seguimiento | Conteo de leads que requieren seguimiento (§3). |
 | 5 | Tasa de conversión | (Ventas concretadas en el periodo ÷ leads recibidos en el periodo) × 100. Se guarda también la conversión por cohorte (ventas de los leads del periodo) para análisis. |
@@ -128,7 +129,7 @@ Pruebas obligatorias: tramos partidos, intervalos que cruzan varios días, lead 
 | Pregunta | Cómo se responde |
 | --- | --- |
 | ¿Cuál es el tiempo promedio de respuesta al primer mensaje de un lead? | Indicador 1. |
-| ¿Qué tipo de mensajes está enviando a los clientes? | Indicador 2: distribución por categoría + mejor y peor mensaje del periodo. |
+| ¿Qué tipo de mensajes está enviando a los clientes? | Indicador 2: distribución por categoría + mejor y peor mensaje del último análisis. |
 | ¿Cuántos leads tiene actualmente sin responder? | Indicador 3, en tiempo real. |
 | ¿Cuántos leads están pendientes de seguimiento? | Indicador 4, en tiempo real. |
 | ¿Cuántos intentos de contacto realiza por lead? | Promedio de intentos por lead + distribución (0, 1, 2, 3+). |
@@ -172,37 +173,88 @@ Ticket promedio y leads perdidos totales son de referencia (sin semáforo).
 
 ---
 
-## 6. Calidad de los mensajes (clasificador IA)
+## 6. Calidad de los mensajes (análisis por muestra con IA)
 
-### 6.1 Qué se clasifica
+La calidad **no** se calcula a diario. Se mide con un **análisis por muestra**: 1,000 conversaciones aleatorias por subcuenta, una vez al mes de forma automática o cuando un administrador lo lanza con un botón. Así el gasto de API es bajo y predecible, y crece de forma lineal al agregar subcuentas.
 
-Cada mensaje saliente de texto (humano y automático, marcados por separado) de las conversaciones del periodo. Mensajes multimedia (audio, imagen, catálogo) se registran con categoría “multimedia” sin puntaje; si GHL entrega transcripción de un audio, se clasifica la transcripción.
+### 6.1 Qué entra en el análisis
+
+**Periodo.** El mes calendario anterior en la ejecución automática. En la ejecución manual, el administrador elige el rango de fechas (por defecto, los últimos 30 días).
+
+**Universo de conversaciones elegibles** de cada subcuenta: conversaciones con al menos un mensaje que cumpla las condiciones 1 y 2 dentro del periodo.
+
+1. **Escrito por un asesor:** mensaje saliente con origen `manual` (§6.3). Se excluyen siempre los del agente de IA, los de workflows y los de campañas. Si el origen no se puede determinar con certeza, el mensaje **no** se califica (criterio conservador) y se cuenta como “sin origen”.
+2. **Enviado mientras el lead estaba en una de las 3 etapas de calidad de su subcuenta (opción B):** cada subcuenta elige exactamente 3 etapas de su propio pipeline (campo `etapas_calidad`), porque cada negocio es diferente. No hay valores por defecto. Las eligen el administrador o el dueño de negocio de esa subcuenta (o cualquier usuario con permiso de editar “Metas, umbrales y etapas de calidad” en ella), con un selector que muestra las etapas reales de su pipeline. Mientras una subcuenta no tenga sus 3 etapas elegidas, no se analiza y la interfaz muestra un aviso para configurarlas. Un cambio de etapas aplica desde el siguiente análisis y queda en `auditoria`. Un mensaje cumple si su fecha cae dentro de un intervalo en que la oportunidad del contacto estaba en una de esas etapas, según `historial_etapas` (§7).
+
+**Muestra.** De ese universo se eligen al azar **1,000 conversaciones por subcuenta** (configurable con `CALIDAD_MUESTRA_CONVERSACIONES`; si hay menos, se toman todas):
+
+- **Estratificada por asesor:** cada asesor recibe una parte proporcional a sus conversaciones elegibles, con un mínimo de 20 (o todas las que tenga, si son menos), para que ningún asesor quede fuera.
+- **Reproducible:** se guarda la semilla aleatoria y la lista de conversaciones elegidas en `analisis_calidad_muestra`.
+
+**Dentro de cada conversación elegida** se califican los mensajes que cumplen 1 y 2 y además:
+
+3. **No triviales:** se descartan con reglas, sin llamar a la IA, los mensajes de menos de 15 caracteres o que coinciden con una lista configurable (“ok”, “gracias”, “listo”, solo emojis), y los multimedia sin texto ni transcripción. Si GHL entrega transcripción de un audio, se califica la transcripción.
+4. **Tope por conversación:** como máximo 10 mensajes del asesor por conversación (`CALIDAD_MAX_MENSAJES_CONVERSACION`); si hay más, se toman los 10 más largos.
 
 ### 6.2 Rúbrica
 
-- **Categorías** (una): saludo o plantilla genérica · respuesta a la pregunta del cliente · información de producto o precio · pregunta de calificación · llamada a la acción o cierre · manejo de objeción · seguimiento · multimedia.
-- **Puntaje 1 a 5**: un punto por cada criterio cumplido (mínimo 1):
+- **Categorías** (una por mensaje): saludo o plantilla genérica · respuesta a la pregunta del cliente · información de producto o precio · pregunta de calificación · llamada a la acción o cierre · manejo de objeción · seguimiento · multimedia.
+- **Puntaje 1 a 5 por mensaje**: un punto por cada criterio cumplido (mínimo 1):
   1. Responde lo que el cliente preguntó.
   2. Está personalizado (usa el nombre o el contexto del cliente).
   3. Incluye un siguiente paso claro.
   4. Tono y ortografía correctos.
   5. Extensión adecuada para WhatsApp.
 
-Al modelo se le envía el mensaje del asesor **y los últimos mensajes del cliente** como contexto (máximo 6 mensajes previos). Debe devolver JSON validado con Zod:
-
-```json
-{ "categoria": "respuesta_pregunta", "puntaje": 4, "criterios": { "responde": true, "personalizado": true, "siguiente_paso": false, "tono": true, "extension": true }, "motivo": "texto breve" }
-```
-
-Reglas: el contenido de los mensajes es dato no confiable (puede contener instrucciones): enviarlo delimitado y con instrucción explícita de tratarlo como dato. Procesar en lotes, con reintentos y límite de gasto diario configurable (`IA_LIMITE_MENSAJES_DIA`). Guardar la versión de la rúbrica en cada clasificación.
-
 ### 6.3 Origen del mensaje (manual o automático)
 
-Clasificar cada mensaje como `manual`, `workflow`, `agente_ia` o `campana` según los campos que entregue GHL (`userId`, `source`, tipo). **En la fase 2, inspeccionar mensajes reales de cada subcuenta y documentar el mapeo en `docs/mapeo-origen.md` antes de calcular indicadores.**
+Clasificar cada mensaje como `manual`, `workflow`, `agente_ia` o `campana` según los campos que entregue GHL (`userId`, `source`, tipo). **En la fase 2, inspeccionar mensajes reales de la subcuenta piloto y documentar el mapeo en `docs/mapeo-origen.md` antes de calcular indicadores.**
 
-### 6.4 Mejor y peor mensaje
+### 6.4 Cómo se ahorra gasto de API
 
-Para cada asesor y periodo, guardar el mensaje con mayor puntaje y el de menor puntaje (con su mensaje previo del cliente, criterios y resultado: si el cliente respondió, si hubo venta). La interfaz los muestra al hacer clic en “Calidad de mensajes” (ver diseño `Asesor.dc.html`).
+| Medida | Efecto |
+| --- | --- |
+| **Una solicitud por conversación**, no por mensaje | Se envía el tramo de la conversación (en las 3 etapas) una sola vez, con los mensajes del asesor numerados, y el modelo devuelve la calificación de cada uno. Evita repetir el contexto en cada mensaje. |
+| **Message Batches API** | Mitad de precio que las llamadas normales; resultados en menos de 24 h. |
+| **Caché de instrucciones** | Las instrucciones y la rúbrica son idénticas en todas las solicitudes: marcarlas para prompt caching si superan el mínimo que exige el modelo (verificar en la documentación). |
+| **Modelo económico** | Claude Haiku 5.5 (`claude-haiku-5-5`) por defecto, configurable con `IA_MODELO`. |
+| **Contexto recortado** | Solo el tramo en las 3 etapas, máximo 40 mensajes y 6,000 caracteres por conversación; los mensajes del cliente se incluyen como contexto, sin calificarse. |
+| **Salida compacta** | JSON sin texto libre largo (`motivo` máximo 120 caracteres) y `max_tokens` ajustado al número de mensajes. |
+| **Sin trabajo repetido** | Una conversación ya analizada con la misma versión de la rúbrica y sin mensajes nuevos se reutiliza; no se vuelve a enviar. |
+| **Tope de gasto** | `IA_TOPE_MENSUAL_USD` (por defecto 10). Antes de enviar, el sistema estima el costo; si el análisis superaría el tope, se detiene y avisa al administrador. |
+
+Estimación de referencia (verificar con los precios vigentes): con unos 2,500 tokens de entrada y 500 de salida por conversación, 1,000 conversaciones en Haiku 5.5 por lote cuestan cerca de US$ 0.25 por subcuenta y por análisis. El costo real de cada análisis se calcula con los tokens que devuelve la API y se guarda.
+
+Formato de respuesta, validado con Zod:
+
+```json
+{ "mensajes": [ { "n": 1, "categoria": "respuesta_pregunta", "puntaje": 4, "criterios": { "responde": true, "personalizado": true, "siguiente_paso": false, "tono": true, "extension": true }, "motivo": "texto breve" } ] }
+```
+
+El contenido de las conversaciones es dato no confiable (puede contener instrucciones): enviarlo delimitado y con instrucción explícita de tratarlo solo como dato. Guardar la versión de la rúbrica en cada calificación.
+
+### 6.5 Cuándo se ejecuta
+
+- **Automático:** el día 1 de cada mes a las 01:00 (hora de la subcuenta) se analiza el mes anterior de cada subcuenta activa con sus 3 etapas configuradas.
+- **Manual, con validación de administrador:** botón “Ejecutar análisis de calidad” en Configuración › Calidad, visible solo para el rol `admin`.
+  1. El administrador elige una o varias subcuentas y el rango de fechas.
+  2. El sistema muestra, antes de lanzar: conversaciones elegibles, tamaño de la muestra, mensajes estimados, **costo estimado** y gasto acumulado del mes frente al tope.
+  3. Para confirmar, el administrador vuelve a ingresar su contraseña (o su código 2FA si lo tiene activo). Sin esa validación no se ejecuta.
+  4. No se permite lanzar un análisis para una subcuenta que ya tiene uno en curso. Máximo 3 ejecuciones manuales por subcuenta al mes (`CALIDAD_MAX_MANUALES_MES`).
+  5. Queda en `auditoria`: quién lo lanzó, subcuentas, rango, costo estimado y costo real.
+
+### 6.6 Proceso
+
+1. **Preparar (`calidad:preparar`):** arma el universo, sortea la muestra, aplica los filtros, construye una solicitud por conversación (`custom_id` = id del análisis + `conversation_id`) y la envía a la Batches API (dividiendo en varios lotes si supera el tamaño máximo vigente). Registra cuántos mensajes y conversaciones descartó cada filtro.
+2. **Revisar (`calidad:revisar`, cada 30 min mientras haya análisis abiertos):** cuando el lote termina, descarga los resultados, valida cada JSON y guarda en `clasificaciones`. Los errores, vencidos o JSON inválidos se reintentan una vez en un lote nuevo; luego quedan como `fallido` con su motivo.
+3. **Cerrar:** calcula el puntaje promedio por asesor y por subcuenta, la distribución por categoría y el mejor y peor mensaje de cada asesor, y guarda tokens y costo real.
+4. **Visibilidad:** en Configuración › Calidad, el historial de análisis con estado, periodo, muestra, descartes por filtro, mensajes calificados, fallidos, tokens y costo; y el gasto del mes frente al tope.
+
+### 6.7 Cómo se usa el resultado
+
+- El indicador “Calidad de mensajes”, la distribución por tipo y el mejor/peor mensaje muestran **el último análisis terminado** de la subcuenta, con su periodo y tamaño de muestra visibles (“Muestra de 1,000 conversaciones · octubre 2026”).
+- El semáforo de la etapa Negociación usa ese último resultado. Si no hay análisis, el indicador aparece como “Sin análisis” y no cuenta para el semáforo ni para el cuello de botella.
+- **Mejor y peor mensaje** por asesor, con el mensaje previo del cliente, criterios y resultado (si el cliente respondió, si hubo venta). Se muestran al hacer clic en “Calidad de mensajes” (diseño `Asesor.dc.html`), indicando las 3 etapas analizadas.
 
 ---
 
@@ -232,6 +284,12 @@ API v2: `https://services.leadconnectorhq.com`. Verificar en la documentación o
 - Completa nocturna: reconciliación de oportunidades y usuarios, recálculo del día anterior.
 - Todas las escrituras son upsert idempotentes por id de GHL.
 
+**Historial de etapas.** GHL entrega la etapa actual de cada oportunidad y la fecha de su último cambio, pero no el historial completo. El sistema lo construye:
+
+- En cada carga, si la etapa de una oportunidad cambió respecto de la guardada, cierra el intervalo anterior en `historial_etapas` (`hasta` = `lastStageChangeAt`) y abre uno nuevo (`desde` = `lastStageChangeAt`).
+- Recomendado: recibir además el webhook de GHL de cambio de etapa de oportunidad para no perder cambios rápidos entre dos cargas.
+- Carga histórica: intentar reconstruir los cambios desde los registros de actividad de oportunidad de cada conversación. **Verificar en la fase 2 si esos registros incluyen la etapa de origen, la de destino y la fecha.** Si no, para el periodo anterior al arranque solo se conoce la etapa actual y se documenta esa limitación en `docs/mapeo-origen.md`.
+
 ---
 
 ## 8. Modelo de datos (esquema `comercial`)
@@ -240,7 +298,8 @@ Todas las tablas llevan `location_id` cuando aplica, `creado_en` y `actualizado_
 
 | Tabla | Una fila por | Columnas clave |
 | --- | --- | --- |
-| `subcuentas` | Subcuenta | location_id (PK), nombre, zona_horaria, activa, horario_general (jsonb), metas (jsonb), umbrales (jsonb) |
+| `subcuentas` | Subcuenta | location_id (PK), nombre, zona_horaria, activa, horario_general (jsonb), metas (jsonb), umbrales (jsonb), etapas_calidad (exactamente 3 stage_id) |
+| `historial_etapas` | Intervalo de una oportunidad en una etapa | id, opportunity_id, location_id, contact_id, stage_id, etapa_estandar, desde, hasta (nulo = actual), fuente (carga, webhook, actividad) |
 | `credenciales` | Subcuenta + una de agencia | location_id, tipo (agencia/subcuenta), token_cifrado, permisos_verificados (jsonb), verificado_en |
 | `asesores` | Usuario de GHL | user_id (PK), nombre, correo |
 | `asesor_subcuenta` | Asesor en una subcuenta | user_id, location_id, activo |
@@ -251,9 +310,11 @@ Todas las tablas llevan `location_id` cuando aplica, `creado_en` y `actualizado_
 | `mensajes` | Mensaje | message_id (PK), location_id, conversation_id, direccion, tipo, origen, user_id, texto (se purga a los 90 días), fecha. **Particionada por mes en `fecha`.** |
 | `oportunidades` | Oportunidad | opportunity_id (PK), location_id, contact_id, pipeline_id, stage_id, status, monto, creada_en, cambio_estado_en, motivo_perdida, asesor_id |
 | `tareas` | Tarea | task_id (PK), location_id, contact_id, vence_en, completada |
-| `clasificaciones` | Mensaje saliente clasificado | message_id (PK), categoria, puntaje, criterios (jsonb), motivo, modelo, version_rubrica |
+| `clasificaciones` | Mensaje del asesor calificado en un análisis | analisis_id, message_id, conversation_id, asesor_id, categoria, puntaje, criterios (jsonb), motivo, modelo, version_rubrica |
+| `analisis_calidad` | Análisis de una subcuenta | id, location_id, tipo (automatico/manual), lanzado_por, periodo_desde, periodo_hasta, semilla, estado, batch_ids, conversaciones_elegibles, conversaciones_muestra, descartes (jsonb por filtro), mensajes_calificados, fallidos, costo_estimado, tokens_entrada, tokens_salida, costo_real, creado_en, cerrado_en |
+| `analisis_calidad_muestra` | Conversación elegida en un análisis | analisis_id, conversation_id, asesor_id, estado, intentos |
 | `resumen_diario` | Día × subcuenta × asesor | fecha, location_id, asesor_id (nulo = toda la subcuenta), indicadores (jsonb), estados_etapa (jsonb), cuello_botella, alertas (jsonb) |
-| `ejemplos_calidad` | Asesor × periodo | asesor_id, location_id, periodo, mejor_message_id, peor_message_id |
+| `ejemplos_calidad` | Asesor × análisis | analisis_id, asesor_id, location_id, mejor_message_id, peor_message_id |
 | `usuarios` | Persona con acceso | id, correo, nombre, hash (Argon2id), rol (`admin`, `dueno`, `supervisor`, `asesor`), activo, totp_secreto_cifrado, debe_cambiar_clave, ultimo_ingreso |
 | `usuario_subcuenta` | Subcuenta asignada a un usuario | usuario_id, location_id (un usuario puede tener varias) |
 | `permisos_rol` | Rol × módulo | rol, modulo, nivel (`ninguno`, `ver`, `editar`); se siembra con la matriz de §10.1 |
@@ -277,7 +338,8 @@ La vista general **siempre** se calcula sumando los datos de las subcuentas (nun
 | `sync:historico` | Manual | Carga de N días (por defecto 90) |
 | `calcular:leads` | Tras cada sync | Recalcula campos derivados de los leads tocados |
 | `calcular:resumen` | Cada 15 min (hoy) y nocturno (ayer) | `resumen_diario`, estados, cuello de botella, alertas cruzadas |
-| `ia:clasificar` | Cada 15 min | Clasifica salientes pendientes respetando el límite diario |
+| `calidad:preparar` | Día 1 de cada mes, 01:00, y al confirmar el botón manual | Sortea la muestra de 1,000 conversaciones por subcuenta, aplica filtros y envía a la Batches API (§6.6) |
+| `calidad:revisar` | Cada 30 min con análisis abiertos | Descarga resultados, guarda calificaciones, reintenta fallidos y cierra el análisis (§6.6) |
 | `alertas:tiempo_real` | Cada 5 min | Leads sin responder > 15 min laborales dentro del horario del asesor (sin duplicar avisos) |
 | `alertas:resumen_diario` | 08:00 hora de cada subcuenta | Correo a los supervisores y dueños de negocio de cada subcuenta, y a los administradores |
 | `purga:textos` | Diario | Borra `mensajes.texto` con más de 90 días (conserva clasificaciones) |
@@ -313,7 +375,7 @@ Matriz de módulos por defecto (`e` = editar, `v` = ver, vacío = sin acceso):
 | Detalle de asesores | e | v | v | v (solo el propio) |
 | Texto de mensajes | v | v | v | v (solo los propios) |
 | Horarios y ausencias | e | v | e | v (solo el propio) |
-| Metas y umbrales | e | e | v | |
+| Metas, umbrales y etapas de calidad | e | e | v | |
 | Exportar | v | v | | |
 | Subcuentas, tokens y mapa de etapas | e | | | |
 | Usuarios y accesos | e | | | |
@@ -334,7 +396,7 @@ Login con correo y contraseña (Argon2id), sesión en cookie `httpOnly` + `SameS
 3. **Detalle del asesor** (`/subcuentas/[id]/asesores/[userId]`): cuello de botella en una frase, 4 etapas frente a meta y promedio de la subcuenta, horario de hoy, 8 indicadores, distribución de intentos, tipos de mensajes, panel de mejor y peor mensaje al hacer clic en calidad.
 4. **Horarios** (`/horarios`): semana por asesor con tramos, horas por semana, agregar o editar tramos, copiar a otro asesor, ausencias y feriados.
 5. **Usuarios y accesos** (`/usuarios`, solo admin; diseño `Usuarios.dc.html`): resumen por rol, lista de usuarios (rol, subcuentas, último ingreso) y panel de edición con rol, subcuentas con acceso (selección múltiple; el administrador ve todas), módulos con ver/editar y excepciones por usuario, restablecer contraseña y desactivar usuario.
-6. **Configuración** (`/configuracion`, admin): subcuentas y tokens (alta asistida con verificación de permisos), metas y umbrales por subcuenta, mapa de etapas, estado de las cargas.
+6. **Configuración** (`/configuracion`, admin): subcuentas y tokens (alta asistida con verificación de permisos), metas y umbrales por subcuenta, mapa de etapas, estado de las cargas, y **Calidad**: historial de análisis por muestra, botón “Ejecutar análisis de calidad” (solo admin, con estimación de costo y validación con contraseña o 2FA) y gasto del mes frente al tope.
 
 La **vista general** se muestra al administrador con todas las subcuentas y al dueño de negocio solo con las suyas (con el mismo diseño).
 
@@ -376,7 +438,7 @@ Accesibilidad: contraste mínimo 4,5:1, objetivos táctiles de 44 px, botones y 
 
 - Pruebas unitarias en `packages/core` para cada indicador, horario laboral, semáforo, cuello de botella y alertas cruzadas (casos borde incluidos).
 - Pruebas de integración con PostgreSQL desechable (`DATABASE_URL_TEST`) y GHL simulado (nunca tokens reales en pruebas).
-- Prueba de punta a punta (Playwright): login, cambio de contraseña obligatorio, alta de subcuenta con PIT simulado, vistas general, subcuenta y asesor, panel de mejor y peor mensaje, edición de horarios, permisos por rol.
+- Prueba de punta a punta (Playwright): login, cambio de contraseña obligatorio, alta de subcuenta con PIT simulado, vistas general, subcuenta y asesor, panel de mejor y peor mensaje, edición de horarios, elección de las 3 etapas de calidad, botón de análisis de calidad (solo admin, con estimación de costo y validación de contraseña o 2FA), permisos por rol.
 - CI: formato, lint, typecheck, tests y build en cada PR; en `main` publica `driven-comercial-web` y `driven-comercial-worker` en GHCR.
 - **Validación con datos reales:** para 20 leads por subcuenta, comparar a mano con GHL el ingreso, la primera respuesta, los intentos y el estado. Documentar el resultado en `docs/validacion.md`.
 
@@ -421,7 +483,7 @@ Entregar `docs/DEPLOY.md`: guía paso a paso para alguien sin experiencia, con c
 | 1 | Esquema `comercial`, roles, migraciones, cifrado, `crear-admin`, login y roles | Pruebas de integración |
 | 2 | Cliente GHL, alta de subcuentas y tokens, cargas incremental, nocturna e histórica; `docs/mapeo-origen.md` | Carga real en una subcuenta en modo sombra |
 | 3 | `packages/core`: horario laboral, 8 indicadores, semáforo, cuello de botella, alertas cruzadas | Pruebas unitarias + `docs/validacion.md` |
-| 4 | Clasificador IA y mejor/peor mensaje | 100 mensajes reales revisados a mano |
+| 4 | Historial de etapas y análisis de calidad por muestra (§6): automático mensual, botón manual con validación de administrador, costo estimado y tope | Un análisis real en la subcuenta piloto; 100 mensajes revisados a mano; costo real frente al estimado |
 | 5 | Interfaz: vista general, subcuenta, asesor, horarios, configuración | Prueba de punta a punta |
 | 6 | Alertas (tiempo real y resumen diario) y purga | Modo sombra 3 días |
 | 7 | Scripts de despliegue y `docs/DEPLOY.md` | Despliegue de prueba documentado |
