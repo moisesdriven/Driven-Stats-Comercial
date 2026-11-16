@@ -477,3 +477,23 @@ el análisis.
   2,34. El cierre ajustó "responde" o la categoría por bloque en 457 mensajes.
 - Por asesora el orden cambia poco arriba (la de mayor puntaje se mantiene en 2,77) y las demás bajan
   entre 0,2 y 0,45 puntos, sobre todo por tildes.
+
+### Rúbrica v3.1: mensajes mixtos por su contenido
+
+Decisión del cliente: un mensaje que saluda o presenta al asesor y además pregunta, informa o invita
+a una acción se clasifica por ese contenido; "saludo o plantilla" solo si no tiene otro contenido.
+
+| Configuración (contra la referencia v3, dos corridas) | Puntaje ±1  | Categoría   | Exacto   |
+| ----------------------------------------------------- | ----------- | ----------- | -------- |
+| v3                                                    | 92–94 %     | 69–73 %     | 50–52 %  |
+| **v3.1**                                              | **90–92 %** | **74–77 %** | **56 %** |
+| v3.1 con un mensaje por línea (revertido)             | 86–87 %     | 70 %        | 49–52 %  |
+
+- La v3.1 sube la categoría ~5 puntos y el exacto ~5, con el puntaje a ±1 en el mínimo o apenas
+  encima. **La categoría sigue sin aprobar** (mínimo 85 %).
+- Probé unir las líneas de cada mensaje en el texto que recibe la IA (las plantillas de varias líneas
+  podían leerse como varios mensajes): empeoró en las dos corridas y se revirtió.
+- Los desacuerdos de categoría que quedan son de mensajes con varias funciones: información frente a
+  pregunta de calificación, respuesta o llamada a la acción (ubicación, envíos, presupuesto en la misma
+  plantilla), y la plantilla de presentación con número de atención y catálogo, que la IA sigue
+  llamando saludo. Con la v2, Sonnet 5.5 llegaba a 83 % de categoría.
