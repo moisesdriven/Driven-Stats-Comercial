@@ -526,7 +526,8 @@ Mínimo de categoría bajado a 75 % (decisión del cliente). Calibración con el
   mayor diferencia es "responde": Sonnet lo da por cumplido en el 76 % de los mensajes y Haiku en el
   58 %.
 - Por asesora (puntaje medio Haiku → Sonnet): A 2,72 → 2,98 · B 2,00 → 2,80 · C 2,28 → 2,47 ·
-  D 2,20 → 2,21 · E 2,22 → 2,20. Con Haiku, B varió de 2,20 a 1,80 entre dos corridas iguales: con pocos
-  mensajes por asesora el orden fino no es confiable con ninguno de los dos.
+  D 2,20 → 2,21 · E 2,22 → 2,20. B tiene solo 5 mensajes calificados (con Haiku varió de 2,20 a 1,80
+  entre dos corridas iguales): no es comparable. Para las asesoras con cientos de mensajes, Haiku y
+  Sonnet dan casi lo mismo, salvo A (+0,26 con Sonnet).
 - Una equivocación al lanzar la prueba hizo correr Haiku dos veces (análisis 5 y 6); se aprovechó para
   medir la repetibilidad.
