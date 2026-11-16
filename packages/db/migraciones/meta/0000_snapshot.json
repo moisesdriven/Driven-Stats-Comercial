@@ -1,5 +1,5 @@
 {
-  "id": "024adc72-8f48-41f8-882f-f999a5fcf15f",
+  "id": "cc554df2-6045-4378-95d8-21e8007c0c40",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -55,6 +55,30 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "modelo": {
+          "name": "modelo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_rubrica": {
+          "name": "version_rubrica",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mensajes_estimados": {
+          "name": "mensajes_estimados",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "batch_ids": {
           "name": "batch_ids",
@@ -201,6 +225,31 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "mensajes": {
+          "name": "mensajes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "numeracion": {
+          "name": "numeracion",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "creado_en": {
           "name": "creado_en",

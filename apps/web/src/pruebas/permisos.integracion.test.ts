@@ -319,8 +319,9 @@ describe.skipIf(!hayBaseDePruebas)('permisos por subcuenta (integración)', () =
         cookie: cookies.admin,
         cuerpo: { ...cuerpo, clave: CLAVE_PRUEBA },
       });
-      // Autorizado; el análisis en sí llega en la fase 4.
-      expect(conClave.estado).toBe(501);
+      // Autorizado: llega a la validación de negocio (LOC_A no tiene sus 3 etapas de calidad).
+      expect(conClave.estado).toBe(400);
+      expect(conClave.cuerpo.error).toMatch(/3 etapas/);
     });
   });
 });

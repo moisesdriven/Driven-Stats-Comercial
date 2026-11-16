@@ -4,12 +4,23 @@
  *   node dist/cli.js incremental [--subcuenta <locationId>]             encola una incremental ya
  *   node dist/cli.js nocturno [--subcuenta <locationId>]                encola la nocturna ya
  *   node dist/cli.js resumen [--dias 7] [--subcuenta <locationId>]      recalcula resumen_diario
+ *   node dist/cli.js calidad-estimar --subcuenta ID --desde F --hasta F   costo estimado (no envía nada)
+ *   node dist/cli.js calidad-revisar                                     revisa lotes enviados ahora
  *   node dist/cli.js estado                                             últimas ejecuciones
  * Con --directo se ejecuta en este proceso en vez de encolar (útil en pruebas en modo sombra).
  */
 import { desc } from 'drizzle-orm';
 import { PgBoss } from 'pg-boss';
-import { crearConexion, ESQUEMA_COLA, tablas } from '@driven/db';
+import {
+  configuracionCalidad,
+  crearConexion,
+  ESQUEMA_COLA,
+  gastoDelMes,
+  prepararSolicitudes,
+  tablas,
+} from '@driven/db';
+import { procesarPendientes } from './calidad/proceso';
+import { ProveedorAnthropic } from './calidad/proveedor';
 import { leerConfiguracion } from './configuracion';
 import { subcuentasActivas } from './subcuentas';
 import { calcularResumen, hoyEn, sumarDias } from './calculo/resumen';
@@ -42,6 +53,47 @@ async function principal() {
           `${f.inicio.toISOString()}  ${f.locationId}  ${f.tipo.padEnd(11)} ${f.estado.padEnd(8)} llamadas=${f.llamadas}${f.error ? `  error: ${f.error}` : ''}`,
         );
       }
+      return;
+    }
+    if (comando === 'calidad-estimar') {
+      const cfgC = configuracionCalidad();
+      const id = arg('subcuenta');
+      const [sub] = (await db.select().from(tablas.subcuentas)).filter((x) => x.locationId === id);
+      if (!sub || (sub.etapasCalidad ?? []).length !== 3)
+        throw new Error('Subcuenta inexistente o sin sus 3 etapas de calidad.');
+      const desde = new Date(`${arg('desde')}T00:00:00Z`);
+      const hasta = new Date(Date.parse(`${arg('hasta')}T00:00:00Z`) + 86_400_000);
+      const p = await prepararSolicitudes(
+        db,
+        { locationId: sub.locationId, etapas: sub.etapasCalidad!, desde, hasta },
+        cfgC,
+      );
+      const gasto = await gastoDelMes(db);
+      console.log(
+        JSON.stringify(
+          {
+            subcuenta: sub.nombre,
+            periodo: [arg('desde'), arg('hasta')],
+            conversacionesElegibles: p.universo.conversaciones,
+            porAsesor: Object.fromEntries([...p.universo.porAsesor].map(([a, l]) => [a, l.length])),
+            muestra: p.muestra.length,
+            solicitudes: p.solicitudes.length,
+            mensajesACalificar: p.solicitudes.reduce((s2, x) => s2 + x.mensajes, 0),
+            descartes: { ...p.descartes, sinMensajesCalificables: p.sinMensajes.length },
+            estimacion: p.estimacion,
+            gastoDelMesUsd: gasto,
+            topeMensualUsd: cfgC.topeMensualUsd,
+            modelo: cfgC.modelo,
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+    if (comando === 'calidad-revisar') {
+      await procesarPendientes(db, new ProveedorAnthropic(), configuracionCalidad(), 'solicitudes');
+      await procesarPendientes(db, new ProveedorAnthropic(), configuracionCalidad(), 'revisar');
       return;
     }
     if (comando === 'resumen') {

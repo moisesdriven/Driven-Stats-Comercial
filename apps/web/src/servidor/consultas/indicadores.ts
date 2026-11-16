@@ -15,6 +15,19 @@ import {
 } from '@driven/core';
 import { tablas, type Db } from '@driven/db';
 import { exigirAsesorPropio, exigirModulo, exigirSubcuenta, type ContextoAcceso } from '../acceso';
+import { ultimosAnalisis, type ResumenCalidad } from '../calidad';
+
+/** Metadatos del análisis que se muestran junto al indicador ("Muestra de 1.000 conversaciones · octubre 2026"). */
+const infoCalidad = (r: ResumenCalidad | undefined) =>
+  r
+    ? {
+        analisisId: r.analisisId,
+        periodoDesde: r.periodoDesde,
+        periodoHasta: r.periodoHasta,
+        muestra: r.muestra,
+        distribucion: r.distribucion,
+      }
+    : null;
 
 const diasEntre = (desde: string, hasta: string) =>
   Math.round((Date.parse(hasta) - Date.parse(desde)) / 86_400_000) + 1;
@@ -46,8 +59,8 @@ function periodo(filas: { fecha: string; indicadores: unknown }[]): {
   };
 }
 
-function resultado(a: Acumulado, metas: Metas, dias: number) {
-  const indicadores = calcularIndicadores(a, dias);
+function resultado(a: Acumulado, metas: Metas, dias: number, calidad: number | null = null) {
+  const indicadores = calcularIndicadores(a, dias, calidad);
   return { indicadores, evaluacion: evaluar(indicadores, metas, dias) };
 }
 
@@ -89,17 +102,24 @@ export async function indicadoresSubcuenta(
     .select()
     .from(tablas.motivosPerdida)
     .where(eq(tablas.motivosPerdida.locationId, locationId));
+  const calidad = (await ultimosAnalisis(db, [locationId])).get(locationId);
   return {
     subcuenta: { locationId, nombre: sub?.nombre ?? locationId },
     desde,
     hasta,
-    ...resultado(total.acumulado, metas, dias),
+    ...resultado(total.acumulado, metas, dias, calidad?.promedio ?? null),
+    calidad: infoCalidad(calidad),
     ventasPorDia: total.ventasPorDia,
     motivosPerdida: Object.fromEntries(motivos.map((m) => [m.motivoId, m.nombre])),
     asesores: asesoresIds.map((id) => ({
       asesorId: id,
       nombre: nombres.find((n) => n.userId === id)?.nombre ?? id,
-      ...resultado(periodo(filas.filter((f) => f.asesorId === id)).acumulado, metas, dias),
+      ...resultado(
+        periodo(filas.filter((f) => f.asesorId === id)).acumulado,
+        metas,
+        dias,
+        calidad?.porAsesor[id]?.promedio ?? null,
+      ),
     })),
   };
 }
@@ -144,12 +164,20 @@ export async function indicadoresAsesor(
     .select()
     .from(tablas.asesores)
     .where(eq(tablas.asesores.userId, userId));
+  const calidad = (await ultimosAnalisis(db, [locationId])).get(locationId);
   return {
     asesor: { userId, nombre: asesor?.nombre ?? userId },
     desde,
     hasta,
-    ...resultado(periodo(propias).acumulado, metas, dias),
-    subcuenta: resultado(periodo(total).acumulado, metas, dias).indicadores,
+    ...resultado(
+      periodo(propias).acumulado,
+      metas,
+      dias,
+      calidad?.porAsesor[userId]?.promedio ?? null,
+    ),
+    calidad: infoCalidad(calidad),
+    subcuenta: resultado(periodo(total).acumulado, metas, dias, calidad?.promedio ?? null)
+      .indicadores,
   };
 }
 
@@ -174,6 +202,10 @@ export async function vistaGeneral(db: Db, ctx: ContextoAcceso, desde: string, h
       ),
     )
     .orderBy(asc(tablas.resumenDiario.fecha));
+  const calidades = await ultimosAnalisis(
+    db,
+    subs.map((s) => s.locationId),
+  );
   const porSubcuenta = subs.map((s) => ({
     locationId: s.locationId,
     nombre: s.nombre,
@@ -181,8 +213,18 @@ export async function vistaGeneral(db: Db, ctx: ContextoAcceso, desde: string, h
       periodo(filas.filter((f) => f.locationId === s.locationId)).acumulado,
       metasDeSubcuenta(s.metas),
       dias,
+      calidades.get(s.locationId)?.promedio ?? null,
     ),
+    calidad: infoCalidad(calidades.get(s.locationId)),
   }));
+  // Calidad de la agencia: promedio ponderado por mensajes calificados (no promedio de promedios).
+  const conCalidad = [...calidades.values()].filter(
+    (c) => c.promedio !== null && c.mensajesCalificados,
+  );
+  const mensajes = conCalidad.reduce((t, c) => t + c.mensajesCalificados, 0);
+  const calidadAgencia = mensajes
+    ? conCalidad.reduce((t, c) => t + c.promedio! * c.mensajesCalificados, 0) / mensajes
+    : null;
   // Metas de la agencia: las por defecto, con la meta de ventas como suma de las subcuentas.
   const metasSubs = subs.map((s) => metasDeSubcuenta(s.metas));
   const metasAgencia: Metas = {
@@ -195,7 +237,7 @@ export async function vistaGeneral(db: Db, ctx: ContextoAcceso, desde: string, h
   return {
     desde,
     hasta,
-    ...resultado(total.acumulado, metasAgencia, dias),
+    ...resultado(total.acumulado, metasAgencia, dias, calidadAgencia),
     ventasPorDia: total.ventasPorDia,
     subcuentas: porSubcuenta,
   };

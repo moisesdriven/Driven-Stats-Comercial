@@ -390,9 +390,22 @@ export const analisisCalidad = comercial.table(
     periodoDesde: date('periodo_desde', { mode: 'string' }).notNull(),
     periodoHasta: date('periodo_hasta', { mode: 'string' }).notNull(),
     semilla: text('semilla').notNull(),
+    /** solicitado → preparando → enviado → terminado (o fallido / detenido_por_tope / sin_universo). */
     estado: text('estado', {
-      enum: ['preparando', 'enviado', 'revisando', 'terminado', 'fallido', 'detenido_por_tope'],
+      enum: [
+        'solicitado',
+        'preparando',
+        'enviado',
+        'terminado',
+        'fallido',
+        'detenido_por_tope',
+        'sin_universo',
+      ],
     }).notNull(),
+    modelo: text('modelo'),
+    versionRubrica: text('version_rubrica'),
+    mensajesEstimados: integer('mensajes_estimados'),
+    error: text('error'),
     batchIds: text('batch_ids').array(),
     conversacionesElegibles: integer('conversaciones_elegibles'),
     conversacionesMuestra: integer('conversaciones_muestra'),
@@ -418,8 +431,14 @@ export const analisisCalidadMuestra = comercial.table(
       .references(() => analisisCalidad.id, { onDelete: 'cascade' }),
     conversationId: text('conversation_id').notNull(),
     asesorId: text('asesor_id'),
+    /** pendiente · enviado · calificado · sin_mensajes · fallido */
     estado: text('estado').notNull(),
     intentos: integer('intentos').notNull().default(0),
+    mensajes: integer('mensajes').notNull().default(0),
+    /** n → message_id de los mensajes numerados en la solicitud. */
+    numeracion: jsonb('numeracion'),
+    batchId: text('batch_id'),
+    error: text('error'),
     ...auditoriaFilas,
   },
   (t) => [primaryKey({ columns: [t.analisisId, t.conversationId] })],

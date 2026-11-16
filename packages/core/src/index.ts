@@ -5,3 +5,4 @@ export * from './oportunidades';
 export * from './horario';
 export * from './indicadores';
 export * from './semaforo';
+export * from './calidad';
