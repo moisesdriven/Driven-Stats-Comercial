@@ -6,6 +6,7 @@ import { randomBytes } from 'node:crypto';
 import { and, eq, gte, inArray, notInArray, sql } from 'drizzle-orm';
 import {
   ESQUEMA_RESPUESTA_CALIDAD,
+  TOKENS_MARGEN_PENSAMIENTO,
   INSTRUCCIONES_CALIDAD,
   VERSION_RUBRICA,
   estimarCosto,
@@ -21,8 +22,19 @@ import {
 import type { Db } from './cliente';
 import { analisisCalidad } from './esquema/index';
 
+export type EsfuerzoIa = 'low' | 'medium' | 'high';
+
+/** Cómo razona el modelo al calificar: esfuerzo y pensamiento adaptativo (activo o no). */
+export interface AjustesIa {
+  esfuerzo: EsfuerzoIa;
+  pensamiento: boolean;
+}
+
+export const AJUSTES_IA_POR_DEFECTO: AjustesIa = { esfuerzo: 'low', pensamiento: false };
+
 export interface ConfiguracionCalidad {
   modelo: string;
+  ajustes: AjustesIa;
   tamanoMuestra: number;
   maxMensajesConversacion: number;
   minimoPorAsesor: number;
@@ -34,11 +46,23 @@ export function configuracionCalidad(env: NodeJS.ProcessEnv = process.env): Conf
   const n = (v: string | undefined, d: number) => (v && Number.isFinite(Number(v)) ? Number(v) : d);
   return {
     modelo: env.IA_MODELO || 'claude-haiku-5-5',
+    ajustes: leerAjustesIa(env.IA_ESFUERZO, env.IA_PENSAMIENTO),
     tamanoMuestra: n(env.CALIDAD_MUESTRA_CONVERSACIONES, 1000),
     maxMensajesConversacion: n(env.CALIDAD_MAX_MENSAJES_CONVERSACION, 10),
     minimoPorAsesor: 20,
     topeMensualUsd: n(env.IA_TOPE_MENSUAL_USD, 10),
     maxManualesMes: n(env.CALIDAD_MAX_MANUALES_MES, 3),
+  };
+}
+
+/** Lee esfuerzo (low | medium | high) y pensamiento (si | no); valores desconocidos → por defecto. */
+export function leerAjustesIa(esfuerzo?: string, pensamiento?: string): AjustesIa {
+  const e = (['low', 'medium', 'high'] as const).find((x) => x === esfuerzo);
+  return {
+    esfuerzo: e ?? AJUSTES_IA_POR_DEFECTO.esfuerzo,
+    pensamiento: pensamiento
+      ? ['si', 'sí', 'true', '1'].includes(pensamiento.toLowerCase())
+      : false,
   };
 }
 
@@ -219,15 +243,26 @@ export async function prepararSolicitudes(
   }
   const estimacion = estimarCosto(
     solicitudes.map((s) => ({ tokensConversacion: s.tokensConversacion, mensajes: s.mensajes })),
+    undefined,
+    { pensamiento: cfg.ajustes.pensamiento },
   );
   return { semilla, universo, muestra, solicitudes, sinMensajes, descartes, estimacion };
 }
 
-/** Parámetros de una solicitud para la Messages / Batches API. */
-export function parametrosSolicitud(s: SolicitudPreparada, modelo: string) {
+/**
+ * Parámetros de una solicitud para la Messages / Batches API. Haiku 5.5 no admite `temperature`
+ * distinta de la predeterminada: la consistencia se busca con la rúbrica, el esfuerzo y el
+ * pensamiento (medidos con la calibración), y con la unificación por texto al cerrar.
+ */
+export function parametrosSolicitud(
+  s: SolicitudPreparada,
+  modelo: string,
+  ajustes: AjustesIa = AJUSTES_IA_POR_DEFECTO,
+) {
   return {
     model: modelo,
-    max_tokens: maxTokensPara(s.mensajes),
+    // Con pensamiento, sus tokens cuentan dentro de max_tokens: se deja margen.
+    max_tokens: maxTokensPara(s.mensajes) + (ajustes.pensamiento ? TOKENS_MARGEN_PENSAMIENTO : 0),
     system: [
       {
         type: 'text' as const,
@@ -236,10 +271,9 @@ export function parametrosSolicitud(s: SolicitudPreparada, modelo: string) {
       },
     ],
     messages: [{ role: 'user' as const, content: s.texto }],
-    // Salida compacta y validable; clasificación simple: sin pensamiento extendido y esfuerzo bajo.
-    thinking: { type: 'disabled' as const },
+    thinking: ajustes.pensamiento ? { type: 'adaptive' as const } : { type: 'disabled' as const },
     output_config: {
-      effort: 'low' as const,
+      effort: ajustes.esfuerzo,
       format: { type: 'json_schema' as const, schema: ESQUEMA_RESPUESTA_CALIDAD },
     },
   };

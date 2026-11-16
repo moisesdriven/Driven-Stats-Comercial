@@ -71,6 +71,7 @@ export async function estimarAnalisis(
       muestra: p.muestra.length,
       mensajesEstimados: p.solicitudes.reduce((t, x) => t + x.mensajes, 0),
       costoEstimadoUsd: p.estimacion.costoUsd,
+      costoMaximoUsd: p.estimacion.costoMaximoUsd,
       descartes: { ...p.descartes, sinMensajesCalificables: p.sinMensajes.length },
       ...limites,
     });
@@ -80,9 +81,15 @@ export async function estimarAnalisis(
     (t, r) => t + ('costoEstimadoUsd' in r ? (r.costoEstimadoUsd ?? 0) : 0),
     0,
   );
+  // Peor caso (sin caché y, con pensamiento, todo su margen): es el que se compara con el tope.
+  const maximo = resultado.reduce(
+    (t, r) => t + ('costoMaximoUsd' in r ? (r.costoMaximoUsd ?? 0) : 0),
+    0,
+  );
   return {
     subcuentas: resultado,
     costoEstimadoTotalUsd: Math.round(total * 10_000) / 10_000,
+    costoMaximoTotalUsd: Math.ceil(maximo * 10_000) / 10_000,
     gastoDelMesUsd: gasto,
     topeMensualUsd: cfg.topeMensualUsd,
     maxManualesMes: cfg.maxManualesMes,
@@ -112,10 +119,10 @@ export async function lanzarAnalisis(
         'limite_manuales',
       );
   }
-  if (est.gastoDelMesUsd + est.costoEstimadoTotalUsd > est.topeMensualUsd) {
+  if (est.gastoDelMesUsd + est.costoMaximoTotalUsd > est.topeMensualUsd) {
     throw new ErrorHttp(
       409,
-      `El análisis costaría US$ ${est.costoEstimadoTotalUsd.toFixed(2)} y superaría el tope mensual (US$ ${est.topeMensualUsd}; gastado: US$ ${est.gastoDelMesUsd.toFixed(2)}).`,
+      `El análisis costaría unos US$ ${est.costoEstimadoTotalUsd.toFixed(2)} (hasta US$ ${est.costoMaximoTotalUsd.toFixed(2)} si la caché no funciona) y podría superar el tope mensual (US$ ${est.topeMensualUsd}; gastado: US$ ${est.gastoDelMesUsd.toFixed(2)}).`,
       'tope_gasto',
     );
   }
@@ -142,6 +149,7 @@ export async function lanzarAnalisis(
     desde: e.desde,
     hasta: e.hasta,
     costoEstimadoUsd: est.costoEstimadoTotalUsd,
+    costoMaximoUsd: est.costoMaximoTotalUsd,
     analisis: ids,
   });
   return { analisis: ids, costoEstimadoUsd: est.costoEstimadoTotalUsd };

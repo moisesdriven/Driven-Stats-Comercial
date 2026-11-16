@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { configuracionCalidad, prepararSolicitudes, tablas, type Db } from '@driven/db';
 import { baseWorker, URL_PRUEBAS } from '../pruebas/base';
+import { calibrar } from './calibracion';
 import { prepararAnalisis, revisarAnalisis, solicitarAnalisis } from './proceso';
 import { crearProveedorSimulado } from './simulado';
 
@@ -155,7 +156,13 @@ describe.skipIf(!URL_PRUEBAS)('análisis de calidad (integración con Anthropic 
       .from(tablas.clasificaciones)
       .where(eq(tablas.clasificaciones.analisisId, id));
     const precio = cal.find((c) => c.categoria === 'info_producto_precio');
-    expect(precio?.puntaje).toBe(5); // responde, personalizado, siguiente paso, tono, extensión
+    // El simulado marca "personalizado" (usa "María"), pero el mismo texto fue a 4 conversaciones:
+    // la unificación por texto lo deja en falso (misma frase, mismo resultado).
+    expect(precio?.criterios).toMatchObject({ responde: true, personalizado: false });
+    expect(precio?.puntaje).toBe(4);
+    expect(
+      new Set(cal.filter((c) => c.categoria === 'info_producto_precio').map((c) => c.puntaje)),
+    ).toEqual(new Set([4]));
     expect(cal.find((c) => c.categoria === 'saludo_plantilla')?.puntaje).toBe(2); // tono + extensión
 
     const ej = await db
@@ -164,6 +171,55 @@ describe.skipIf(!URL_PRUEBAS)('análisis de calidad (integración con Anthropic 
       .where(eq(tablas.ejemplosCalidad.analisisId, id));
     expect(ej.map((e) => e.asesorId).sort()).toEqual(['UA', 'UB']);
     expect(ej.every((e) => e.mejorMessageId !== e.peorMessageId)).toBe(true);
+  });
+
+  it('calibra: arma el contexto desde la base y mide la coincidencia con la referencia', async () => {
+    const ids = await db
+      .select({ id: tablas.mensajes.messageId, texto: tablas.mensajes.texto })
+      .from(tablas.mensajes)
+      .where(eq(tablas.mensajes.conversationId, 'conv_A1'));
+    const precio = ids.find((m) => m.texto?.includes('S/ 890'))!.id;
+    const saludo = ids.find((m) => m.texto?.startsWith('Buenas tardes'))!.id;
+    const { proveedor, lotes } = crearProveedorSimulado({ esperas: 1 });
+    const si = {
+      responde: true,
+      personalizado: true,
+      siguiente_paso: true,
+      tono: true,
+      extension: true,
+    };
+    const informe = await calibrar(
+      db,
+      proveedor,
+      {
+        descripcion: 'prueba',
+        locationId: LOC,
+        mensajes: [
+          { messageId: precio, categoria: 'info_producto_precio', criterios: si },
+          // La referencia dice que el saludo sí respondía: el simulado dirá que no (puntaje a 1 punto).
+          {
+            messageId: saludo,
+            categoria: 'saludo_plantilla',
+            criterios: { ...si, personalizado: false, siguiente_paso: false },
+          },
+          { messageId: 'no_existe', categoria: 'seguimiento', criterios: si },
+        ],
+      },
+      { modelo: 'claude-haiku-5-5', esperaMs: 0 },
+    );
+    const enviado = [...lotes.values()][0]!;
+    expect(enviado).toHaveLength(2);
+    expect(enviado[0]!.params.messages[0]!.content).toContain('[CLIENTE] ¿Cuánto cuesta');
+    expect(enviado[0]!.params.messages[0]!.content.match(/\[ASESOR #\d/g)).toHaveLength(1);
+    expect(informe.faltantes).toEqual(['no_existe']);
+    expect(informe.total).toBe(2);
+    expect(informe.categoria).toBe(2);
+    expect(informe.puntajeExacto).toBe(1);
+    expect(informe.puntajeUnPunto).toBe(2);
+    expect(informe.diferencias).toEqual([
+      { messageId: saludo, campo: 'responde', esperado: 'true', obtenido: 'false' },
+    ]);
+    expect(informe.costoUsd).toBeGreaterThan(0);
   });
 
   it('se detiene sin enviar si superaría el tope mensual', async () => {

@@ -187,10 +187,90 @@ Observaciones para el cliente (sin datos personales):
 
 ### Pendiente
 
-- ~~Corregir la estimación de tokens (subestima ~70 %).~~ Hecho: ver "Corrección de la estimación".
-- Ajustar la rúbrica según los patrones anteriores y versionarla (`v2`).
+- ~~Corregir la estimación de tokens (subestima ~70 %).~~ Hecho: ver "Calidad · corrección de la
+  estimación de costo".
+- ~~Ajustar la rúbrica según los patrones anteriores y versionarla (`v2`).~~ Hecho: ver la sección
+  siguiente.
 
-### Corrección de la estimación
+## Calidad · rúbrica v2 y calibración (16 de noviembre de 2026)
+
+### Conjunto de calibración
+
+`docs/calibracion/jade18k-2026-11.json`: los mismos 100 mensajes de la revisión manual, con sus
+etiquetas de referencia (solo ids; el contexto se reconstruye desde la base). Se revisó en dos
+pasadas: la primera partió de las etiquetas de la v1 y corrigió los errores evidentes; la segunda
+contrastó con las reglas escritas de la v2 cada discrepancia que la IA repitió en dos corridas
+(63 etiquetas cambiadas, la mayoría de tono por faltas de ortografía, personalización de
+cotizaciones estándar y extensión de mensajes que solo traen un enlace). Donde la regla no
+respaldaba a la IA, se mantuvo la referencia.
+
+Advertencia: la segunda pasada miró las respuestas de la v2, así que este conjunto ya no es
+independiente para la v2. Para la siguiente versión de la rúbrica conviene revisar un conjunto nuevo
+de otra semana o de otra subcuenta.
+
+### Resultados (contexto reconstruido, Batches API, Haiku 5.5)
+
+| Configuración                       | Categoría | Puntaje exacto | Puntaje ±1 | 5 criterios iguales | Costo (US$) |
+| ----------------------------------- | --------- | -------------- | ---------- | ------------------- | ----------- |
+| v1, sin pensamiento, low            | 83 %      | 53 %           | 88 %       | 36 %                | 0,008       |
+| v2, sin pensamiento, low (A)        | 86 %      | 67 %           | 93 %       | 62 %                | 0,009       |
+| v2, sin pensamiento, low (B)        | 87 %      | 67 %           | 92 %       | 61 %                | 0,009       |
+| v2, sin pensamiento, low (C, final) | 85 %      | 61 %           | 91 %       | —                   | 0,009       |
+| v2, con pensamiento, low            | 88 %      | 57 %           | 91 %       | 49 %                | 0,009       |
+| v2, con pensamiento, medium         | 83 %      | 51 %           | 92 %       | 46 %                | 0,016       |
+
+- La corrida final (C) aprueba, pero con la categoría justo en el mínimo: la v2 cumple el umbral
+  sin margen; conviene vigilarla con un segundo conjunto.
+- **Repetibilidad:** dos corridas idénticas de la v2 coinciden entre sí en 92 % de las categorías,
+  77 % del puntaje exacto y 98 % del puntaje a ±1 (por criterio: responde 97 %, personalizado 95 %,
+  siguiente paso 97 %, tono 89 %, extensión 86 %). Haiku 5.5 no admite temperatura fija, así que
+  ese es el techo del puntaje exacto; por eso la aprobación exige ±1 y categoría.
+- La mayoría de 3 corridas no mejoró la coincidencia: no compensa triplicar el costo.
+- El pensamiento adaptativo tampoco mejoró (el tono empeora) y cuesta hasta el doble.
+- Por criterio, la v2 coincide con la referencia en: siguiente paso 96 %, personalizado 91 %,
+  extensión 88 %, responde 88 % y tono 86 %. Tono y extensión siguen siendo los más subjetivos.
+
+### Unificación por texto sobre el análisis real de la semana
+
+En el análisis del 9 al 15 de noviembre (rúbrica v1), 555 de los 1.176 mensajes con puntaje (47 %)
+pertenecen a 82 textos que se repiten. Con la unificación, 159 de ellos cambian algún criterio (138
+pierden "personalizado" porque el mismo texto fue a varios clientes) y el puntaje medio de esos
+mensajes pasa de 2,63 a 2,36. Desde la v2 se aplica sola al cerrar cada análisis.
+
+## Calidad · análisis completo con la rúbrica v2 (16 de noviembre de 2026)
+
+Jade18K, semana del 9 al 15 de noviembre (análisis 2). Como el universo (454 conversaciones) es
+menor que la muestra, se calificaron exactamente los mismos 1.212 mensajes que con la v1, así que la
+comparación es directa.
+
+| Concepto                        | v1 (análisis 1) | v2 (análisis 2)  |
+| ------------------------------- | --------------- | ---------------- |
+| Mensajes calificados / fallidos | 1.212 / 0       | 1.212 / 0        |
+| Costo estimado → real (US$)     | 0,0303 → 0,0523 | 0,0318 → 0,0556  |
+| Duración del lote               | 6 min           | 28 min           |
+| Puntaje medio                   | 2,76            | 2,56             |
+| Mensajes con 4–5 / con 1–2      | 310 / 573       | 240 / 610        |
+| Unificados por texto al cerrar  | —               | 138 en 84 textos |
+
+Criterios cumplidos: personalizado 34 % → 10 %, tono 70 % → 59 %, responde 44 % → 56 %,
+siguiente paso 52 % → 49 %, extensión 74 % → 77 %. La caída de "personalizado" es la esperada: la v2
+no acepta plantillas ni el nombre de la asesora, y la unificación lo deja en falso cuando el mismo
+texto fue a varios clientes.
+
+Categorías: "seguimiento" baja de 85 a 41 (ya no se usa para respuestas) y "multimedia" de 36 a 4
+(los enlaces pasan a información de producto, que sube de 324 a 390).
+
+Entre v1 y v2 coinciden 77 % de las categorías, 45 % del puntaje exacto y 85 % del puntaje a ±1.
+
+Por asesora (puntaje medio v1 → v2): A 2,86 → 2,70 · B 2,67 → 2,59 · C 2,79 → 2,52 ·
+D 2,72 → 2,35. **El orden cambia:** con la v1 la de menor puntaje era B; con la v2 es D, que pierde
+más por mensajes de plantilla repetidos y faltas de ortografía. C tiene el tono más bajo (20 % de
+sus mensajes) y A el más alto (86 %).
+
+El estimador anterior volvió a quedarse corto (+75 %); la estimación corregida se compara con este
+análisis en la sección siguiente.
+
+## Calidad · corrección de la estimación de costo (16 de noviembre de 2026)
 
 Causas del desvío (deducidas de los totales y del costo real, que separa lo leído de caché de lo
 demás):
@@ -216,3 +296,28 @@ La calibración sale de un solo análisis, así que el ajuste exacto a este caso
 prueba exige ±15 %. Si el lote no aprovecha la caché (es de mejor esfuerzo en la Batches API), el
 costo real puede superar al estimado: en el peor caso, si ninguna solicitud lee de caché y todas
 pagan la escritura (1,25×), este análisis habría costado unos US$ 0,11. Conviene recalibrar con los próximos análisis.
+
+### Verificación con el análisis de la rúbrica v2
+
+La v2 tiene instrucciones más largas (5.753 caracteres frente a 3.404); la parte fija se recalcula
+sola desde el texto (≈ 3.155 tokens). Sin cambiar ninguna constante, con los mismos 452
+solicitudes y 1.212 mensajes:
+
+| Concepto          | Estimado   | Real      | Desvío |
+| ----------------- | ---------- | --------- | ------ |
+| Tokens de entrada | ~1.687.000 | 1.630.635 | +3,5 % |
+| Tokens de salida  | 137.840    | 137.432   | +0,3 % |
+| Costo (US$)       | 0,0548     | 0,0556    | −1,4 % |
+
+No hace falta recalibrar. El lote de la v2 tardó 28 minutos, más que los 5 minutos que dura la
+caché por defecto, y aun así se leyó de caché ~98 % de la parte fija (se deduce del costo): la
+caché se renueva con cada lectura.
+
+### Costo máximo para el tope
+
+Como la caché de la Batches API es de mejor esfuerzo, el tope mensual se controla con el costo
+máximo (ninguna solicitud lee de caché; con pensamiento, todo el margen de 8.000 tokens por
+solicitud). Para este análisis: US$ 0,055 esperado y ~US$ 0,14 máximo con la v2 (US$ 0,11 con la
+v1). Ambos costos reales quedaron por debajo del máximo. Desde ahora, cada cierre registra el desvío
+(`desvioCostoPct` en `calidad_terminado`) y cada revisión de lotes el porcentaje leído de caché
+(`cacheLeidaPct` en `calidad_uso`).

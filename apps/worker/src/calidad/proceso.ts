@@ -14,9 +14,14 @@ import {
   CRITERIOS,
   VERSION_RUBRICA,
   costoReal,
+  cacheLeidaPct,
+  desvioCostoPct,
   mejorYPeor,
   puntajeDeCriterios,
+  unificarPorTexto,
   type Calificacion,
+  type CategoriaCalidad,
+  type Criterios,
 } from '@driven/core';
 import {
   gastoDelMes,
@@ -29,7 +34,7 @@ import {
 import { enLotes, log } from '../sync/util';
 import { dividirEnLotes, type ProveedorLotes, type SolicitudLote } from './proveedor';
 
-const esquemaRespuesta = z.object({
+export const esquemaRespuesta = z.object({
   mensajes: z.array(
     z.object({
       n: z.number().int().min(1),
@@ -135,16 +140,18 @@ export async function prepararAnalisis(
       });
       return;
     }
-    // Tope de gasto mensual (§6.4): se estima antes de enviar.
+    // Tope de gasto mensual (§6.4): se compara el peor caso (sin caché y, con pensamiento, todo
+    // su margen), para que el tope no se pase aunque la caché de la Batches API no funcione.
     const gasto = (await gastoDelMes(db)) - (a.costoEstimado ?? 0);
-    if (gasto + prep.estimacion.costoUsd > cfg.topeMensualUsd) {
+    const { costoUsd: estimado, costoMaximoUsd: maximo } = prep.estimacion;
+    if (gasto + maximo > cfg.topeMensualUsd) {
       await actualizar(db, analisisId, {
         ...base,
         estado: 'detenido_por_tope',
         cerradoEn: new Date(),
-        error: `El análisis costaría US$ ${prep.estimacion.costoUsd.toFixed(2)} y el gasto del mes es US$ ${gasto.toFixed(2)} (tope US$ ${cfg.topeMensualUsd}).`,
+        error: `El análisis costaría unos US$ ${estimado.toFixed(2)} (hasta US$ ${maximo.toFixed(2)} si la caché no funciona) y el gasto del mes es US$ ${gasto.toFixed(2)} (tope US$ ${cfg.topeMensualUsd}).`,
       });
-      log('calidad_tope', { analisisId, estimado: prep.estimacion.costoUsd, gasto });
+      log('calidad_tope', { analisisId, estimado, maximo, gasto });
       return;
     }
 
@@ -169,7 +176,7 @@ export async function prepararAnalisis(
     }
     const solicitudes: SolicitudLote[] = prep.solicitudes.map((s) => ({
       custom_id: s.customId,
-      params: parametrosSolicitud(s, cfg.modelo),
+      params: parametrosSolicitud(s, cfg.modelo, cfg.ajustes),
     }));
     const batchIds = await enviar(
       db,
@@ -184,6 +191,7 @@ export async function prepararAnalisis(
       solicitudes: solicitudes.length,
       lotes: batchIds.length,
       estimado: prep.estimacion.costoUsd,
+      maximo: prep.estimacion.costoMaximoUsd,
     });
   } catch (e) {
     const mensaje = e instanceof Error ? e.message : String(e);
@@ -262,6 +270,9 @@ export async function revisarAnalisis(
   let tokensEntrada = a.tokensEntrada ?? 0;
   let tokensSalida = a.tokensSalida ?? 0;
   let costo = a.costoReal ?? 0;
+  // Uso de esta revisión, para vigilar cuánto aprovecha la caché cada lote.
+  let entradaRonda = 0;
+  let leidosCacheRonda = 0;
   const aReintentar: typeof pendientes = [];
   const fallar = async (m: (typeof pendientes)[number], error: string) => {
     if (m.intentos < 2) aReintentar.push(m);
@@ -284,10 +295,13 @@ export async function revisarAnalisis(
       if (!m) continue;
       porCustomId.delete(r.custom_id);
       if (r.uso) {
-        tokensEntrada +=
+        const entrada =
           r.uso.input_tokens +
           (r.uso.cache_read_input_tokens ?? 0) +
           (r.uso.cache_creation_input_tokens ?? 0);
+        tokensEntrada += entrada;
+        entradaRonda += entrada;
+        leidosCacheRonda += r.uso.cache_read_input_tokens ?? 0;
         tokensSalida += r.uso.output_tokens;
         costo += costoReal(r.uso);
       }
@@ -340,6 +354,14 @@ export async function revisarAnalisis(
     tokensSalida,
     costoReal: Math.round(costo * 10_000) / 10_000,
   });
+  if (entradaRonda) {
+    log('calidad_uso', {
+      analisisId,
+      tokensEntrada: entradaRonda,
+      tokensLeidosCache: leidosCacheRonda,
+      cacheLeidaPct: cacheLeidaPct(entradaRonda, leidosCacheRonda),
+    });
+  }
 
   if (aReintentar.length) {
     const etapas =
@@ -364,7 +386,7 @@ export async function revisarAnalisis(
       analisisId,
       nuevas.map((s) => ({
         custom_id: s.customId,
-        params: parametrosSolicitud(s, a.modelo ?? cfg.modelo),
+        params: parametrosSolicitud(s, a.modelo ?? cfg.modelo, cfg.ajustes),
       })),
       nuevas.map((s) => s.conversationId),
     );
@@ -376,8 +398,49 @@ export async function revisarAnalisis(
   return 'terminado';
 }
 
-/** Cierra el análisis: mejor y peor mensaje por asesor y totales. */
+/**
+ * Misma frase, mismo resultado (§6.2): unifica tono, extensión y personalización entre mensajes con
+ * el mismo texto dentro del análisis y recalcula su puntaje. Devuelve cuántos mensajes cambiaron.
+ */
+export async function unificarAnalisis(db: Db, analisisId: number): Promise<number> {
+  const filas = await db.execute<{
+    message_id: string;
+    conversation_id: string;
+    categoria: string;
+    criterios: Criterios;
+    texto: string | null;
+  }>(sql`
+    select c.message_id, c.conversation_id, c.categoria, c.criterios, m.texto
+    from comercial.clasificaciones c
+    join comercial.mensajes m on m.message_id = c.message_id
+    where c.analisis_id = ${analisisId}`);
+  const { cambios, grupos } = unificarPorTexto(
+    filas.rows.map((f) => ({
+      messageId: f.message_id,
+      conversationId: f.conversation_id,
+      texto: f.texto ?? '',
+      categoria: f.categoria as CategoriaCalidad,
+      criterios: f.criterios,
+    })),
+  );
+  for (const [messageId, criterios] of cambios) {
+    await db
+      .update(tablas.clasificaciones)
+      .set({ criterios, puntaje: puntajeDeCriterios(criterios) })
+      .where(
+        and(
+          eq(tablas.clasificaciones.analisisId, analisisId),
+          eq(tablas.clasificaciones.messageId, messageId),
+        ),
+      );
+  }
+  if (cambios.size) log('calidad_unificado', { analisisId, grupos, mensajes: cambios.size });
+  return cambios.size;
+}
+
+/** Cierra el análisis: unificación por texto, mejor y peor mensaje por asesor y totales. */
 export async function cerrarAnalisis(db: Db, analisisId: number): Promise<void> {
+  await unificarAnalisis(db, analisisId);
   const cal = await db.execute<{
     message_id: string;
     asesor_id: string | null;
@@ -432,11 +495,16 @@ export async function cerrarAnalisis(db: Db, analisisId: number): Promise<void> 
     fallidos,
     cerradoEn: new Date(),
   });
+  // Desvío entre lo estimado y lo real: si pasa de ±15 % conviene recalibrar CALIBRACION_CALIDAD.
   log('calidad_terminado', {
     analisisId,
     calificados: cal.rows.length,
     fallidos,
+    costoEstimado: a?.costoEstimado,
     costoReal: a?.costoReal,
+    desvioCostoPct: desvioCostoPct(a?.costoEstimado, a?.costoReal),
+    tokensEntrada: a?.tokensEntrada,
+    tokensSalida: a?.tokensSalida,
   });
 }
 
