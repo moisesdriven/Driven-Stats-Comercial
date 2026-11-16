@@ -4,7 +4,13 @@ import { z } from 'zod';
 import { tablas, type Db } from '@driven/db';
 import { exigirAsesorPropio, exigirModulo, exigirSubcuenta, type ContextoAcceso } from './acceso';
 import { auditar } from './auditoria';
-import { noEncontrado, solicitudInvalida } from './errores';
+import { noEncontrado, prohibido, solicitudInvalida } from './errores';
+
+/** El asesor solo cambia lo propio: el horario general y los feriados son de toda la subcuenta. */
+function exigirPropioOGeneral(ctx: ContextoAcceso, userId: string | null) {
+  if (userId) exigirAsesorPropio(ctx, userId);
+  else if (ctx.rol === 'asesor') throw prohibido('Solo puedes cambiar tu propio horario.');
+}
 
 const hora = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$|^24:00$/, 'Hora inválida (HH:MM).');
 const fecha = z.iso.date();
@@ -52,7 +58,7 @@ export async function guardarHorario(
 ) {
   exigirModulo(ctx, 'horarios', 'editar');
   exigirSubcuenta(ctx, locationId);
-  if (e.userId) exigirAsesorPropio(ctx, e.userId);
+  exigirPropioOGeneral(ctx, e.userId);
   for (const t of e.tramos)
     if (t.fin <= t.inicio) throw solicitudInvalida('Cada tramo debe terminar después de empezar.');
   for (let d = 1; d <= 7; d++) {
@@ -121,7 +127,7 @@ export async function registrarAusencia(
 ) {
   exigirModulo(ctx, 'horarios', 'editar');
   exigirSubcuenta(ctx, locationId);
-  if (e.userId) exigirAsesorPropio(ctx, e.userId);
+  exigirPropioOGeneral(ctx, e.userId);
   if (e.tipo === 'feriado' && e.userId)
     throw solicitudInvalida('Un feriado aplica a toda la subcuenta.');
   if (Date.parse(e.fin) <= Date.parse(e.inicio))
@@ -155,7 +161,7 @@ export async function eliminarAusencia(
     .where(and(eq(tablas.ausencias.id, id), eq(tablas.ausencias.locationId, locationId)))
     .limit(1);
   if (!a) throw noEncontrado('Ausencia no encontrada.');
-  if (a.userId) exigirAsesorPropio(ctx, a.userId);
+  exigirPropioOGeneral(ctx, a.userId);
   await db
     .delete(tablas.ausencias)
     .where(and(eq(tablas.ausencias.id, id), eq(tablas.ausencias.locationId, locationId)));

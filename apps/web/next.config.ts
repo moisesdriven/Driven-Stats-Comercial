@@ -11,6 +11,10 @@ const cabecerasSeguridad = [
 const config: NextConfig = {
   output: 'standalone',
   poweredByHeader: false,
+  // No generar AGENTS.md automáticamente (las convenciones están en CLAUDE.md).
+  agentRules: false,
+  // forbidden() en páginas: una URL a un módulo sin permiso responde 403 (§10.1).
+  experimental: { authInterrupts: true },
   transpilePackages: ['@driven/core', '@driven/ui', '@driven/db', '@driven/ghl'],
   async headers() {
     return [

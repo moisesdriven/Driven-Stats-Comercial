@@ -91,9 +91,12 @@ export async function llamar(handler: unknown, ruta: string, opciones: Llamada =
   });
   const res = await (handler as Handler)(req, { params: Promise.resolve(opciones.params ?? {}) });
   const texto = await res.text();
+  const json = (res.headers.get('content-type') ?? '').includes('json');
   return {
     estado: res.status,
-    cuerpo: (texto ? JSON.parse(texto) : null) as Record<string, unknown> & {
+    texto,
+    cabeceras: res.headers,
+    cuerpo: (texto && json ? JSON.parse(texto) : null) as Record<string, unknown> & {
       codigo?: string;
       error?: string;
     },

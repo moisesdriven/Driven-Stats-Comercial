@@ -6,12 +6,12 @@ siguiente.
 
 | Fase | Entregable                                                                          | Estado                 |
 | ---- | ----------------------------------------------------------------------------------- | ---------------------- |
-| 0    | Monorepo, CI, `.env.example`, `CLAUDE.md`, este plan                                | Terminada, en revisión |
-| 1    | Esquema `comercial`, roles, migraciones, cifrado, `crear-admin`, login y permisos   | Pendiente              |
-| 2    | Cliente GHL, alta de subcuentas y tokens, cargas; `docs/mapeo-origen.md`            | Pendiente              |
-| 3    | `packages/core`: horario laboral, indicadores, semáforo, cuello de botella, alertas | Pendiente              |
-| 4    | Historial de etapas y análisis de calidad por muestra                               | Pendiente              |
-| 5    | Interfaz: vista general, subcuenta, asesor, horarios, usuarios, configuración       | Pendiente              |
+| 0    | Monorepo, CI, `.env.example`, `CLAUDE.md`, este plan                                | Terminada              |
+| 1    | Esquema `comercial`, roles, migraciones, cifrado, `crear-admin`, login y permisos   | Terminada              |
+| 2    | Cliente GHL, alta de subcuentas y tokens, cargas; `docs/mapeo-origen.md`            | Terminada              |
+| 3    | `packages/core`: horario laboral, indicadores, semáforo, cuello de botella, alertas | Terminada              |
+| 4    | Historial de etapas y análisis de calidad por muestra                               | Construida, validando  |
+| 5    | Interfaz: vista general, subcuenta, asesor, horarios, usuarios, configuración       | Terminada, en revisión |
 | 6    | Alertas y purga                                                                     | Pendiente              |
 | 7    | Scripts de despliegue en PowerShell y `docs/DEPLOY.md`                              | Pendiente              |
 
@@ -73,3 +73,23 @@ Detalle en [`decisiones.md`](decisiones.md).
 3. Botón manual solo para administradores (con revalidación, ya implementada) y ejecución mensual.
 4. Mejor y peor mensaje por asesor; indicador "Calidad" en el semáforo de Negociación.
 5. Antes del primer análisis real: mostrar el costo estimado y esperar aprobación.
+
+## Fase 5 · resultado
+
+- Pantallas según `diseno/*.dc.html`, con datos reales de Jade18K: vista general (`/`), subcuenta
+  (`/subcuentas/[id]`), detalle del asesor (`/subcuentas/[id]/asesores/[userId]`, con panel de mejor
+  y peor mensaje), `/horarios` (editor semanal, copiar a otro asesor, ausencias y feriados),
+  `/usuarios` (rol, subcuentas, módulos con excepciones, alta y restablecer contraseña), `/metas`
+  (metas, umbrales y las 3 etapas de calidad) y `/configuracion` (subcuentas y tokens, mapa de
+  etapas, estado de cargas y calidad: historial, gasto frente al tope y botón con estimación y
+  contraseña).
+- El menú solo muestra los módulos permitidos; una URL sin permiso responde 403 (`forbidden()` y
+  `enPagina()` para las consultas que rechazan por permisos).
+- API nueva: `PUT /api/subcuentas/[id]/metas` y `GET /api/exportar` (CSV de indicadores agregados,
+  sin textos ni contactos, protegido contra fórmulas y registrado en auditoría).
+- Corrección de permisos: un asesor con "editar" en horarios ya no puede cambiar el horario general
+  ni registrar feriados de la subcuenta.
+- Pruebas: integración de metas, exportar y horarios; prueba de punta a punta con Playwright
+  (`pnpm e2e`, también en CI) para login, menú por rol y 403.
+- Pendiente: el filtro por canal de la vista general (§10.2). `resumen_diario` no guarda la
+  dimensión canal; agregarla requiere cambiar el resumen del worker y regenerarlo.

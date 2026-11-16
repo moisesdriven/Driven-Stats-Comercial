@@ -26,7 +26,7 @@ export function FormularioCodigo() {
   }
 
   return (
-    <form onSubmit={alEnviar} className="formulario" noValidate>
+    <form method="post" onSubmit={alEnviar} className="formulario" noValidate>
       <label className="campo">
         <span>Código de 6 dígitos</span>
         <input

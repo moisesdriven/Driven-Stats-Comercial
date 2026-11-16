@@ -3,19 +3,22 @@
 import { useRouter } from 'next/navigation';
 import { enviar } from './enviar';
 
-export function BotonSalir() {
+export function BotonSalir({
+  clase = 'boton-secundario',
+  texto = 'Cerrar sesión',
+}: { clase?: string; texto?: string } = {}) {
   const router = useRouter();
   return (
     <button
       type="button"
-      className="boton-secundario"
+      className={clase}
       onClick={async () => {
         await enviar('/api/auth/salir', {});
         router.replace('/ingresar');
         router.refresh();
       }}
     >
-      Cerrar sesión
+      {texto}
     </button>
   );
 }

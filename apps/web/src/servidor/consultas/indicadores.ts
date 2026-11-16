@@ -3,7 +3,7 @@
  * las subcuentas del usuario (nunca un cálculo aparte) y las medianas y promedios se calculan sobre
  * todos los registros, no como promedio de promedios (§8).
  */
-import { and, asc, between, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, between, eq, inArray, isNull, sql } from 'drizzle-orm';
 import {
   agregarPeriodo,
   calcularIndicadores,
@@ -165,8 +165,15 @@ export async function indicadoresAsesor(
     .from(tablas.asesores)
     .where(eq(tablas.asesores.userId, userId));
   const calidad = (await ultimosAnalisis(db, [locationId])).get(locationId);
+  // Asesores con leads en el periodo: para comparar contra el promedio por asesor de la subcuenta.
+  const conLeads = await db.execute<{ n: number }>(sql`
+    select count(distinct asesor_id)::int as n from comercial.resumen_diario
+    where location_id = ${locationId} and asesor_id is not null and fecha between ${desde} and ${hasta}
+      and (indicadores->>'leadsRecibidos')::int > 0`);
   return {
     asesor: { userId, nombre: asesor?.nombre ?? userId },
+    asesoresConLeads: conLeads.rows[0]?.n ?? 0,
+    distribucionCalidad: calidad?.distribucionPorAsesor[userId] ?? null,
     desde,
     hasta,
     ...resultado(

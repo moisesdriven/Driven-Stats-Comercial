@@ -30,7 +30,7 @@ export function FormularioIngreso() {
   }
 
   return (
-    <form onSubmit={alEnviar} className="formulario" noValidate>
+    <form method="post" onSubmit={alEnviar} className="formulario" noValidate>
       <label className="campo">
         <span>Correo</span>
         <input name="correo" type="email" autoComplete="username" required autoFocus />

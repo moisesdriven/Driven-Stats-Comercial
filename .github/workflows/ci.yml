@@ -50,6 +50,10 @@ jobs:
               -v clave_migrador=m -v clave_worker=w -v clave_web=x -f scripts/sql/esquema_y_roles.sql
           done
       - run: pnpm build
+      - name: Prueba de punta a punta (Playwright, contra el build y la base desechable)
+        run: |
+          pnpm --filter @driven/web exec playwright install --with-deps chromium
+          pnpm e2e
 
   publicar:
     name: Publicar imágenes en GHCR

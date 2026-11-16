@@ -19,6 +19,7 @@ import {
   type ContextoAcceso,
 } from './acceso';
 import { auditar } from './auditoria';
+import { enlaceGhl } from './consultas/listas';
 import { ErrorHttp, solicitudInvalida } from './errores';
 
 export const esquemaPeriodo = z.object({
@@ -176,6 +177,7 @@ export interface ResumenCalidad {
   mensajesCalificados: number;
   porAsesor: Record<string, { promedio: number; mensajes: number }>;
   distribucion: Record<string, number>;
+  distribucionPorAsesor: Record<string, Record<string, number>>;
 }
 
 /** Último análisis terminado de cada subcuenta: promedio, por asesor y distribución por tipo (§6.7). */
@@ -213,7 +215,12 @@ export async function ultimosAnalisis(
     let n = 0;
     const porAsesor: Record<string, { suma: number; n: number }> = {};
     const distribucion: Record<string, number> = {};
+    const distribucionPorAsesor: Record<string, Record<string, number>> = {};
     for (const c of cal.rows) {
+      if (c.asesor_id) {
+        const d = (distribucionPorAsesor[c.asesor_id] ??= {});
+        d[c.categoria] = (d[c.categoria] ?? 0) + c.n;
+      }
       suma += c.suma;
       n += c.con_puntaje;
       distribucion[c.categoria] = (distribucion[c.categoria] ?? 0) + c.n;
@@ -236,6 +243,7 @@ export async function ultimosAnalisis(
           .map(([k, a]) => [k, { promedio: a.suma / a.n, mensajes: a.n }]),
       ),
       distribucion,
+      distribucionPorAsesor,
     });
   }
   return r;
@@ -318,6 +326,8 @@ export async function ejemplosAsesor(
       clienteRespondio: (respondio.rows[0]?.n ?? 0) > 0,
       huboVenta: (venta.rows[0]?.n ?? 0) > 0,
       conversationId: f.conversation_id,
+      enlace: enlaceGhl(locationId, f.conversation_id),
+      fecha: f.fecha,
     };
   };
   return {
@@ -328,4 +338,29 @@ export async function ejemplosAsesor(
         )
       : [],
   };
+}
+
+/** Mensajes con menor puntaje del último análisis de la subcuenta ("Mensajes para mejorar"). */
+export async function peoresMensajes(db: Db, ctx: ContextoAcceso, locationId: string, limite = 3) {
+  exigirModulo(ctx, 'vista_subcuenta');
+  exigirSubcuenta(ctx, locationId);
+  if (ctx.modulos.texto_mensajes === 'ninguno') return { analisis: null, mensajes: [] };
+  const resumen = (await ultimosAnalisis(db, [locationId])).get(locationId);
+  if (!resumen) return { analisis: null, mensajes: [] };
+  const r = await db.execute<{
+    asesor: string | null;
+    categoria: string;
+    puntaje: number;
+    criterios: Record<string, boolean> | null;
+    motivo: string | null;
+    texto: string | null;
+  }>(sql`
+    select a.nombre as asesor, c.categoria, c.puntaje, c.criterios, c.motivo, m.texto
+    from comercial.clasificaciones c
+    join comercial.mensajes m on m.message_id = c.message_id and m.location_id = ${locationId}
+    left join comercial.asesores a on a.user_id = c.asesor_id
+    where c.analisis_id = ${resumen.analisisId} and c.puntaje is not null
+    order by c.puntaje asc, length(m.texto) desc
+    limit ${limite}`);
+  return { analisis: resumen, mensajes: r.rows };
 }

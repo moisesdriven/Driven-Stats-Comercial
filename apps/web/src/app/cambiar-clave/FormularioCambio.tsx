@@ -32,7 +32,7 @@ export function FormularioCambio() {
   }
 
   return (
-    <form onSubmit={alEnviar} className="formulario" noValidate>
+    <form method="post" onSubmit={alEnviar} className="formulario" noValidate>
       <label className="campo">
         <span>Contraseña actual (o temporal)</span>
         <input name="claveActual" type="password" autoComplete="current-password" required />

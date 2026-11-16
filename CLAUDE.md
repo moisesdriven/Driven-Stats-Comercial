@@ -50,6 +50,7 @@ pnpm typecheck                     # tsc en cada paquete
 pnpm test                          # Vitest (todos los proyectos)
 pnpm build                         # build de web y worker
 pnpm verificar                     # todo lo anterior, como en CI
+pnpm e2e                           # Playwright contra el build (requiere DATABASE_URL_TEST)
 ```
 
 Al terminar cada fase: `pnpm verificar` en verde, commit y resumen.
