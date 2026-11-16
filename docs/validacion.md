@@ -235,3 +235,35 @@ En el análisis del 9 al 15 de noviembre (rúbrica v1), 555 de los 1.176 mensaje
 pertenecen a 82 textos que se repiten. Con la unificación, 159 de ellos cambian algún criterio (138
 pierden "personalizado" porque el mismo texto fue a varios clientes) y el puntaje medio de esos
 mensajes pasa de 2,63 a 2,36. Desde la v2 se aplica sola al cerrar cada análisis.
+
+## Calidad · análisis completo con la rúbrica v2 (16 de noviembre de 2026)
+
+Jade18K, semana del 9 al 15 de noviembre (análisis 2). Como el universo (454 conversaciones) es
+menor que la muestra, se calificaron exactamente los mismos 1.212 mensajes que con la v1, así que la
+comparación es directa.
+
+| Concepto                        | v1 (análisis 1) | v2 (análisis 2)  |
+| ------------------------------- | --------------- | ---------------- |
+| Mensajes calificados / fallidos | 1.212 / 0       | 1.212 / 0        |
+| Costo estimado → real (US$)     | 0,0303 → 0,0523 | 0,0318 → 0,0556  |
+| Duración del lote               | 6 min           | 28 min           |
+| Puntaje medio                   | 2,76            | 2,56             |
+| Mensajes con 4–5 / con 1–2      | 310 / 573       | 240 / 610        |
+| Unificados por texto al cerrar  | —               | 138 en 84 textos |
+
+Criterios cumplidos: personalizado 34 % → 10 %, tono 70 % → 59 %, responde 44 % → 56 %,
+siguiente paso 52 % → 49 %, extensión 74 % → 77 %. La caída de "personalizado" es la esperada: la v2
+no acepta plantillas ni el nombre de la asesora, y la unificación lo deja en falso cuando el mismo
+texto fue a varios clientes.
+
+Categorías: "seguimiento" baja de 85 a 41 (ya no se usa para respuestas) y "multimedia" de 36 a 4
+(los enlaces pasan a información de producto, que sube de 324 a 390).
+
+Entre v1 y v2 coinciden 77 % de las categorías, 45 % del puntaje exacto y 85 % del puntaje a ±1.
+
+Por asesora (puntaje medio v1 → v2): A 2,86 → 2,70 · B 2,67 → 2,59 · C 2,79 → 2,52 ·
+D 2,72 → 2,35. **El orden cambia:** con la v1 la de menor puntaje era B; con la v2 es D, que pierde
+más por mensajes de plantilla repetidos y faltas de ortografía. C tiene el tono más bajo (20 % de
+sus mensajes) y A el más alto (86 %).
+
+El estimador vuelve a quedarse corto (+75 %); sigue pendiente corregirlo.
