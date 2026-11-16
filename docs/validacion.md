@@ -46,8 +46,65 @@ asesora.
 En casi todos los leads el primer saliente es automático (workflow o agente de IA); sin separarlo,
 los tiempos de respuesta parecerían de segundos.
 
-### Pendiente para la fase 3
+## Fase 3 · indicadores con datos reales (16 de noviembre de 2026)
 
-- Validación manual de 20 leads contra GHL (ingreso, primera respuesta, intentos y estado).
+Configuración provisional de Jade18K (cargada por la API): horario general de lunes a viernes de
+9:00 a 13:00 y de 14:00 a 18:00 para todas las asesoras, y feriados nacionales del rango (30 ago,
+8 oct, 1 nov, 8, 9 y 25 dic).
+
+### Validación de 20 leads contra GHL
+
+Muestra aleatoria de 20 leads que ingresaron entre el 10 y el 15 de noviembre. Se compararon contra
+GHL por un camino **independiente** de la carga: mensajes de cada conversación
+(`GET /conversations/{id}/messages`, no la exportación), Conversation AI mensaje por mensaje y la
+oportunidad más reciente del contacto.
+
+| Campo                                 | Coincidencias |
+| ------------------------------------- | ------------- |
+| Ingreso (primer mensaje entrante)     | 20 / 20       |
+| Primera respuesta humana (fecha)      | 20 / 20       |
+| Quién dio la primera respuesta humana | 20 / 20       |
+| Estado (abierto, ganado o perdido)    | 20 / 20       |
+| Etapa estándar                        | 20 / 20       |
+| Asesora asignada                      | 20 / 20       |
+
+Revisión manual de minutos laborales:
+
+| Caso                                                             | Minutos laborales                   | Correcto |
+| ---------------------------------------------------------------- | ----------------------------------- | -------- |
+| Entra miércoles 19:05 (fuera de horario), respuesta jueves 18:40 | 480 (jornada completa del jueves)   | Sí       |
+| Entra viernes 21:51, respuesta sábado 10:11                      | 0 (sin tiempo laboral entre ambos)  | Sí       |
+| Entra 8:52, respuesta 9:02                                       | 2,5 (desde el inicio de la jornada) | Sí       |
+| Entra miércoles 19:36, respuesta jueves 11:14                    | 134                                 | Sí       |
+
+### Indicadores de la semana del 9 al 15 de noviembre
+
+| Indicador                                                      | Jade18K                                                             |
+| -------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Leads recibidos                                                | 2.578                                                               |
+| Tiempo de respuesta humana (mediana / promedio, min laborales) | 38 / 106                                                            |
+| Leads sin respuesta humana (al cierre del periodo)             | 1.402                                                               |
+| Intentos por lead (distribución 0 / 1 / 2 / 3+)                | 0,64 (1.384 / 959 / 132 / 103)                                      |
+| Respuesta efectiva                                             | 3,6 %                                                               |
+| Abandono                                                       | 44,1 %                                                              |
+| Conversión                                                     | 0,16 % (4 ventas)                                                   |
+| Tiempo de cierre                                               | 1,8 días laborales                                                  |
+| Leads perdidos                                                 | 192 (190 sin motivo registrado en GHL), 43 por falta de seguimiento |
+| Cuello de botella                                              | Atención; alerta: "Está perdiendo ventas por no hacer seguimiento"  |
+
+Por asesora, la mediana de respuesta va de 12 a 184 minutos laborales y los leads sin respuesta
+humana van de 122 a 510.
+
+Observaciones para el cliente:
+
+- En GHL, 647 de 681 oportunidades perdidas no tienen motivo (`lostReasonId` vacío).
+- Con el mapa aprobado solo "Cotizado" cuenta para seguimiento; de los leads de estos días solo 2
+  llegaron a Cotizado, por eso "seguimiento vencido" y "cumplimiento" casi no tienen datos.
+- Una asesora respondió decenas de mensajes a medianoche con respuestas rápidas; se clasificaron bien
+  como humanos (ninguno llegó en menos de 60 s). Fuera de horario cuentan 0 minutos laborales.
+
+### Pendiente
+
 - Carga histórica completa de 90 días en el servidor (≈ 125.000 llamadas; se reparte respetando el
   límite diario de GHL).
+- Horario real de cada asesora (el actual es provisional).

@@ -50,12 +50,26 @@ Detalle en [`decisiones.md`](decisiones.md).
   calidad y estado de las cargas.
 - Carga real de Jade18K en modo sombra (ver `docs/validacion.md`).
 
-## Fase 3 · plan corto
+## Fase 3 · resultado
 
-1. `packages/core`: horario laboral por asesor (`minutosLaborales`, `sumarTiempoLaboral`,
-   `diasLaborales`) con todas las pruebas de la §4.
-2. Los 8 indicadores y las 12 preguntas, semáforo, estado por etapa, cuello de botella y alertas
-   cruzadas, calculados desde `eventos`, `mensajes`, `leads` y `oportunidades`.
-3. Intentos de contacto, respuesta efectiva, abandono, pendientes frente a vencidos y perdidos por
-   falta de seguimiento.
-4. `calcular:resumen` → `resumen_diario`; validación de 20 leads a mano en `docs/validacion.md`.
+- `packages/core/horario.ts`: `minutosLaborales`, `sumarTiempoLaboral`, `diasLaborales` y
+  `enHorarioLaboral`, con tramos partidos, vigencias, feriados, vacaciones y cualquier zona horaria
+  (probado con el horario de verano de Nueva York).
+- `packages/core/indicadores.ts`: métricas por lead y acumulados diarios sumables (las medianas se
+  calculan sobre todos los registros); los 8 indicadores y las 12 preguntas.
+- `packages/core/semaforo.ts`: metas por defecto, semáforo, estado por etapa, cuello de botella y
+  alertas cruzadas.
+- Worker: `resumen_diario` por día × asesor × subcuenta tras cada carga; `cli.js resumen`.
+- API: vista general (suma de las subcuentas del usuario), indicadores por subcuenta y por asesor,
+  horarios y ausencias.
+- Validación: 20 de 20 leads coinciden con GHL (`docs/validacion.md`).
+
+## Fase 4 · plan corto
+
+1. Historial de etapas ya construido en la fase 2; falta usarlo para el universo de calidad.
+2. Análisis de calidad por muestra (§6): universo elegible (salientes `manual` en las 3 etapas de
+   calidad), muestra estratificada por asesor con semilla, filtros sin IA, una solicitud por
+   conversación, Message Batches API, caché de instrucciones, costo estimado y tope mensual.
+3. Botón manual solo para administradores (con revalidación, ya implementada) y ejecución mensual.
+4. Mejor y peor mensaje por asesor; indicador "Calidad" en el semáforo de Negociación.
+5. Antes del primer análisis real: mostrar el costo estimado y esperar aprobación.
