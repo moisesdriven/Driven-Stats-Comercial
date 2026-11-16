@@ -219,11 +219,15 @@ interface Estimacion {
     conversacionesElegibles?: number;
     muestra?: number;
     mensajesEstimados?: number;
+    mensajesPorRegla?: number;
+    conversacionesReutilizadas?: number;
     costoEstimadoUsd?: number;
+    costoMaximoUsd?: number;
     manualesMes: number;
     enCurso: boolean;
   }[];
   costoEstimadoTotalUsd: number;
+  costoMaximoTotalUsd: number;
   gastoDelMesUsd: number;
   topeMensualUsd: number;
   maxManualesMes: number;
@@ -305,7 +309,7 @@ export function LanzarAnalisis({
     ? est.subcuentas.filter((s) => s.error || s.enCurso || s.manualesMes >= est.maxManualesMes)
     : [];
   const superaTope = est
-    ? est.gastoDelMesUsd + est.costoEstimadoTotalUsd > est.topeMensualUsd
+    ? est.gastoDelMesUsd + est.costoMaximoTotalUsd > est.topeMensualUsd
     : false;
 
   return (
@@ -422,9 +426,27 @@ export function LanzarAnalisis({
                       <>
                         <td>{numero(s.conversacionesElegibles)}</td>
                         <td>{numero(s.muestra)}</td>
-                        <td>{numero(s.mensajesEstimados)}</td>
+                        <td>
+                          {numero(s.mensajesEstimados)}
+                          {(s.mensajesPorRegla ?? 0) > 0 && (
+                            <span style={{ display: 'block', fontSize: 12, color: '#5B6475' }}>
+                              {numero(s.mensajesPorRegla)} saludos por regla, sin IA
+                            </span>
+                          )}
+                          {(s.conversacionesReutilizadas ?? 0) > 0 && (
+                            <span style={{ display: 'block', fontSize: 12, color: '#5B6475' }}>
+                              {numero(s.conversacionesReutilizadas)} conversaciones ya calificadas,
+                              no se pagan otra vez
+                            </span>
+                          )}
+                        </td>
                         <td>
                           {usd(s.costoEstimadoUsd ?? 0)}
+                          {s.costoMaximoUsd !== undefined && (
+                            <span style={{ display: 'block', fontSize: 12, color: '#5B6475' }}>
+                              hasta {usd(s.costoMaximoUsd)}
+                            </span>
+                          )}
                           {s.enCurso && (
                             <span style={{ color: '#B42318' }}> · ya tiene uno en curso</span>
                           )}
@@ -443,9 +465,11 @@ export function LanzarAnalisis({
             </table>
           </div>
           <p className={`aviso aviso--${superaTope || bloqueos.length ? 'error' : 'info'}`}>
-            Total estimado: <strong>{usd(est.costoEstimadoTotalUsd)}</strong> con {est.modelo}.
-            Gastado este mes: {usd(est.gastoDelMesUsd)} de un tope de {usd(est.topeMensualUsd)}.
-            {superaTope && ' Este análisis superaría el tope mensual.'}
+            Costo esperado: <strong>{usd(est.costoEstimadoTotalUsd)}</strong> con {est.modelo}; como
+            máximo {usd(est.costoMaximoTotalUsd)} si la caché no funciona (este es el que se compara
+            con el tope). Gastado este mes: {usd(est.gastoDelMesUsd)} de un tope de{' '}
+            {usd(est.topeMensualUsd)}.
+            {superaTope && ' En el peor caso, este análisis superaría el tope mensual.'}
           </p>
           {!superaTope && bloqueos.length === 0 && (
             <form
@@ -470,7 +494,7 @@ export function LanzarAnalisis({
                 />
               </label>
               <button className="boton" disabled={ocupado}>
-                Ejecutar análisis por {usd(est.costoEstimadoTotalUsd)}
+                Ejecutar análisis (unos {usd(est.costoEstimadoTotalUsd)})
               </button>
             </form>
           )}

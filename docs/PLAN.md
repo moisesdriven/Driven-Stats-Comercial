@@ -11,7 +11,7 @@ siguiente.
 | 2    | Cliente GHL, alta de subcuentas y tokens, cargas; `docs/mapeo-origen.md`            | Terminada              |
 | 3    | `packages/core`: horario laboral, indicadores, semáforo, cuello de botella, alertas | Terminada              |
 | 4    | Historial de etapas y análisis de calidad por muestra                               | Construida, validando  |
-| 5    | Interfaz: vista general, subcuenta, asesor, horarios, usuarios, configuración       | Terminada, en revisión |
+| 5    | Interfaz: vista general, subcuenta, asesor, horarios, usuarios, configuración       | Terminada              |
 | 6    | Alertas y purga                                                                     | Pendiente              |
 | 7    | Scripts de despliegue en PowerShell y `docs/DEPLOY.md`                              | Pendiente              |
 
