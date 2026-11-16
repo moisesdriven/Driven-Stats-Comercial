@@ -123,6 +123,8 @@ export async function cargarMensajes(
   desde: Date,
   hasta: Date,
   concurrenciaIa = 4,
+  /** Fechas (ms) del último mensaje de cada conversación: prueba independiente de actividad. */
+  ultimosMensajes: readonly number[] = [],
 ): Promise<ResultadoMensajes> {
   await asegurarParticiones(db, desde, hasta);
   const r: ResultadoMensajes = {
@@ -140,6 +142,25 @@ export async function cargarMensajes(
   });
   for await (const lote of exportacion) {
     await guardarMensajes(db, cliente, lote, r, concurrenciaIa);
+  }
+  // Defensa: si GHL dice que el rango está vacío pero hay conversaciones cuyo último mensaje cae
+  // dentro, la exportación falló (ocurrió con Jade18K el 16 nov 2026 durante varios minutos). Se
+  // corta la carga antes de guardar la marca de avance; la siguiente ejecución reanuda este rango.
+  if (r.totalGhl === 0 && r.mensajes === 0) {
+    const conActividad = ultimosMensajes.filter(
+      (t) => t >= desde.getTime() && t < hasta.getTime(),
+    ).length;
+    if (conActividad > 0) {
+      log('exportacion_vacia_sospechosa', {
+        locationId: cliente.locationId,
+        desde: desde.toISOString(),
+        hasta: hasta.toISOString(),
+        conversacionesConActividad: conActividad,
+      });
+      throw new Error(
+        `GHL respondió 0 mensajes de ${desde.toISOString()} a ${hasta.toISOString()}, pero ${conActividad} conversaciones tuvieron su último mensaje en ese rango. Se reintentará en la siguiente carga.`,
+      );
+    }
   }
   if (r.mensajes < r.totalGhl) {
     log('faltan_mensajes', {

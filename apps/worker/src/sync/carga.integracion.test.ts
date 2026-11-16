@@ -380,4 +380,60 @@ describe.skipIf(!URL)('carga desde GHL (integración con GHL simulado)', () => {
     expect(ej.every((e) => e.estado === 'ok')).toBe(true);
     expect(ej.every((e) => e.llamadas > 0)).toBe(true);
   });
+
+  it('no avanza la carga histórica si GHL responde vacío un día con conversaciones activas', async () => {
+    // Falla real del 16 nov 2026: la exportación respondió `total: 0` durante varios minutos.
+    const dia11 = (hhmm: string) => h(hhmm, 11);
+    const base = datos();
+    const datosFalla: DatosSimulados = {
+      ...base,
+      conversaciones: [
+        ...(base.conversaciones ?? []),
+        {
+          id: 'conv_K5',
+          contactId: 'K5',
+          locationId: LOC,
+          assignedTo: 'U1',
+          dateAdded: Date.parse(dia11('10:00')),
+          lastMessageDate: Date.parse(dia11('10:00')),
+        },
+      ],
+      mensajes: [...(base.mensajes ?? []), entrante('k5-1', 'K5', dia11('10:00'))],
+    };
+    const simFalla = crearGhlSimulado({ ...datosFalla, exportacionesEnCero: 99 });
+    const sinEspera = async () => {};
+    const opciones = {
+      token: 'pit-simulado',
+      locationId: LOC,
+      limitador: new Limitador(10_000, 10_000, sinEspera),
+      esperar: sinEspera,
+      reintentosMax: 1,
+    };
+    const conFalla = new ClienteGhl({ ...opciones, fetch: simFalla.fetch });
+    const manana = new Date('2026-11-11T20:00:00Z');
+    const marcaAntes = await db
+      .select()
+      .from(tablas.syncEstado)
+      .where(
+        and(eq(tablas.syncEstado.locationId, LOC), eq(tablas.syncEstado.recurso, 'historico')),
+      );
+
+    await expect(
+      ejecutarCarga(db, conFalla, 'historico', { modo: 'sombra', dias: 2, ahora: manana }),
+    ).rejects.toThrow(/0 mensajes/);
+    const [marca] = await db
+      .select()
+      .from(tablas.syncEstado)
+      .where(
+        and(eq(tablas.syncEstado.locationId, LOC), eq(tablas.syncEstado.recurso, 'historico')),
+      );
+    expect(marca?.marcaAgua).toEqual(marcaAntes[0]?.marcaAgua);
+    expect(marca?.ultimoError).toMatch(/0 mensajes/);
+
+    // Cuando GHL se recupera, la siguiente carga reanuda el día y trae el mensaje.
+    const sano = new ClienteGhl({ ...opciones, fetch: crearGhlSimulado(datosFalla).fetch });
+    await ejecutarCarga(db, sano, 'historico', { modo: 'sombra', dias: 2, ahora: manana });
+    const k5 = await db.select().from(tablas.mensajes).where(eq(tablas.mensajes.messageId, 'k5-1'));
+    expect(k5).toHaveLength(1);
+  });
 });

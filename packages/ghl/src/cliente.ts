@@ -22,6 +22,8 @@ import type {
 
 export const GHL_BASE_URL = 'https://services.leadconnectorhq.com';
 export const VERSION_CONVERSACIONES = '2021-04-15';
+/** Consultas extra para confirmar que un rango de la exportación de mensajes está realmente vacío. */
+export const CONFIRMACIONES_RANGO_VACIO = 2;
 export const VERSION_GENERAL = '2021-07-28';
 export const USER_AGENT = 'driven-comercial/1.0';
 
@@ -225,6 +227,7 @@ export class ClienteGhl {
     let cursor: string | undefined;
     let entregados = 0;
     let vaciosSeguidos = 0;
+    let confirmacionesVacio = 0;
     for (;;) {
       const r = await this.solicitar<{
         messages?: MensajeGhl[];
@@ -243,6 +246,13 @@ export class ClienteGhl {
         },
       });
       const lote = r.messages ?? [];
+      // Defensa: GHL a veces responde `total: 0` y ninguna página para un rango que sí tiene
+      // mensajes (visto en Jade18K el 16 nov 2026). Un rango vacío se confirma con más consultas
+      // antes de aceptarlo; si no, la marca de avance saltaría esos mensajes para siempre.
+      if (!cursor && !lote.length && !r.total && confirmacionesVacio < CONFIRMACIONES_RANGO_VACIO) {
+        await this.esperar(3000 * ++confirmacionesVacio);
+        continue;
+      }
       if (r.total !== undefined && !cursor) p.alTotal?.(r.total);
       // Defensa: GHL a veces responde una página vacía aunque `total` indique que faltan mensajes.
       // Se reintenta con espera; si persiste, se falla de forma visible en vez de perder datos.

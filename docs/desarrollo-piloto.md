@@ -4,6 +4,10 @@ Guía para recrear en una sesión nueva la base local de prueba y lanzar el prim
 calidad real. Requiere las variables del entorno: `GHL_PIT_PILOTO`, `GHL_LOCATION_ID_PILOTO` y
 `ANTHROPIC_API_KEY` (nunca se escriben en el repositorio).
 
+Las variables del entorno se cargan al crear el contenedor de la sesión: si `ANTHROPIC_API_KEY` se
+agregó después, la sesión no la ve y hay que abrir una sesión nueva. No se puede inyectar como
+secreto de red (el proxy no acepta credenciales de usuario para los hosts de Anthropic).
+
 ## Estado pendiente (16 nov 2026)
 
 - Fase 4 construida y probada con Anthropic simulado.
@@ -45,9 +49,15 @@ Con la API (cookie de sesión del administrador, tras cambiar la contraseña tem
 
 ```bash
 export DATABASE_URL_WORKER=postgres://comercial_worker:Wrk_P1@127.0.0.1:5432/piloto MODO_ALERTAS=sombra
-node apps/worker/dist/cli.js historico --dias 7 --directo   # ~25 min
+node apps/worker/dist/cli.js historico --dias 8 --directo   # ~25 min
 node apps/worker/dist/cli.js resumen --dias 9
 ```
+
+`--dias 8` y no 7: los días se cuentan desde la hora actual en UTC, y con 7 se pierden las primeras
+horas del 9 de noviembre (hora de Bogotá). Revisar en el log que ningún `historico_dia` tenga
+`totalGhl: 0`: el 16 nov 2026 la exportación de GHL respondió vacía durante varios minutos. La
+carga ahora lo detecta (falla con `exportacion_vacia_sospechosa` sin avanzar la marca) y basta
+con repetirla.
 
 ## 4. Análisis de calidad real
 
@@ -58,6 +68,9 @@ node apps/worker/dist/cli.js calidad-estimar --subcuenta $GHL_LOCATION_ID_PILOTO
 Si la estimación sigue en el orden de US$ 0,06, lanzar con el botón (o
 `POST /api/calidad/analisis` con `clave` del administrador) y procesar:
 
+El entorno de la nube define `ANTHROPIC_BASE_URL` para la propia sesión y el SDK la leería:
+al enviar el lote, fijarla a la API pública para que se cobre a la clave de Driven.
+
 ```bash
-node apps/worker/dist/cli.js calidad-revisar   # envía el lote; repetir hasta que el análisis quede "terminado"
+ANTHROPIC_BASE_URL=https://api.anthropic.com node apps/worker/dist/cli.js calidad-revisar   # envía el lote; repetir hasta que el análisis quede "terminado"
 ```

@@ -31,6 +31,8 @@ export interface DatosSimulados {
   fallas?: { ruta: string; estado: number; veces: number }[];
   /** Páginas de exportación que se responden vacías (con `total`) antes de responder bien. */
   exportacionesVacias?: number;
+  /** Cuántas veces la exportación responde vacía y con `total: 0` aunque haya mensajes (falla real de GHL). */
+  exportacionesEnCero?: number;
   /** Token esperado; cualquier otro responde 401. */
   token?: string;
 }
@@ -116,6 +118,10 @@ export function crearGhlSimulado(d: DatosSimulados) {
         })
         .sort((a, b) => a.dateAdded.localeCompare(b.dateAdded));
       const inicio = q.cursor ? Number(Buffer.from(q.cursor, 'base64').toString()) : 0;
+      if ((d.exportacionesEnCero ?? 0) > 0) {
+        d.exportacionesEnCero!--;
+        return json({ messages: [], total: 0 });
+      }
       if ((d.exportacionesVacias ?? 0) > 0) {
         d.exportacionesVacias!--;
         return json({ messages: [], total: todos.length });
