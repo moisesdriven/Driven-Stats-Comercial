@@ -497,3 +497,36 @@ a una acción se clasifica por ese contenido; "saludo o plantilla" solo si no ti
   pregunta de calificación, respuesta o llamada a la acción (ubicación, envíos, presupuesto en la misma
   plantilla), y la plantilla de presentación con número de atención y catálogo, que la IA sigue
   llamando saludo. Con la v2, Sonnet 5.5 llegaba a 83 % de categoría.
+
+### Haiku 5.5 frente a Sonnet 5.5 con la v3.1 (costos reales)
+
+Mínimo de categoría bajado a 75 % (decisión del cliente). Calibración con el conjunto independiente
+(dos corridas por modelo) y análisis real de la semana del 9 al 15 de noviembre (761 conversaciones,
+2.051 mensajes, 387 saludos por regla).
+
+| Concepto                            | Haiku 5.5                  | Sonnet 5.5                   |
+| ----------------------------------- | -------------------------- | ---------------------------- |
+| Calibración: puntaje ±1             | 90–92 %                    | **97 %**                     |
+| Calibración: categoría              | 74–77 % (aprueba con 75 %) | **85–86 %**                  |
+| Calibración: puntaje exacto         | 56 %                       | 62–63 %                      |
+| Costo de una calibración (100 msj.) | US$ 0,011                  | US$ 0,195                    |
+| Análisis: costo estimado → real     | 0,0863 → 0,0892 / 0,0891   | 1,5665 → **1,5969** (+1,9 %) |
+| Análisis: tokens entrada / salida   | 3.487.752 / ~204.000       | 3.487.752 / 196.710          |
+| Análisis: caché leída               | 86,8 %                     | 86,8 %                       |
+| Duración del lote                   | 9–12 min                   | 9 min                        |
+| Puntaje medio / "responde"          | 2,43 / 58 %                | 2,56 / 76 %                  |
+
+- **Sonnet cuesta 17,9 veces más** en un análisis real. Por subcuenta y con un análisis semanal: ~US$ 0,38
+  al mes con Haiku y ~US$ 6,90 con Sonnet; con 20 subcuentas, ~US$ 8 frente a ~US$ 137 al mes (el tope
+  por defecto es US$ 10).
+- Los dos modelos cuentan los mismos tokens de entrada para el mismo texto; la estimación quedó a +2–3 %
+  del real con ambos.
+- Dos corridas idénticas de Haiku coinciden en el 92 % de las categorías y el 97 % del puntaje a ±1
+  (74 % exacto). Haiku y Sonnet coinciden en el 80 % de las categorías y el 93 % del puntaje a ±1. La
+  mayor diferencia es "responde": Sonnet lo da por cumplido en el 76 % de los mensajes y Haiku en el
+  58 %.
+- Por asesora (puntaje medio Haiku → Sonnet): A 2,72 → 2,98 · B 2,00 → 2,80 · C 2,28 → 2,47 ·
+  D 2,20 → 2,21 · E 2,22 → 2,20. Con Haiku, B varió de 2,20 a 1,80 entre dos corridas iguales: con pocos
+  mensajes por asesora el orden fino no es confiable con ninguno de los dos.
+- Una equivocación al lanzar la prueba hizo correr Haiku dos veces (análisis 5 y 6); se aprovechó para
+  medir la repetibilidad.
