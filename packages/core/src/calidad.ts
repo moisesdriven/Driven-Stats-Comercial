@@ -358,34 +358,73 @@ export const PRECIOS_POR_DEFECTO: Precios = {
   factorLote: 0.5,
 };
 
-/** Tokens aproximados de un texto en español (≈ 3,5 caracteres por token). */
-export const tokensAproximados = (texto: string) => Math.ceil(texto.length / 3.5);
+/**
+ * Calibración de la estimación con el primer análisis real (Jade18K, 9–15 nov 2026: 452 solicitudes,
+ * 1.212 mensajes, 1.183.607 tokens de entrada, 137.772 de salida, US$ 0,0523). La primera versión
+ * suponía 3,5 caracteres por token, 300 tokens para el esquema y 25 + 55 tokens de salida por
+ * mensaje, y se quedó corta en ~70 %. Ver `docs/validacion.md` y `docs/decisiones.md`.
+ */
+export const CALIBRACION_CALIDAD = {
+  /**
+   * Caracteres por token del texto que se envía (español de chat con emojis, precios, nombres y
+   * las marcas `[CLIENTE]`/`[ASESOR #n]`). Despejado del costo real: el tokenizador de Haiku 5.5
+   * rinde ~2,1 caracteres por token en este texto, no 3,5.
+   */
+  caracteresPorToken: 2.1,
+  /** Envoltura fija de cada solicitud: prompt que la API agrega para structured outputs, roles. */
+  tokensEnvoltura: 40,
+  /** Salida fija por solicitud (`{"mensajes":[ … ]}`). */
+  salidaPorSolicitud: 10,
+  /** Salida por mensaje calificado: n, categoría, cinco criterios y `motivo` (~114 medidos). */
+  salidaPorMensaje: 110,
+} as const;
+
+/** Tokens aproximados de un texto en español según la calibración. */
+export const tokensAproximados = (texto: string) =>
+  Math.ceil(texto.length / CALIBRACION_CALIDAD.caracteresPorToken);
+
+/**
+ * Tokens de entrada que se repiten en todas las solicitudes y que la caché de prompts reutiliza:
+ * instrucciones (`system`), esquema JSON de structured outputs y envoltura. En el análisis real
+ * ~2.040 tokens por solicitud se leyeron de caché (se deduce del costo), frente a los ~1.270 que
+ * suponía la estimación original.
+ */
+export const tokensFijosSolicitud = () =>
+  tokensAproximados(INSTRUCCIONES_CALIDAD) +
+  tokensAproximados(JSON.stringify(ESQUEMA_RESPUESTA_CALIDAD)) +
+  CALIBRACION_CALIDAD.tokensEnvoltura;
+
+/** Tokens de salida esperados de una solicitud con `mensajes` mensajes a calificar. */
+export const tokensSalidaEstimados = (mensajes: number) =>
+  CALIBRACION_CALIDAD.salidaPorSolicitud + CALIBRACION_CALIDAD.salidaPorMensaje * mensajes;
 
 export interface EstimacionCosto {
   solicitudes: number;
+  /** Entrada total (sin caché + escrita en caché + leída de caché), comparable con la real. */
   tokensEntrada: number;
   tokensSalida: number;
   costoUsd: number;
 }
 
 /**
- * Costo estimado de un análisis. Supone que las instrucciones se leen de caché en todas las
- * solicitudes salvo la primera (si no hay caché, el costo sube poco: las instrucciones son cortas).
+ * Costo estimado de un análisis. `tokensConversacion` es lo propio de cada solicitud (el texto de
+ * la conversación, contado con `tokensAproximados`). La parte fija se escribe en caché en la
+ * primera solicitud y se lee de caché en las demás, como se observó en el lote real.
  */
 export function estimarCosto(
   solicitudes: { tokensConversacion: number; mensajes: number }[],
   p: Precios = PRECIOS_POR_DEFECTO,
 ): EstimacionCosto {
-  const instrucciones = tokensAproximados(INSTRUCCIONES_CALIDAD) + 300; // + esquema
+  const fijos = tokensFijosSolicitud();
   let entrada = 0;
   let costoEntrada = 0;
   let salida = 0;
   solicitudes.forEach((s, i) => {
-    entrada += instrucciones + s.tokensConversacion;
+    entrada += fijos + s.tokensConversacion;
     costoEntrada +=
-      (instrucciones * (i === 0 ? p.escrituraCache : p.lecturaCache) + s.tokensConversacion) *
+      (fijos * (i === 0 ? p.escrituraCache : p.lecturaCache) + s.tokensConversacion) *
       p.entradaMTok;
-    salida += 25 + 55 * s.mensajes;
+    salida += tokensSalidaEstimados(s.mensajes);
   });
   const costo = ((costoEntrada + salida * p.salidaMTok) / 1_000_000) * p.factorLote;
   return {

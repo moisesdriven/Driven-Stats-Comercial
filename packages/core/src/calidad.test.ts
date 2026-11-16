@@ -11,6 +11,8 @@ import {
   seleccionarMensajes,
   textoConversacion,
   tokensAproximados,
+  tokensFijosSolicitud,
+  PRECIOS_POR_DEFECTO,
   type MensajeCalidad,
 } from './calidad';
 
@@ -178,6 +180,62 @@ describe('costo', () => {
     expect(e.solicitudes).toBe(1000);
     expect(e.costoUsd).toBeGreaterThan(0.1);
     expect(e.costoUsd).toBeLessThan(0.3);
+  });
+
+  /**
+   * Caso del primer análisis real de Jade18K (9–15 nov 2026). La estimación original dio 732.073
+   * tokens de entrada con 1.273 fijos por solicitud: las conversaciones sumaban 156.677 tokens a
+   * 3,5 caracteres por token, es decir, ~548.370 caracteres en 452 solicitudes.
+   */
+  const REAL = { entrada: 1_183_607, salida: 137_772, costo: 0.0523 };
+  const casoPiloto = () => {
+    const caracteresTotales = 156_677 * 3.5;
+    const base = caracteresTotales / 452;
+    return Array.from({ length: 452 }, (_, i) => {
+      // Largos variados (±60 %) con el mismo total; 308 solicitudes con 3 mensajes y 144 con 2.
+      const largo = Math.round(base * (1 + 0.6 * Math.sin(i * 1.7)));
+      const texto = 'x'.repeat(Math.max(1, largo));
+      return { tokensConversacion: tokensAproximados(texto), mensajes: i < 308 ? 3 : 2 };
+    });
+  };
+  const dentroDe = (estimado: number, real: number, margen: number) =>
+    Math.abs(estimado - real) / real <= margen;
+
+  it('el caso piloto suma 452 solicitudes y 1.212 mensajes', () => {
+    const caso = casoPiloto();
+    expect(caso).toHaveLength(452);
+    expect(caso.reduce((t, s) => t + s.mensajes, 0)).toBe(1212);
+  });
+
+  it('la estimación queda dentro de ±15 % del uso y costo reales del piloto', () => {
+    const e = estimarCosto(casoPiloto());
+    expect(dentroDe(e.tokensEntrada, REAL.entrada, 0.15)).toBe(true);
+    expect(dentroDe(e.tokensSalida, REAL.salida, 0.15)).toBe(true);
+    expect(dentroDe(e.costoUsd, REAL.costo, 0.15)).toBe(true);
+  });
+
+  it('la entrada por solicitud ronda los 2.600 tokens y la salida los 114 por mensaje', () => {
+    const e = estimarCosto(casoPiloto());
+    expect(e.tokensEntrada / 452).toBeGreaterThan(2_300);
+    expect(e.tokensEntrada / 452).toBeLessThan(2_900);
+    expect(e.tokensSalida / 1212).toBeGreaterThan(100);
+    expect(e.tokensSalida / 1212).toBeLessThan(125);
+  });
+
+  it('la parte fija incluye instrucciones, esquema de structured outputs y envoltura', () => {
+    const fijos = tokensFijosSolicitud();
+    expect(fijos).toBeGreaterThan(tokensAproximados(INSTRUCCIONES_CALIDAD));
+    // El costo real indica ~2.040 tokens leídos de caché por solicitud.
+    expect(fijos).toBeGreaterThan(1_850);
+    expect(fijos).toBeLessThan(2_250);
+  });
+
+  it('sin caché (todas las solicitudes escriben) el costo sube, con caché solo se paga una escritura', () => {
+    const caso = casoPiloto();
+    const conCache = estimarCosto(caso);
+    const sinCache = estimarCosto(caso, { ...PRECIOS_POR_DEFECTO, lecturaCache: 1.25 });
+    expect(sinCache.costoUsd).toBeGreaterThan(conCache.costoUsd);
+    expect(sinCache.tokensEntrada).toBe(conCache.tokensEntrada);
   });
 
   it('el costo real usa el uso devuelto por la API, con caché y descuento de lote', () => {

@@ -187,5 +187,32 @@ Observaciones para el cliente (sin datos personales):
 
 ### Pendiente
 
-- Corregir la estimación de tokens (subestima ~70 %).
+- ~~Corregir la estimación de tokens (subestima ~70 %).~~ Hecho: ver "Corrección de la estimación".
 - Ajustar la rúbrica según los patrones anteriores y versionarla (`v2`).
+
+### Corrección de la estimación
+
+Causas del desvío (deducidas de los totales y del costo real, que separa lo leído de caché de lo
+demás):
+
+| Supuesto original                                  | Observado                                                               |
+| -------------------------------------------------- | ----------------------------------------------------------------------- |
+| 3,5 caracteres por token                           | ~2,1 en el texto enviado (chat en español con emojis, precios y marcas) |
+| Parte fija = instrucciones + 300 (esquema) ≈ 1.273 | ~2.040 tokens por solicitud leídos de caché (instrucciones + esquema)   |
+| Salida = 25 + 55 por mensaje                       | ~114 por mensaje calificado (el `motivo` y los criterios ocupan más)    |
+
+Nueva fórmula (`estimarCosto`, constantes en `CALIBRACION_CALIDAD`): parte fija = tokens de
+`INSTRUCCIONES_CALIDAD` + tokens del esquema JSON + 40 de envoltura, a 2,1 caracteres por token,
+escrita en caché en la primera solicitud y leída en las demás; conversación a 2,1 caracteres por
+token; salida = 10 + 110 por mensaje. Con el caso del piloto:
+
+| Concepto          | Estimado anterior | Estimado nuevo | Real      | Desvío nuevo |
+| ----------------- | ----------------- | -------------- | --------- | ------------ |
+| Tokens de entrada | 732.073           | ~1.182.000     | 1.183.607 | −0,1 %       |
+| Tokens de salida  | 77.960            | 137.840        | 137.772   | +0,05 %      |
+| Costo (US$)       | 0,0303            | 0,0522         | 0,0523    | −0,2 %       |
+
+La calibración sale de un solo análisis, así que el ajuste exacto a este caso es esperable; la
+prueba exige ±15 %. Si el lote no aprovecha la caché (es de mejor esfuerzo en la Batches API), el
+costo real puede superar al estimado: en el peor caso, sin ninguna lectura de caché, este análisis
+habría costado unos US$ 0,09. Conviene recalibrar con los próximos análisis.
