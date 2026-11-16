@@ -258,6 +258,29 @@ El contenido de las conversaciones es dato no confiable (puede contener instrucc
 
 ---
 
+### 6.8 Analizador a pedido (agregado el 16 nov 2026, decisión del cliente)
+
+Análisis de calidad con filtros elegidos por un administrador, **aparte de la medición mensual**: no
+cambia el indicador "Calidad de mensajes" ni comparte su tope.
+
+- **Filtros:** etapa en la que el lead está **hoy** (una o varias del pipeline de la subcuenta),
+  rango de fechas de **creación del lead** (creación de su conversación más antigua o, si falta, su
+  ingreso), cantidad de conversaciones (**500 a 1,000**; si cumplen menos, se toman todas) y
+  distribución entre asesores (**equitativa** por defecto: la misma cantidad por asesor, y lo que le
+  falte a uno se reparte entre los demás; o proporcional, como la medición mensual).
+- **Qué se califica:** toda la conversación (todos los mensajes `manual`, con el mismo tope por
+  conversación y la misma rúbrica, regla de saludos y bloques de respuesta).
+- **Modelo y gasto:** Claude Sonnet 5.5 por defecto (`IA_MODELO_ANALIZADOR`), con tope mensual propio
+  (`IA_TOPE_ANALIZADOR_USD`, por defecto US$ 20). Se compara con el tope el costo máximo (sin caché).
+- **Lanzamiento:** solo administradores, con estimación previa (conversaciones que cumplen, cuántas
+  por asesor, mensajes, costo estimado y máximo, gasto del mes) y validación con contraseña o 2FA.
+  Un analizador en curso por subcuenta; no lo bloquea la medición mensual ni al revés. Queda en
+  `auditoria` con sus filtros.
+- **Datos:** `analisis_calidad.tipo = 'analizador'`, `filtros` (jsonb) y `periodo_desde/hasta` = rango
+  de creación de los leads. API: `POST /api/calidad/analizador/estimacion`, `POST /api/calidad/analizador`
+  y `GET /api/calidad/analizador/{id}` (resultado: promedio, por asesor, por categoría, criterios y
+  mejor/peor mensaje). La pantalla se construye con la interfaz (fase 5).
+
 ## 7. Fuentes de datos en GHL
 
 API v2: `https://services.leadconnectorhq.com`. Verificar en la documentación oficial el header `Version` que exige cada grupo de endpoints y sus parámetros de paginación antes de implementarlos.

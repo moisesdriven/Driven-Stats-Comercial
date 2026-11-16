@@ -1,6 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { configuracionCalidad, prepararSolicitudes, tablas, type Db } from '@driven/db';
+import {
+  configuracionCalidad,
+  gastoDelMes,
+  prepararSolicitudes,
+  tablas,
+  type Db,
+} from '@driven/db';
 import { baseWorker, URL_PRUEBAS } from '../pruebas/base';
 import { calibrar } from './calibracion';
 import { prepararAnalisis, revisarAnalisis, solicitarAnalisis } from './proceso';
@@ -368,5 +374,70 @@ describe.skipIf(!URL_PRUEBAS)('análisis de calidad (integración con Anthropic 
     expect(a3?.estado).toBe('terminado');
     expect(a3?.mensajesCalificados).toBe(10);
     expect(a3?.costoEstimado).toBe(0);
+  });
+
+  it('analizador: filtra por etapa actual y creación del lead, con Sonnet, toda la conversación y tope propio', async () => {
+    // A1, A2 y B1 están hoy en "Cotizado"; A3 y B2 en "Contactado". B1 se creó en septiembre.
+    const etapaHoy: Record<string, string> = {
+      A1: 'S_COT',
+      A2: 'S_COT',
+      B1: 'S_COT',
+      A3: 'S_CONT',
+      B2: 'S_CONT',
+    };
+    await db.insert(tablas.oportunidades).values(
+      Object.entries(etapaHoy).map(([c, stageId]) => ({
+        opportunityId: `op_${c}`,
+        locationId: LOC,
+        contactId: c,
+        stageId,
+        status: 'open' as const,
+      })),
+    );
+    await db.insert(tablas.leads).values(
+      Object.keys(etapaHoy).map((c) => ({
+        locationId: LOC,
+        contactId: c,
+        conversationId: `conv_${c}`,
+        opportunityId: `op_${c}`,
+        conversacionCreadaEn: c === 'B1' ? new Date(Date.UTC(2026, 8, 20)) : d(9, 12),
+      })),
+    );
+    const gastoMensualAntes = await gastoDelMes(db, new Date(Date.UTC(2026, 10, 16)));
+    const [fila] = await db
+      .insert(tablas.analisisCalidad)
+      .values({
+        locationId: LOC,
+        tipo: 'analizador',
+        periodoDesde: '2026-10-01',
+        periodoHasta: '2026-10-31',
+        filtros: { etapas: ['S_COT'], tamano: 500, distribucion: 'equitativa' },
+        semilla: 'analizador',
+        estado: 'solicitado',
+      })
+      .returning({ id: tablas.analisisCalidad.id });
+    const id = fila!.id;
+    const { proveedor, lotes } = crearProveedorSimulado({ esperas: 0 });
+    await prepararAnalisis(db, proveedor, id, cfg);
+    const enviadas = [...lotes.values()].flat();
+    // Solo A1 y A2: B1 está en Cotizado pero su lead se creó fuera del rango.
+    expect(enviadas.map((x) => x.custom_id).sort()).toEqual([`a${id}_conv_A1`, `a${id}_conv_A2`]);
+    expect(enviadas[0]!.params.model).toBe('claude-sonnet-5-5');
+    expect(enviadas[0]!.params.thinking).toEqual({ type: 'between_tools' });
+    // Toda la conversación: entra el mensaje del 20 de octubre, fuera del periodo de la medición.
+    const a1 = enviadas.find((x) => x.custom_id.endsWith('conv_A1'))!;
+    expect(a1.params.messages[0]!.content).toContain('Mensaje fuera del periodo del análisis');
+    expect(await revisarAnalisis(db, proveedor, id, cfg)).toBe('terminado');
+    const [a] = await db
+      .select()
+      .from(tablas.analisisCalidad)
+      .where(eq(tablas.analisisCalidad.id, id));
+    expect(a?.estado).toBe('terminado');
+    expect(a?.modelo).toBe('claude-sonnet-5-5');
+    expect(a?.costoReal).toBeGreaterThan(0);
+    // Su gasto va al tope del analizador, no al de la medición mensual.
+    const ahora = new Date();
+    expect(await gastoDelMes(db, ahora, true)).toBeGreaterThan(0);
+    expect(await gastoDelMes(db, new Date(Date.UTC(2026, 10, 16)))).toBe(gastoMensualAntes);
   });
 });

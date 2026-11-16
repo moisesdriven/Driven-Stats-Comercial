@@ -385,10 +385,17 @@ export const analisisCalidad = comercial.table(
   {
     id: bigserial('id', { mode: 'number' }).primaryKey(),
     locationId: text('location_id').notNull(),
-    tipo: text('tipo', { enum: ['automatico', 'manual'] }).notNull(),
+    /**
+     * automatico/manual: medición mensual por lote (§6). analizador: análisis a pedido con filtros,
+     * aparte de la medición mensual (no cambia los indicadores ni comparte su tope).
+     */
+    tipo: text('tipo', { enum: ['automatico', 'manual', 'analizador'] }).notNull(),
     lanzadoPor: uuid('lanzado_por'),
+    /** Periodo de los mensajes; en el analizador, rango de fechas de creación de los leads. */
     periodoDesde: date('periodo_desde', { mode: 'string' }).notNull(),
     periodoHasta: date('periodo_hasta', { mode: 'string' }).notNull(),
+    /** Filtros del analizador: etapas actuales, cantidad de conversaciones y distribución. */
+    filtros: jsonb('filtros'),
     semilla: text('semilla').notNull(),
     /** solicitado → preparando → enviado → terminado (o fallido / detenido_por_tope / sin_universo). */
     estado: text('estado', {

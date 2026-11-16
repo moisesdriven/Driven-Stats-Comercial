@@ -31,7 +31,11 @@ import {
 import {
   gastoDelMes,
   parametrosSolicitud,
+  configuracionAnalizador,
+  prepararAnalizador,
   prepararSolicitudes,
+  type FiltrosAnalizador,
+  type Preparacion,
   tablas,
   type ConfiguracionCalidad,
   type Db,
@@ -117,6 +121,53 @@ function rango(desde: string, hasta: string): [Date, Date] {
   return [new Date(`${desde}T00:00:00Z`), new Date(Date.parse(`${hasta}T00:00:00Z`) + 86_400_000)];
 }
 
+type FilaAnalisis = typeof tablas.analisisCalidad.$inferSelect;
+
+/** Configuración con la que corre un análisis: la del analizador o la de la medición mensual. */
+const configuracionDe = (a: FilaAnalisis, cfg: ConfiguracionCalidad) =>
+  a.tipo === 'analizador' ? configuracionAnalizador(cfg) : cfg;
+
+/**
+ * Arma las solicitudes según el tipo: el analizador con sus filtros (etapa actual del lead, fechas
+ * de creación, cantidad y distribución) y toda la conversación; la medición mensual con las 3 etapas
+ * de calidad y el periodo.
+ */
+async function prepararSegunTipo(
+  db: Db,
+  a: FilaAnalisis,
+  analisisId: number,
+  cfg: ConfiguracionCalidad,
+): Promise<Preparacion | { error: string }> {
+  const [desde, hasta] = rango(a.periodoDesde, a.periodoHasta);
+  if (a.tipo === 'analizador') {
+    const filtros = a.filtros as FiltrosAnalizador | null;
+    if (!filtros?.etapas?.length) return { error: 'El análisis no tiene etapas elegidas.' };
+    return prepararAnalizador(
+      db,
+      {
+        locationId: a.locationId,
+        filtros,
+        creadosDesde: desde,
+        creadosHasta: hasta,
+        semilla: a.semilla,
+        analisisId,
+      },
+      cfg,
+    );
+  }
+  const [sub] = await db
+    .select()
+    .from(tablas.subcuentas)
+    .where(eq(tablas.subcuentas.locationId, a.locationId));
+  const etapas = sub?.etapasCalidad ?? [];
+  if (etapas.length !== 3)
+    return { error: 'La subcuenta no tiene sus 3 etapas de calidad configuradas.' };
+  return prepararSolicitudes(
+    db,
+    { locationId: a.locationId, etapas, desde, hasta, semilla: a.semilla, analisisId },
+    cfg,
+  );
+}
 export async function prepararAnalisis(
   db: Db,
   proveedor: ProveedorLotes,
@@ -128,27 +179,19 @@ export async function prepararAnalisis(
     .from(tablas.analisisCalidad)
     .where(eq(tablas.analisisCalidad.id, analisisId));
   if (!a || a.estado !== 'solicitado') return;
-  await actualizar(db, analisisId, { estado: 'preparando', modelo: cfg.modelo });
+  // El analizador a pedido usa su propio modelo (Sonnet) y su propio tope.
+  const cfgA = configuracionDe(a, cfg);
+  await actualizar(db, analisisId, { estado: 'preparando', modelo: cfgA.modelo });
   try {
-    const [sub] = await db
-      .select()
-      .from(tablas.subcuentas)
-      .where(eq(tablas.subcuentas.locationId, a.locationId));
-    const etapas = sub?.etapasCalidad ?? [];
-    if (etapas.length !== 3) {
+    const prep = await prepararSegunTipo(db, a, analisisId, cfgA);
+    if ('error' in prep) {
       await actualizar(db, analisisId, {
         estado: 'fallido',
-        error: 'La subcuenta no tiene sus 3 etapas de calidad configuradas.',
+        error: prep.error,
         cerradoEn: new Date(),
       });
       return;
     }
-    const [desde, hasta] = rango(a.periodoDesde, a.periodoHasta);
-    const prep = await prepararSolicitudes(
-      db,
-      { locationId: a.locationId, etapas, desde, hasta, semilla: a.semilla, analisisId },
-      cfg,
-    );
     const base = {
       conversacionesElegibles: prep.universo.conversaciones,
       conversacionesMuestra: prep.muestra.length,
@@ -167,14 +210,15 @@ export async function prepararAnalisis(
     }
     // Tope de gasto mensual (§6.4): se compara el peor caso (sin caché y, con pensamiento, todo
     // su margen), para que el tope no se pase aunque la caché de la Batches API no funcione.
-    const gasto = (await gastoDelMes(db)) - (a.costoEstimado ?? 0);
+    const gasto =
+      (await gastoDelMes(db, new Date(), a.tipo === 'analizador')) - (a.costoEstimado ?? 0);
     const { costoUsd: estimado, costoMaximoUsd: maximo } = prep.estimacion;
-    if (gasto + maximo > cfg.topeMensualUsd) {
+    if (gasto + maximo > cfgA.topeMensualUsd) {
       await actualizar(db, analisisId, {
         ...base,
         estado: 'detenido_por_tope',
         cerradoEn: new Date(),
-        error: `El análisis costaría unos US$ ${estimado.toFixed(2)} (hasta US$ ${maximo.toFixed(2)} si la caché no funciona) y el gasto del mes es US$ ${gasto.toFixed(2)} (tope US$ ${cfg.topeMensualUsd}).`,
+        error: `El análisis costaría unos US$ ${estimado.toFixed(2)} (hasta US$ ${maximo.toFixed(2)} si la caché no funciona) y el gasto del mes es US$ ${gasto.toFixed(2)} (tope US$ ${cfgA.topeMensualUsd}).`,
       });
       log('calidad_tope', { analisisId, estimado, maximo, gasto });
       return;
@@ -242,7 +286,7 @@ export async function prepararAnalisis(
     const aEnviar = prep.solicitudes.filter((s) => s.mensajes > 0 && s.reutilizarDe === null);
     const solicitudes: SolicitudLote[] = aEnviar.map((s) => ({
       custom_id: s.customId,
-      params: parametrosSolicitud(s, cfg.modelo, cfg.ajustes),
+      params: parametrosSolicitud(s, cfgA.modelo, cfgA.ajustes),
     }));
     const batchIds = solicitudes.length
       ? await enviar(
@@ -436,20 +480,9 @@ export async function revisarAnalisis(
   }
 
   if (aReintentar.length) {
-    const etapas =
-      (
-        await db
-          .select()
-          .from(tablas.subcuentas)
-          .where(eq(tablas.subcuentas.locationId, a.locationId))
-      )[0]?.etapasCalidad ?? [];
-    const [desde, hasta] = rango(a.periodoDesde, a.periodoHasta);
     // Se rearman las mismas solicitudes (misma semilla) y se reenvían solo las fallidas.
-    const prep = await prepararSolicitudes(
-      db,
-      { locationId: a.locationId, etapas, desde, hasta, semilla: a.semilla, analisisId },
-      cfg,
-    );
+    const prep = await prepararSegunTipo(db, a, analisisId, configuracionDe(a, cfg));
+    if ('error' in prep) throw new Error(prep.error);
     const ids = new Set(aReintentar.map((m) => m.conversationId));
     const nuevas = prep.solicitudes.filter((s) => ids.has(s.conversationId));
     const batchIds = await enviar(
@@ -458,7 +491,7 @@ export async function revisarAnalisis(
       analisisId,
       nuevas.map((s) => ({
         custom_id: s.customId,
-        params: parametrosSolicitud(s, a.modelo ?? cfg.modelo, cfg.ajustes),
+        params: parametrosSolicitud(s, a.modelo ?? configuracionDe(a, cfg).modelo, cfg.ajustes),
       })),
       nuevas.map((s) => s.conversationId),
     );

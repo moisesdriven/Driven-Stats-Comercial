@@ -1,5 +1,5 @@
 {
-  "id": "b97dbed8-a847-4629-bf58-317370068076",
+  "id": "1dcffa54-b81f-421f-9051-b638eef4e325",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -43,6 +43,12 @@
           "type": "date",
           "primaryKey": false,
           "notNull": true
+        },
+        "filtros": {
+          "name": "filtros",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         },
         "semilla": {
           "name": "semilla",

@@ -3,7 +3,7 @@
  * botón) y el worker (preparación y envío). El envío a la Batches API vive en el worker.
  */
 import { createHash, randomBytes } from 'node:crypto';
-import { and, eq, gte, inArray, notInArray, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, notInArray, sql, type SQL } from 'drizzle-orm';
 import {
   FORMATO_SALIDA_VIGENTE,
   TOKENS_MARGEN_PENSAMIENTO,
@@ -12,6 +12,7 @@ import {
   VERSION_RUBRICA,
   estimarCosto,
   maxTokensPara,
+  muestraEquitativa,
   muestraEstratificada,
   bloquesDeRespuesta,
   preciosDe,
@@ -49,6 +50,10 @@ export interface ConfiguracionCalidad {
   maxManualesMes: number;
   /** Saludos sueltos calificados por regla, sin IA (`CALIDAD_SALUDOS_POR_REGLA`, por defecto sí). */
   saludosPorRegla: boolean;
+  /** Modelo del analizador a pedido (`IA_MODELO_ANALIZADOR`, por defecto Sonnet 5.5). */
+  modeloAnalizador: string;
+  /** Tope mensual propio del analizador (`IA_TOPE_ANALIZADOR_USD`, por defecto 20). */
+  topeAnalizadorUsd: number;
 }
 
 export function configuracionCalidad(env: NodeJS.ProcessEnv = process.env): ConfiguracionCalidad {
@@ -64,6 +69,8 @@ export function configuracionCalidad(env: NodeJS.ProcessEnv = process.env): Conf
     saludosPorRegla: !['no', 'false', '0'].includes(
       (env.CALIDAD_SALUDOS_POR_REGLA ?? 'si').toLowerCase(),
     ),
+    modeloAnalizador: env.IA_MODELO_ANALIZADOR || 'claude-sonnet-5-5',
+    topeAnalizadorUsd: n(env.IA_TOPE_ANALIZADOR_USD, 20),
   };
 }
 
@@ -82,7 +89,7 @@ export interface Universo {
   /** Conversaciones elegibles por asesor (el que más mensajes `manual` escribió en ellas). */
   porAsesor: Map<string, string[]>;
   conversaciones: number;
-  descartes: { sinOrigen: number; fueraDeEtapas: number };
+  descartes: Record<string, number>;
 }
 
 /**
@@ -266,16 +273,36 @@ export async function prepararSolicitudes(
     semilla,
     cfg.minimoPorAsesor,
   );
+  const etapasSql = sql.join(
+    p.etapas.map((e) => sql`${e}`),
+    sql`, `,
+  );
+  // Solo los mensajes enviados mientras el lead estaba en las etapas de calidad, dentro del periodo.
+  const filtro = sql`
+    join comercial.historial_etapas h
+      on h.location_id = m.location_id and h.contact_id = m.contact_id and h.stage_id in (${etapasSql})
+     and m.fecha >= h.desde and (h.hasta is null or m.fecha < h.hasta)
+    where m.fecha >= ${p.desde} and m.fecha < ${p.hasta} and`;
+  return armarPreparacion(db, { ...p, semilla }, universo, elegidas, filtro, cfg);
+}
+
+/** Lo común a la medición mensual y al analizador: carga los mensajes y arma cada solicitud. */
+async function armarPreparacion(
+  db: Db,
+  p: { locationId: string; semilla: string; analisisId?: number },
+  universo: Universo,
+  elegidas: Map<string, string[]>,
+  /** Condición sobre `m` (comercial.mensajes): un `join … where …` que termina en `and`. */
+  filtro: SQL,
+  cfg: ConfiguracionCalidad,
+): Promise<Preparacion> {
+  const { semilla } = p;
   const muestra = [...elegidas].flatMap(([asesorId, ids]) =>
     ids.map((conversationId) => ({ conversationId, asesorId })),
   );
   const descartes: Record<string, number> = { ...universo.descartes, triviales: 0, tope: 0 };
   const solicitudes: SolicitudPreparada[] = [];
   const sinMensajes: string[] = [];
-  const etapasSql = sql.join(
-    p.etapas.map((e) => sql`${e}`),
-    sql`, `,
-  );
 
   for (let i = 0; i < muestra.length; i += 300) {
     const parte = muestra.slice(i, i + 300);
@@ -293,11 +320,7 @@ export async function prepararSolicitudes(
     }>(sql`
       select distinct m.message_id, m.conversation_id, m.fecha, m.direccion, m.origen, m.texto
       from comercial.mensajes m
-      join comercial.historial_etapas h
-        on h.location_id = m.location_id and h.contact_id = m.contact_id and h.stage_id in (${etapasSql})
-       and m.fecha >= h.desde and (h.hasta is null or m.fecha < h.hasta)
-      where m.location_id = ${p.locationId} and m.conversation_id in (${ids})
-        and m.fecha >= ${p.desde} and m.fecha < ${p.hasta}
+      ${filtro} m.location_id = ${p.locationId} and m.conversation_id in (${ids})
         and coalesce(m.texto, '') <> ''`);
     const porConversacion = new Map<string, MensajeCalidad[]>();
     for (const f of filas.rows) {
@@ -365,6 +388,114 @@ export async function prepararSolicitudes(
   return { semilla, universo, muestra, solicitudes, sinMensajes, descartes, estimacion };
 }
 
+// ------------------------------------------------------------------ Analizador a pedido
+
+/** Límites de la cantidad de conversaciones del analizador (decisión del cliente). */
+export const TAMANO_ANALIZADOR = { minimo: 500, maximo: 1000 } as const;
+
+export interface FiltrosAnalizador {
+  /** Etapas del pipeline en las que el lead está HOY (una o varias). */
+  etapas: string[];
+  /** Conversaciones a analizar (500–1.000; si hay menos, se toman todas). */
+  tamano: number;
+  /** Equitativa (misma cantidad por asesor) o proporcional a sus conversaciones. */
+  distribucion: 'equitativa' | 'proporcional';
+}
+
+/**
+ * Universo del analizador: conversaciones con al menos un mensaje `manual` de leads que hoy están
+ * en una de las etapas elegidas y que se crearon dentro del rango (creación de su conversación más
+ * antigua o, si falta, su ingreso). Se califica toda la conversación, sin filtro de etapa ni de fecha
+ * en los mensajes. El asesor de cada conversación es el que más mensajes `manual` escribió.
+ */
+export async function universoAnalizador(
+  db: Db,
+  locationId: string,
+  etapas: readonly string[],
+  creadosDesde: Date,
+  creadosHasta: Date,
+): Promise<Universo> {
+  const etapasSql = sql.join(
+    etapas.map((e) => sql`${e}`),
+    sql`, `,
+  );
+  const leadsSql = sql`
+    select l.contact_id from comercial.leads l
+    join comercial.oportunidades o on o.opportunity_id = l.opportunity_id
+    where l.location_id = ${locationId} and o.stage_id in (${etapasSql})
+      and coalesce(l.conversacion_creada_en, l.ingreso_en) >= ${creadosDesde}
+      and coalesce(l.conversacion_creada_en, l.ingreso_en) < ${creadosHasta}`;
+  const r = await db.execute<{ conversation_id: string; asesor: string | null }>(sql`
+    select m.conversation_id, mode() within group (order by m.user_id) as asesor
+    from comercial.mensajes m
+    where m.location_id = ${locationId} and m.origen = 'manual' and m.contact_id in (${leadsSql})
+    group by m.conversation_id`);
+  const t = await db.execute<{ leads: number; con_manuales: number }>(sql`
+    select count(*)::int as leads,
+      count(*) filter (where exists (
+        select 1 from comercial.mensajes m
+        where m.location_id = ${locationId} and m.contact_id = f.contact_id and m.origen = 'manual'))::int as con_manuales
+    from (${leadsSql}) f`);
+  const porAsesor = new Map<string, string[]>();
+  for (const f of r.rows) {
+    const a = f.asesor ?? 'sin_asesor';
+    const lista = porAsesor.get(a) ?? [];
+    lista.push(f.conversation_id);
+    porAsesor.set(a, lista);
+  }
+  const c = t.rows[0] ?? { leads: 0, con_manuales: 0 };
+  return {
+    porAsesor,
+    conversaciones: r.rows.length,
+    descartes: { leadsEnFiltro: c.leads, leadsSinMensajesDelAsesor: c.leads - c.con_manuales },
+  };
+}
+
+/**
+ * Prepara un análisis del analizador: universo con los filtros, muestra equitativa o proporcional
+ * y solicitudes con toda la conversación. Usa el modelo y el tope del analizador.
+ */
+export async function prepararAnalizador(
+  db: Db,
+  p: {
+    locationId: string;
+    filtros: FiltrosAnalizador;
+    creadosDesde: Date;
+    creadosHasta: Date;
+    semilla?: string;
+    analisisId?: number;
+  },
+  cfg: ConfiguracionCalidad,
+): Promise<Preparacion> {
+  const semilla = p.semilla ?? randomBytes(8).toString('hex');
+  const universo = await universoAnalizador(
+    db,
+    p.locationId,
+    p.filtros.etapas,
+    p.creadosDesde,
+    p.creadosHasta,
+  );
+  const elegidas =
+    p.filtros.distribucion === 'equitativa'
+      ? muestraEquitativa(universo.porAsesor, p.filtros.tamano, semilla)
+      : muestraEstratificada(universo.porAsesor, p.filtros.tamano, semilla, cfg.minimoPorAsesor);
+  return armarPreparacion(
+    db,
+    { locationId: p.locationId, semilla, ...(p.analisisId ? { analisisId: p.analisisId } : {}) },
+    universo,
+    elegidas,
+    sql`where`,
+    configuracionAnalizador(cfg),
+  );
+}
+
+/** Configuración con la que corre el analizador: su modelo y su tope. */
+export const configuracionAnalizador = (cfg: ConfiguracionCalidad): ConfiguracionCalidad => ({
+  ...cfg,
+  modelo: cfg.modeloAnalizador,
+  topeMensualUsd: cfg.topeAnalizadorUsd,
+});
+
 /**
  * Pensamiento según el modelo. Haiku 5.5 acepta `disabled` con esfuerzo bajo; Sonnet 5.5 lo rechaza
  * (400) y se apaga con `between_tools`; Opus 5.5 y Fable siempre piensan (se omite y se controla
@@ -415,10 +546,16 @@ export function parametrosSolicitud(
 const inicioMes = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 
 /** Gasto del mes en análisis (costo real si ya terminó, estimado si sigue abierto). */
-export async function gastoDelMes(db: Db, ahora = new Date()): Promise<number> {
+export async function gastoDelMes(
+  db: Db,
+  ahora = new Date(),
+  /** El analizador tiene su propio tope: su gasto se suma aparte de la medición mensual. */
+  analizador = false,
+): Promise<number> {
   const r = await db.execute<{ total: string | null }>(sql`
     select sum(coalesce(costo_real, costo_estimado, 0))::text as total from comercial.analisis_calidad
-    where creado_en >= ${inicioMes(ahora)} and estado not in ('fallido', 'detenido_por_tope', 'sin_universo')`);
+    where creado_en >= ${inicioMes(ahora)} and estado not in ('fallido', 'detenido_por_tope', 'sin_universo')
+      and (tipo = 'analizador') = ${analizador}`);
   return Number(r.rows[0]?.total ?? 0);
 }
 
@@ -427,6 +564,8 @@ export async function limitesManuales(
   db: Db,
   locationId: string,
   ahora = new Date(),
+  /** El analizador y la medición mensual no se bloquean entre sí. */
+  analizador = false,
 ): Promise<{ manualesMes: number; enCurso: boolean }> {
   const manuales = await db
     .select({ id: analisisCalidad.id })
@@ -446,6 +585,9 @@ export async function limitesManuales(
       and(
         eq(analisisCalidad.locationId, locationId),
         inArray(analisisCalidad.estado, ['solicitado', 'preparando', 'enviado']),
+        analizador
+          ? eq(analisisCalidad.tipo, 'analizador')
+          : inArray(analisisCalidad.tipo, ['automatico', 'manual']),
       ),
     );
   return { manualesMes: manuales.length, enCurso: enCurso.length > 0 };

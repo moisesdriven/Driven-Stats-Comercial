@@ -1,8 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { tablas, type Db } from '@driven/db';
 import { POST as ingresarRuta } from '@/app/api/auth/ingresar/route';
 import { GET as historialRuta, POST as lanzarRuta } from '@/app/api/calidad/analisis/route';
 import { POST as estimarRuta } from '@/app/api/calidad/estimacion/route';
+import { POST as lanzarAnalizadorRuta } from '@/app/api/calidad/analizador/route';
+import { POST as estimarAnalizadorRuta } from '@/app/api/calidad/analizador/estimacion/route';
+import { GET as resultadoAnalizadorRuta } from '@/app/api/calidad/analizador/[id]/route';
 import { GET as ejemplosRuta } from '@/app/api/subcuentas/[id]/asesores/[userId]/calidad/route';
 import { GET as subIndRuta } from '@/app/api/subcuentas/[id]/indicadores/route';
 import {
@@ -320,6 +324,168 @@ describe.skipIf(!hayBaseDePruebas)('análisis de calidad desde la web (integraci
       expect(r.estado).toBe(200);
       expect(JSON.stringify(r.cuerpo)).not.toContain('semilla');
       expect(r.cuerpo).toHaveProperty('gastoDelMesUsd');
+    });
+  });
+
+  describe('analizador a pedido', () => {
+    const FILTROS = {
+      subcuenta: LOC,
+      etapas: ['S2'],
+      tamano: 500,
+      distribucion: 'equitativa',
+      creadosDesde: '2026-10-01',
+      creadosHasta: '2026-10-31',
+    };
+
+    beforeAll(async () => {
+      // K1 está hoy en "Cotizado" (S2) y su lead se creó el 5 de octubre.
+      await db.insert(tablas.oportunidades).values({
+        opportunityId: 'op_K1',
+        locationId: LOC,
+        contactId: 'K1',
+        stageId: 'S2',
+        status: 'open',
+      });
+      await db.insert(tablas.leads).values({
+        locationId: LOC,
+        contactId: 'K1',
+        conversationId: 'c1',
+        opportunityId: 'op_K1',
+        conversacionCreadaEn: d(5, 12),
+      });
+    });
+
+    it('solo el administrador estima; usa Sonnet y el tope propio', async () => {
+      expect(
+        (
+          await llamar(estimarAnalizadorRuta, '/api/calidad/analizador/estimacion', {
+            cookie: cookies.dueno,
+            cuerpo: FILTROS,
+          })
+        ).estado,
+      ).toBe(403);
+      const r = await llamar(estimarAnalizadorRuta, '/api/calidad/analizador/estimacion', {
+        cookie: cookies.admin,
+        cuerpo: FILTROS,
+      });
+      expect(r.estado).toBe(200);
+      expect(r.cuerpo).toMatchObject({
+        conversacionesElegibles: 1,
+        muestra: 1,
+        muestraPorAsesor: { U1: 1 },
+        modelo: 'claude-sonnet-5-5',
+        topeMensualUsd: 20,
+        enCurso: false,
+      });
+      expect(r.cuerpo.costoEstimadoUsd as number).toBeGreaterThan(0);
+      // Otra etapa: nadie está hoy en "Contactado".
+      const otra = await llamar(estimarAnalizadorRuta, '/api/calidad/analizador/estimacion', {
+        cookie: cookies.admin,
+        cuerpo: { ...FILTROS, etapas: ['S1'] },
+      });
+      expect(otra.cuerpo.conversacionesElegibles).toBe(0);
+    });
+
+    it('valida la cantidad (500–1.000) y que las etapas sean del pipeline', async () => {
+      for (const cuerpo of [
+        { ...FILTROS, tamano: 100 },
+        { ...FILTROS, tamano: 1500 },
+        { ...FILTROS, etapas: ['OTRA'] },
+        { ...FILTROS, creadosDesde: '2026-11-01' },
+      ]) {
+        const r = await llamar(estimarAnalizadorRuta, '/api/calidad/analizador/estimacion', {
+          cookie: cookies.admin,
+          cuerpo,
+        });
+        expect(r.estado, JSON.stringify(cuerpo)).toBe(400);
+      }
+    });
+
+    it('lanzar exige la contraseña y no lo bloquea la medición mensual en curso', async () => {
+      expect(
+        (
+          await llamar(lanzarAnalizadorRuta, '/api/calidad/analizador', {
+            cookie: cookies.admin,
+            cuerpo: FILTROS,
+          })
+        ).estado,
+      ).toBe(401);
+      const r = await llamar(lanzarAnalizadorRuta, '/api/calidad/analizador', {
+        cookie: cookies.admin,
+        cuerpo: { ...FILTROS, clave: CLAVE_PRUEBA },
+      });
+      expect(r.estado).toBe(202);
+      const a = (await db.select().from(tablas.analisisCalidad)).find(
+        (x) => x.tipo === 'analizador',
+      );
+      expect(a).toMatchObject({
+        estado: 'solicitado',
+        modelo: 'claude-sonnet-5-5',
+        periodoDesde: '2026-10-01',
+        filtros: { etapas: ['S2'], tamano: 500, distribucion: 'equitativa' },
+      });
+      const reg = (await db.select().from(tablas.auditoria)).find(
+        (x) => x.que === 'calidad_analizador_lanzado',
+      );
+      expect(reg?.detalle).toHaveProperty('filtros');
+      // Un segundo analizador en la misma subcuenta espera a que termine el primero.
+      const otro = await llamar(lanzarAnalizadorRuta, '/api/calidad/analizador', {
+        cookie: cookies.admin,
+        cuerpo: { ...FILTROS, clave: CLAVE_PRUEBA },
+      });
+      expect(otro.estado).toBe(409);
+    });
+
+    it('su resultado se consulta aparte y no cambia los indicadores de calidad', async () => {
+      const a = (await db.select().from(tablas.analisisCalidad)).find(
+        (x) => x.tipo === 'analizador',
+      )!;
+      await db
+        .update(tablas.analisisCalidad)
+        .set({ estado: 'terminado', cerradoEn: new Date(Date.now() + 60_000) })
+        .where(eq(tablas.analisisCalidad.id, a.id));
+      await db.insert(tablas.clasificaciones).values({
+        analisisId: a.id,
+        messageId: 'q2',
+        conversationId: 'c1',
+        asesorId: 'U1',
+        categoria: 'info_producto_precio',
+        puntaje: 5,
+        criterios: {
+          responde: true,
+          personalizado: true,
+          siguiente_paso: true,
+          tono: true,
+          extension: true,
+        },
+        motivo: 'Completo',
+        modelo: 'claude-sonnet-5-5',
+        versionRubrica: 'v3.1-2026-11',
+      });
+      const ind = await llamar(
+        subIndRuta,
+        `/api/subcuentas/${LOC}/indicadores?desde=2026-11-01&hasta=2026-11-07`,
+        { cookie: cookies.dueno, params: { id: LOC } },
+      );
+      expect((ind.cuerpo.indicadores as { calidad: number }).calidad).toBe(3); // sigue el mensual
+      const r = await llamar(resultadoAnalizadorRuta, `/api/calidad/analizador/${a.id}`, {
+        cookie: cookies.admin,
+        params: { id: String(a.id) },
+      });
+      expect(r.estado).toBe(200);
+      expect(r.cuerpo).toMatchObject({ promedio: 5, mensajesConPuntaje: 1 });
+      expect(r.cuerpo.porAsesor).toEqual([
+        { asesorId: 'U1', promedio: 5, mensajes: 1, conversaciones: 1 },
+      ]);
+      expect(JSON.stringify(r.cuerpo)).not.toContain('semilla');
+      expect(
+        (
+          await llamar(resultadoAnalizadorRuta, `/api/calidad/analizador/${a.id}`, {
+            cookie: cookies.dueno,
+            params: { id: String(a.id) },
+          })
+        ).estado,
+      ).toBe(403);
     });
   });
 });

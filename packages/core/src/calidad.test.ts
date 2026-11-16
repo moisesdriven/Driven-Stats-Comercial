@@ -27,6 +27,7 @@ import {
   esSaludoSuelto,
   calificarSaludoPorRegla,
   separarSaludos,
+  muestraEquitativa,
   bloquesDeRespuesta,
   unificarRespuestaPorBloque,
   instruccionesCalidad,
@@ -682,5 +683,48 @@ describe('bloques de respuesta (rúbrica v3)', () => {
     const r = separarSaludos(ctx, new Set(['a1', 'a2']), bloquesDeRespuesta(ctx));
     expect([...r.porRegla.keys()]).toEqual(['a1']);
     expect([...r.paraIa]).toEqual(['a2']);
+  });
+});
+
+describe('muestra equitativa (analizador)', () => {
+  const ids = (p: string, n: number) => Array.from({ length: n }, (_, i) => `${p}${i}`);
+  it('reparte por igual y redistribuye lo que le falta a un asesor', () => {
+    const m = muestraEquitativa(
+      new Map([
+        ['A', ids('a', 400)],
+        ['B', ids('b', 50)],
+        ['C', ids('c', 300)],
+      ]),
+      500,
+      'semilla',
+    );
+    // B solo tiene 50: los 450 restantes se reparten entre A y C (225 cada uno).
+    expect(m.get('B')).toHaveLength(50);
+    expect(m.get('A')).toHaveLength(225);
+    expect(m.get('C')).toHaveLength(225);
+  });
+
+  it('si hay menos conversaciones que el tamaño, toma todas', () => {
+    const m = muestraEquitativa(
+      new Map([
+        ['A', ids('a', 3)],
+        ['B', ids('b', 2)],
+      ]),
+      500,
+      's',
+    );
+    expect([...m.values()].flat()).toHaveLength(5);
+  });
+
+  it('es reproducible y reparte el sobrante uno a uno', () => {
+    const fuente = new Map([
+      ['A', ids('a', 10)],
+      ['B', ids('b', 10)],
+      ['C', ids('c', 10)],
+    ]);
+    const m1 = muestraEquitativa(fuente, 10, 'x');
+    expect([...m1.values()].map((l) => l.length)).toEqual([4, 3, 3]);
+    expect(muestraEquitativa(fuente, 10, 'x')).toEqual(m1);
+    expect(muestraEquitativa(fuente, 10, 'y').get('A')).not.toEqual(m1.get('A'));
   });
 });

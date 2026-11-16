@@ -175,6 +175,9 @@ export async function historialCalidad(db: Db, ctx: ContextoAcceso) {
     analisis: filas.map(({ semilla: _s, batchIds: _b, ...a }) => a),
     gastoDelMesUsd: await gastoDelMes(db),
     topeMensualUsd: cfg.topeMensualUsd,
+    // El analizador a pedido tiene su propio tope.
+    gastoAnalizadorMesUsd: await gastoDelMes(db, new Date(), true),
+    topeAnalizadorUsd: cfg.topeAnalizadorUsd,
   };
 }
 
@@ -190,7 +193,10 @@ export interface ResumenCalidad {
   distribucion: Record<string, number>;
 }
 
-/** Último análisis terminado de cada subcuenta: promedio, por asesor y distribución por tipo (§6.7). */
+/**
+ * Último análisis terminado de cada subcuenta: promedio, por asesor y distribución por tipo (§6.7).
+ * Solo la medición mensual: el analizador a pedido no cambia los indicadores.
+ */
 export async function ultimosAnalisis(
   db: Db,
   locationIds: string[],
@@ -206,7 +212,7 @@ export async function ultimosAnalisis(
   }>(sql`
     select distinct on (location_id) id, location_id, periodo_desde::text, periodo_hasta::text, conversaciones_muestra
     from comercial.analisis_calidad
-    where estado = 'terminado' and location_id in (${sql.join(
+    where estado = 'terminado' and tipo <> 'analizador' and location_id in (${sql.join(
       locationIds.map((x) => sql`${x}`),
       sql`, `,
     )})

@@ -386,6 +386,41 @@ export function muestraEstratificada(
   return resultado;
 }
 
+/**
+ * Muestra equitativa por asesor (analizador a pedido): la misma cantidad de conversaciones para cada
+ * asesor; si uno tiene menos que su parte, lo que falta se reparte entre los demás. El sobrante de la
+ * división va, uno a uno, a los asesores en orden alfabético. Reproducible con la misma semilla.
+ */
+export function muestraEquitativa(
+  porAsesor: ReadonlyMap<string, readonly string[]>,
+  tamano: number,
+  semilla: string,
+): Map<string, string[]> {
+  const azar = generadorAleatorio(semilla);
+  const asesores = [...porAsesor.keys()].sort();
+  const cupos = new Map(asesores.map((a) => [a, 0]));
+  let restante = tamano;
+  let abiertos = asesores.filter((a) => porAsesor.get(a)!.length > 0);
+  while (restante > 0 && abiertos.length) {
+    const parte = Math.floor(restante / abiertos.length);
+    if (parte === 0) {
+      for (const a of abiertos.slice(0, restante)) cupos.set(a, cupos.get(a)! + 1);
+      break;
+    }
+    for (const a of abiertos) {
+      const n = Math.min(parte, porAsesor.get(a)!.length - cupos.get(a)!);
+      cupos.set(a, cupos.get(a)! + n);
+      restante -= n;
+    }
+    abiertos = abiertos.filter((a) => cupos.get(a)! < porAsesor.get(a)!.length);
+  }
+  const resultado = new Map<string, string[]>();
+  for (const a of asesores) {
+    resultado.set(a, barajar([...porAsesor.get(a)!].sort(), azar).slice(0, cupos.get(a)!));
+  }
+  return resultado;
+}
+
 // ------------------------------------------------------------------ Solicitud a la IA
 
 /**

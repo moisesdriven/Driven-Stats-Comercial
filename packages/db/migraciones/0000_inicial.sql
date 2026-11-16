@@ -11,6 +11,7 @@ CREATE TABLE "comercial"."analisis_calidad" (
 	"lanzado_por" uuid,
 	"periodo_desde" date NOT NULL,
 	"periodo_hasta" date NOT NULL,
+	"filtros" jsonb,
 	"semilla" text NOT NULL,
 	"estado" text NOT NULL,
 	"modelo" text,
