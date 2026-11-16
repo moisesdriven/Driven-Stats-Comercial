@@ -3,10 +3,12 @@
  *   sync-incremental  cada SYNC_INCREMENTAL_MINUTOS (15 por defecto)
  *   sync-nocturno     diario a SYNC_NOCTURNO_HORA, hora de Lima (02:30 por defecto)
  *   sync-historico    manual: node dist/cli.js historico --dias 90 [--subcuenta <locationId>]
+ *   resumen-pendiente cada 5 min: recalcula el resumen diario de las subcuentas marcadas desde la web
  * Una sola ejecución activa por cola (política singleton). Modo `sombra` por defecto.
  */
 import { PgBoss } from 'pg-boss';
 import { configuracionCalidad, crearConexion, ESQUEMA_COLA, tablas } from '@driven/db';
+import { recalcularPendientes } from './calculo/pendientes';
 import { procesarPendientes, solicitarAnalisis } from './calidad/proceso';
 import { ProveedorAnthropic } from './calidad/proveedor';
 import { leerConfiguracion } from './configuracion';
@@ -77,6 +79,18 @@ async function principal() {
       }
     });
   }
+  // ---------------------------------------------------------------- Recálculo pedido desde la web
+  // (cambio de modo de tiempo, zona horaria o ausencias pasadas).
+  await boss.createQueue('resumen-pendiente', {
+    policy: 'singleton',
+    retryLimit: 1,
+    expireInSeconds: 3600,
+  });
+  await boss.schedule('resumen-pendiente', '*/5 * * * *', {}, { tz: cfg.ZONA_HORARIA_DEFECTO });
+  await boss.work('resumen-pendiente', async () => {
+    await recalcularPendientes(db);
+  });
+
   // ---------------------------------------------------------------- Análisis de calidad (§6.5)
   const cfgCalidad = configuracionCalidad();
   const proveedor = process.env.ANTHROPIC_API_KEY ? new ProveedorAnthropic() : null;
@@ -120,7 +134,7 @@ async function principal() {
 
   log('worker_iniciado', {
     modo: cfg.MODO_ALERTAS,
-    colas: [...Object.values(COLAS), ...COLAS_CALIDAD],
+    colas: [...Object.values(COLAS), 'resumen-pendiente', ...COLAS_CALIDAD],
   });
 
   const detener = async (senal: string) => {

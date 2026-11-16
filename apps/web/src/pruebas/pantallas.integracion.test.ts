@@ -8,7 +8,9 @@ import { tablas, type Db } from '@driven/db';
 import { POST as ingresarRuta } from '@/app/api/auth/ingresar/route';
 import { GET as exportarRuta } from '@/app/api/exportar/route';
 import { POST as ausenciaRuta } from '@/app/api/subcuentas/[id]/ausencias/route';
+import { PUT as zonaRuta } from '@/app/api/configuracion/subcuentas/[id]/zona/route';
 import { PUT as horarioRuta } from '@/app/api/subcuentas/[id]/horarios/route';
+import { PUT as modoRuta } from '@/app/api/subcuentas/[id]/modo-tiempo/route';
 import { GET as leerMetasRuta, PUT as metasRuta } from '@/app/api/subcuentas/[id]/metas/route';
 import { aCsv } from '@/servidor/exportar';
 import {
@@ -275,6 +277,103 @@ describe.skipIf(!hayBaseDePruebas)('metas, exportar y horarios (integración)', 
         params: { id: 'LOC_B' },
       });
       expect(otra.estado).toBe(403);
+    });
+  });
+
+  describe('modo de tiempo y zona horaria', () => {
+    const subcuenta = async (id: string) =>
+      (await db.select().from(tablas.subcuentas)).find((x) => x.locationId === id)!;
+
+    it('el supervisor cambia a tiempo corrido y se pide recalcular todo el historial', async () => {
+      const r = await llamar(modoRuta, '/api/subcuentas/LOC_A/modo-tiempo', {
+        metodo: 'PUT',
+        cookie: cookies.super,
+        cuerpo: { modo: 'corrido' },
+        params: { id: 'LOC_A' },
+      });
+      expect(r.estado).toBe(200);
+      expect((await subcuenta('LOC_A')).horarioGeneral).toEqual({
+        modo: 'corrido',
+        recalcularDesde: '2026-11-10',
+      });
+      const reg = (await db.select().from(tablas.auditoria)).find((a) => a.que === 'modo_tiempo');
+      expect(reg?.detalle).toMatchObject({ antes: 'laboral', despues: 'corrido' });
+    });
+
+    it('el asesor (aunque edite horarios), el dueño y una subcuenta ajena no pueden cambiar el modo', async () => {
+      expect(
+        (
+          await llamar(modoRuta, '/api/subcuentas/LOC_A/modo-tiempo', {
+            metodo: 'PUT',
+            cookie: cookies.asesor,
+            cuerpo: { modo: 'laboral' },
+            params: { id: 'LOC_A' },
+          })
+        ).estado,
+      ).toBe(403);
+      expect(
+        (
+          await llamar(modoRuta, '/api/subcuentas/LOC_A/modo-tiempo', {
+            metodo: 'PUT',
+            cookie: cookies.dueno,
+            cuerpo: { modo: 'laboral' },
+            params: { id: 'LOC_A' },
+          })
+        ).estado,
+      ).toBe(403);
+      expect(
+        (
+          await llamar(modoRuta, '/api/subcuentas/LOC_B/modo-tiempo', {
+            metodo: 'PUT',
+            cookie: cookies.super,
+            cuerpo: { modo: 'laboral' },
+            params: { id: 'LOC_B' },
+          })
+        ).estado,
+      ).toBe(403);
+      expect(
+        (
+          await llamar(modoRuta, '/api/subcuentas/LOC_A/modo-tiempo', {
+            metodo: 'PUT',
+            cookie: cookies.super,
+            cuerpo: { modo: 'libre' },
+            params: { id: 'LOC_A' },
+          })
+        ).estado,
+      ).toBe(400);
+    });
+
+    it('solo el administrador cambia la zona horaria y debe ser una zona válida', async () => {
+      expect(
+        (
+          await llamar(zonaRuta, '/api/configuracion/subcuentas/LOC_B/zona', {
+            metodo: 'PUT',
+            cookie: cookies.dueno,
+            cuerpo: { zonaHoraria: 'America/Lima' },
+            params: { id: 'LOC_B' },
+          })
+        ).estado,
+      ).toBe(403);
+      expect(
+        (
+          await llamar(zonaRuta, '/api/configuracion/subcuentas/LOC_B/zona', {
+            metodo: 'PUT',
+            cookie: cookies.admin,
+            cuerpo: { zonaHoraria: 'Lima' },
+            params: { id: 'LOC_B' },
+          })
+        ).estado,
+      ).toBe(400);
+      const r = await llamar(zonaRuta, '/api/configuracion/subcuentas/LOC_B/zona', {
+        metodo: 'PUT',
+        cookie: cookies.admin,
+        cuerpo: { zonaHoraria: 'America/Bogota' },
+        params: { id: 'LOC_B' },
+      });
+      expect(r.estado).toBe(200);
+      const s = await subcuenta('LOC_B');
+      expect(s.zonaHoraria).toBe('America/Bogota');
+      expect(s.horarioGeneral).toEqual({ recalcularDesde: '2026-11-10' });
     });
   });
 });

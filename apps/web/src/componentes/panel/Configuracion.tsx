@@ -479,3 +479,64 @@ export function LanzarAnalisis({
     </section>
   );
 }
+
+/** Zona horaria de la subcuenta (la de GHL puede no ser la del país donde opera el negocio). */
+export function ZonaSubcuenta({
+  locationId,
+  nombre,
+  zona,
+  zonas,
+}: {
+  locationId: string;
+  nombre: string;
+  zona: string;
+  zonas: Record<string, string>;
+}) {
+  const router = useRouter();
+  const [valor, setValor] = useState(zona);
+  const [mensaje, setMensaje] = useState<Mensaje>(null);
+  const opciones = zonas[zona] ? zonas : { [zona]: zona, ...zonas };
+  return (
+    <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <label>
+          <span className="oculto">Zona horaria de {nombre}</span>
+          <select className="control" value={valor} onChange={(e) => setValor(e.target.value)}>
+            {Object.entries(opciones).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </label>
+        {valor !== zona && (
+          <button
+            type="button"
+            className="boton-sec boton-sec--azul"
+            onClick={async () => {
+              const r = await enviar(`/api/configuracion/subcuentas/${locationId}/zona`, 'PUT', {
+                zonaHoraria: valor,
+              });
+              setMensaje(
+                r.ok
+                  ? { tipo: 'ok', texto: 'Guardada. El historial se recalcula en unos minutos.' }
+                  : { tipo: 'error', texto: r.datos.error ?? 'No se pudo guardar.' },
+              );
+              if (r.ok) router.refresh();
+            }}
+          >
+            Guardar
+          </button>
+        )}
+      </span>
+      {mensaje && (
+        <span
+          style={{ fontSize: 12, color: mensaje.tipo === 'error' ? '#B42318' : '#067647' }}
+          role="status"
+        >
+          {mensaje.texto}
+        </span>
+      )}
+    </span>
+  );
+}

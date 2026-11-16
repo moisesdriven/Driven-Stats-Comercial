@@ -91,5 +91,13 @@ Detalle en [`decisiones.md`](decisiones.md).
   ni registrar feriados de la subcuenta.
 - Pruebas: integración de metas, exportar y horarios; prueba de punta a punta con Playwright
   (`pnpm e2e`, también en CI) para login, menú por rol y 403.
+- Modo de tiempo por subcuenta (pantalla Horarios): **horario laboral** de cada asesor o **tiempo
+  corrido** (24/7, sin feriados ni ausencias) para equipos con horarios variables. Se guarda en
+  `subcuentas.horario_general`. Al cambiarlo (o la zona horaria, o una ausencia o un horario con
+  fecha pasada) la web marca `recalcularDesde` y el worker (`resumen-pendiente`, cada 5 min)
+  recalcula el resumen diario. Los textos dejan de decir "laborales" en modo corrido.
+- Zona horaria editable por subcuenta en Configuración (la de GHL puede no ser la del país donde
+  opera el negocio; Jade18K queda en America/Lima). La carga de GHL no la sobrescribe.
+- Las tarjetas y tablas muestran las metas reales de cada subcuenta (antes había valores fijos).
 - Pendiente: el filtro por canal de la vista general (§10.2). `resumen_diario` no guarda la
   dimensión canal; agregarla requiere cambiar el resumen del worker y regenerarlo.

@@ -173,7 +173,9 @@ export default async function VistaSubcuenta({
         <div className="seccion__cabecera">
           <h2 className="seccion__titulo">Asesores</h2>
           <span className="seccion__nota">
-            Tiempos medidos en el horario laboral de cada asesor
+            {d.corrido
+              ? 'Tiempos medidos en tiempo corrido (24 horas, todos los días)'
+              : 'Tiempos medidos en el horario laboral de cada asesor'}
           </span>
         </div>
         {!asesores.length ? (

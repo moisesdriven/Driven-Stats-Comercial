@@ -7,6 +7,7 @@ import { and, asc, between, eq, inArray, isNull, sql } from 'drizzle-orm';
 import {
   agregarPeriodo,
   calcularIndicadores,
+  configuracionTiempo,
   evaluar,
   metasDeSubcuenta,
   sumarAcumulados,
@@ -105,6 +106,8 @@ export async function indicadoresSubcuenta(
   const calidad = (await ultimosAnalisis(db, [locationId])).get(locationId);
   return {
     subcuenta: { locationId, nombre: sub?.nombre ?? locationId },
+    metas,
+    corrido: configuracionTiempo(sub?.horarioGeneral).modo === 'corrido',
     desde,
     hasta,
     ...resultado(total.acumulado, metas, dias, calidad?.promedio ?? null),
@@ -172,6 +175,8 @@ export async function indicadoresAsesor(
       and (indicadores->>'leadsRecibidos')::int > 0`);
   return {
     asesor: { userId, nombre: asesor?.nombre ?? userId },
+    metas,
+    corrido: configuracionTiempo(sub?.horarioGeneral).modo === 'corrido',
     asesoresConLeads: conLeads.rows[0]?.n ?? 0,
     distribucionCalidad: calidad?.distribucionPorAsesor[userId] ?? null,
     desde,
@@ -223,6 +228,7 @@ export async function vistaGeneral(db: Db, ctx: ContextoAcceso, desde: string, h
       calidades.get(s.locationId)?.promedio ?? null,
     ),
     calidad: infoCalidad(calidades.get(s.locationId)),
+    metas: metasDeSubcuenta(s.metas),
   }));
   // Calidad de la agencia: promedio ponderado por mensajes calificados (no promedio de promedios).
   const conCalidad = [...calidades.values()].filter(
@@ -244,6 +250,10 @@ export async function vistaGeneral(db: Db, ctx: ContextoAcceso, desde: string, h
   return {
     desde,
     hasta,
+    metas: metasAgencia,
+    corrido:
+      subs.length > 0 &&
+      subs.every((s) => configuracionTiempo(s.horarioGeneral).modo === 'corrido'),
     ...resultado(total.acumulado, metasAgencia, dias, calidadAgencia),
     ventasPorDia: total.ventasPorDia,
     subcuentas: porSubcuenta,

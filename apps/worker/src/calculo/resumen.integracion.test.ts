@@ -3,6 +3,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { instanteLocal, type Acumulado } from '@driven/core';
 import { tablas, type Db } from '@driven/db';
 import { baseWorker, URL_PRUEBAS } from '../pruebas/base';
+import { recalcularPendientes } from './pendientes';
 import { calcularResumen } from './resumen';
 
 const LOC = 'LOC_RES';
@@ -206,5 +207,23 @@ describe.skipIf(!URL_PRUEBAS)('calcular:resumen (integración)', () => {
       ahora: L(17, '18:30'),
     });
     expect((await db.select().from(tablas.resumenDiario)).length).toBe(antes);
+  });
+
+  it('tiempo corrido: el recálculo pendiente mide en tiempo de reloj y borra la marca', async () => {
+    await db
+      .update(tablas.subcuentas)
+      .set({ horarioGeneral: { modo: 'corrido', recalcularDesde: '2026-11-16' } })
+      .where(eq(tablas.subcuentas.locationId, LOC));
+    expect(await recalcularPendientes(db, L(17, '18:30'))).toBe(1);
+    const total = await fila('2026-11-16', null);
+    // K1: 12:58 → 14:03 son 65 min de reloj (en horario laboral eran 5 por el almuerzo).
+    expect([...(total?.tiemposRespuesta ?? [])].sort((a, b) => a - b)).toEqual([20, 30, 65]);
+    const [s] = await db
+      .select()
+      .from(tablas.subcuentas)
+      .where(eq(tablas.subcuentas.locationId, LOC));
+    expect(s?.horarioGeneral).toEqual({ modo: 'corrido' });
+    // Sin marca no vuelve a recalcular.
+    expect(await recalcularPendientes(db, L(17, '18:30'))).toBe(0);
   });
 });

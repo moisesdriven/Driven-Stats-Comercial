@@ -1,6 +1,12 @@
 import Link from 'next/link';
 import { Pildora } from '@/componentes/panel/Bloques';
-import { AltaSubcuenta, LanzarAnalisis, MapaEtapas } from '@/componentes/panel/Configuracion';
+import {
+  AltaSubcuenta,
+  LanzarAnalisis,
+  MapaEtapas,
+  ZonaSubcuenta,
+} from '@/componentes/panel/Configuracion';
+import { nombreZona, ZONAS } from '@/lib/zonas';
 import { SelectorSubcuenta } from '@/componentes/panel/Filtros';
 import { fechaLarga, haceCuanto, numero } from '@/lib/formato';
 import { NOMBRE_ESTANDAR } from '@/lib/semaforo';
@@ -121,7 +127,18 @@ export default async function Configuracion({
                           </span>
                         </span>
                       </td>
-                      <td>{s.zonaHoraria}</td>
+                      <td>
+                        {puedeEditar ? (
+                          <ZonaSubcuenta
+                            locationId={s.locationId}
+                            nombre={s.nombre}
+                            zona={s.zonaHoraria}
+                            zonas={ZONAS}
+                          />
+                        ) : (
+                          nombreZona(s.zonaHoraria)
+                        )}
+                      </td>
                       <td>
                         {s.token ? (
                           <Pildora tono="verde">

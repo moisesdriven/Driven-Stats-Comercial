@@ -14,7 +14,7 @@ import {
 } from '@/componentes/panel/DetalleAsesor';
 import { FiltroPeriodo } from '@/componentes/panel/Filtros';
 import { IconoReloj } from '@/componentes/panel/Iconos';
-import { describir, destacadoEtapa, fraseCuello } from '@/lib/destacado';
+import { describir, destacadoEtapa, fraseCuello, type Presentacion } from '@/lib/destacado';
 import {
   calidad,
   dias,
@@ -27,7 +27,7 @@ import {
   rangoFechas,
   soles,
 } from '@/lib/formato';
-import { leerPeriodo, qsPeriodo } from '@/lib/periodo';
+import { diasDelPeriodo, leerPeriodo, qsPeriodo } from '@/lib/periodo';
 import { COLORES, ETAPAS_ORDEN, NOMBRE_ETAPA, textoEstado, tonoDe } from '@/lib/semaforo';
 import { indicadoresAsesor } from '@/servidor/consultas/indicadores';
 import { tiemposSubcuenta } from '@/servidor/consultas/tiempo';
@@ -76,7 +76,10 @@ export default async function DetalleAsesor({
   const nombre = nombreCorto(d.asesor.nombre);
   const n = Math.max(1, d.asesoresConLeads);
   const cuello = ev.cuello;
-  const dCuello = cuello ? destacadoEtapa(cuello, ev.estados, i) : null;
+  const m = d.metas;
+  const pres: Presentacion = { metas: m, dias: diasDelPeriodo(periodo).length, corrido: d.corrido };
+  const n1 = (v: number) => numero(v, Number.isInteger(v) ? 0 : 1);
+  const dCuello = cuello ? destacadoEtapa(cuello, ev.estados, i, pres) : null;
   const tonoCuello = cuello ? tonoDe(ev.etapas[cuello]) : 'verde';
 
   const fila = (
@@ -92,10 +95,17 @@ export default async function DetalleAsesor({
       'Tiempo de respuesta',
       'tiempoRespuesta',
       minutos(i.tiempoRespuestaMediana),
-      '5 min',
+      `${n1(m.tiempoRespuestaMin)} min`,
       minutos(s.tiempoRespuestaMediana),
     ),
-    fila('Calidad de mensajes', 'calidad', calidad(i.calidad), '3,5', calidad(s.calidad), true),
+    fila(
+      'Calidad de mensajes',
+      'calidad',
+      calidad(i.calidad),
+      n1(m.calidad),
+      calidad(s.calidad),
+      true,
+    ),
     fila(
       'Leads sin responder',
       'sinResponder',
@@ -114,14 +124,14 @@ export default async function DetalleAsesor({
       'Tasa de conversión',
       'conversion',
       porcentaje(i.conversion),
-      '12 %',
+      `${n1(m.conversionPct)} %`,
       porcentaje(s.conversion),
     ),
     fila(
       'Tiempo de cierre',
       'tiempoCierre',
       dias(i.tiempoCierreDias),
-      '3 días',
+      `${n1(m.tiempoCierreDias)} días`,
       dias(s.tiempoCierreDias),
     ),
     fila(
@@ -187,9 +197,11 @@ export default async function DetalleAsesor({
               }}
             >
               <IconoReloj tam={16} color="#8FB0FF" />
-              {tramosHoy.length
-                ? `Horario hoy: ${tramosHoy.map((t) => `${t.inicio} a ${t.fin}`).join(' y ')}`
-                : 'Hoy no tiene horario laboral'}
+              {d.corrido
+                ? 'Tiempo corrido: se mide las 24 horas, todos los días'
+                : tramosHoy.length
+                  ? `Horario hoy: ${tramosHoy.map((t) => `${t.inicio} a ${t.fin}`).join(' y ')}`
+                  : 'Hoy no tiene horario laboral'}
             </span>
           </div>
         </div>
@@ -204,13 +216,13 @@ export default async function DetalleAsesor({
           </span>
           <span style={{ fontSize: 16, fontWeight: 600 }}>
             {dCuello
-              ? fraseCuello(dCuello, i)
+              ? fraseCuello(dCuello, i, pres)
               : 'Cumple las metas de las cuatro etapas en el periodo'}
           </span>
           {dCuello && (
             <span style={{ fontSize: 13, color: '#B4BCCC' }}>
               {dCuello.etiqueta}: {dCuello.valor} ({dCuello.meta.toLowerCase()}) · subcuenta{' '}
-              {describir(dCuello.clave, s, null).valor}
+              {describir(dCuello.clave, s, pres).valor}
             </span>
           )}
         </div>
@@ -223,7 +235,7 @@ export default async function DetalleAsesor({
       >
         {ETAPAS_ORDEN.map((e) => {
           const estado = ev.etapas[e];
-          const x = destacadoEtapa(e, ev.estados, i);
+          const x = destacadoEtapa(e, ev.estados, i, pres);
           return (
             <div key={e} className={`etapa-clara${estado === 'rojo' ? ' etapa-clara--rojo' : ''}`}>
               <div className="fila-cabecera">
@@ -243,7 +255,7 @@ export default async function DetalleAsesor({
                 />
               </div>
               <span style={{ fontSize: 12, color: '#5B6475' }}>
-                {x.meta} · subcuenta {describir(x.clave, s, null).valor}
+                {x.meta} · subcuenta {describir(x.clave, s, pres).valor}
               </span>
               {e === 'negociacion' && <BotonEjemplos />}
             </div>
@@ -319,7 +331,7 @@ export default async function DetalleAsesor({
                 Intentos de contacto por lead
               </h2>
               <span className="seccion__nota">
-                Promedio {numero(i.intentosPorLead, 1)} · meta 2 o más
+                Promedio {numero(i.intentosPorLead, 1)} · meta {n1(m.intentosPorLead)} o más
               </span>
             </div>
             <GraficoBarras

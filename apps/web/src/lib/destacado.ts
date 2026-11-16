@@ -8,6 +8,7 @@ import {
   type EstadoSemaforo,
   type EtapaProceso,
   type Indicadores,
+  type Metas,
 } from '@driven/core';
 import { calidad, dias, minutos, numero, porcentaje } from './formato';
 
@@ -26,14 +27,24 @@ export interface Destacado {
   avance: number | null;
 }
 
+/** Metas de la subcuenta (o de la agencia), días del periodo y si los tiempos son de reloj. */
+export interface Presentacion {
+  metas: Metas;
+  dias: number;
+  corrido: boolean;
+}
+
+/** " laborales" o "" según el modo de tiempo: "5 min laborales" frente a "5 min". */
+export const sufijoTiempo = (corrido: boolean) => (corrido ? '' : ' laborales');
+const num = (v: number) => numero(v, Number.isInteger(v) ? 0 : 1);
+
 const gravedad = (e: EstadoSemaforo | null) =>
   e === 'rojo' ? 3 : e === 'amarillo' ? 2 : e === 'verde' ? 1 : 0;
 
-export function describir(
-  clave: ClaveIndicador,
-  i: Indicadores,
-  metaVentas: number | null,
-): Destacado {
+export function describir(clave: ClaveIndicador, i: Indicadores, p: Presentacion): Destacado {
+  const m = p.metas;
+  const lab = sufijoTiempo(p.corrido);
+  const metaVentas = m.ventasPorSemana === null ? null : (m.ventasPorSemana * p.dias) / 7;
   const pctDe = (v: number | null, meta: number) =>
     v === null ? null : Math.max(0, Math.min(100, (v / meta) * 100));
   const pctInverso = (v: number | null, meta: number) =>
@@ -44,8 +55,8 @@ export function describir(
         clave,
         valor: minutos(i.tiempoRespuestaMediana),
         etiqueta: 'Mediana de primera respuesta humana',
-        meta: 'Meta 5 min laborales',
-        avance: pctInverso(i.tiempoRespuestaMediana, 5),
+        meta: `Meta ${num(m.tiempoRespuestaMin)} min${lab}`,
+        avance: pctInverso(i.tiempoRespuestaMediana, m.tiempoRespuestaMin),
       };
     case 'sinResponder':
       return {
@@ -60,8 +71,8 @@ export function describir(
         clave,
         valor: porcentaje(i.cumplimientoSeguimientoPct, 0),
         etiqueta: 'Interesados de días anteriores contactados hoy',
-        meta: 'Meta 80 %',
-        avance: pctDe(i.cumplimientoSeguimientoPct, 80),
+        meta: `Meta ${num(m.cumplimientoSeguimientoPct)} %`,
+        avance: pctDe(i.cumplimientoSeguimientoPct, m.cumplimientoSeguimientoPct),
       };
     case 'pendientes':
       return {
@@ -76,8 +87,8 @@ export function describir(
         clave,
         valor: intentos(i.intentosPorLead),
         etiqueta: 'Intentos de contacto por lead',
-        meta: 'Meta 2 o más',
-        avance: pctDe(i.intentosPorLead, 2),
+        meta: `Meta ${num(m.intentosPorLead)} o más`,
+        avance: pctDe(i.intentosPorLead, m.intentosPorLead),
       };
     case 'perdidosFaltaSeguimiento':
       return {
@@ -92,40 +103,40 @@ export function describir(
         clave,
         valor: calidad(i.calidad),
         etiqueta: 'Calidad promedio de mensajes',
-        meta: 'Meta 3,5',
-        avance: pctDe(i.calidad, 3.5),
+        meta: `Meta ${num(m.calidad)}`,
+        avance: pctDe(i.calidad, m.calidad),
       };
     case 'respuestaEfectiva':
       return {
         clave,
         valor: porcentaje(i.respuestaEfectivaPct, 0),
         etiqueta: 'Respuesta efectiva',
-        meta: 'Meta 60 %',
-        avance: pctDe(i.respuestaEfectivaPct, 60),
+        meta: `Meta ${num(m.respuestaEfectivaPct)} %`,
+        avance: pctDe(i.respuestaEfectivaPct, m.respuestaEfectivaPct),
       };
     case 'abandonos':
       return {
         clave,
         valor: porcentaje(i.abandonosPct, 0),
         etiqueta: 'Clientes que abandonan',
-        meta: 'Máximo 25 %',
-        avance: pctInverso(i.abandonosPct, 25),
+        meta: `Máximo ${num(m.abandonosPctMax)} %`,
+        avance: pctInverso(i.abandonosPct, m.abandonosPctMax),
       };
     case 'conversion':
       return {
         clave,
         valor: porcentaje(i.conversion),
         etiqueta: 'Tasa de conversión',
-        meta: 'Meta 12 %',
-        avance: pctDe(i.conversion, 12),
+        meta: `Meta ${num(m.conversionPct)} %`,
+        avance: pctDe(i.conversion, m.conversionPct),
       };
     case 'tiempoCierre':
       return {
         clave,
         valor: dias(i.tiempoCierreDias),
         etiqueta: 'Tiempo promedio de cierre',
-        meta: 'Meta 3 días laborales',
-        avance: pctInverso(i.tiempoCierreDias, 3),
+        meta: `Meta ${num(m.tiempoCierreDias)} días${lab}`,
+        avance: pctInverso(i.tiempoCierreDias, m.tiempoCierreDias),
       };
     case 'ventasVsMeta':
       return {
@@ -146,19 +157,20 @@ export function destacadoEtapa(
   etapa: EtapaProceso,
   estados: Record<ClaveIndicador, EstadoSemaforo | null>,
   i: Indicadores,
-  metaVentas: number | null = null,
+  p: Presentacion,
 ): Destacado {
   const claves = INDICADORES_POR_ETAPA[etapa];
   let elegido = claves.find((k) => estados[k] !== null) ?? claves[0]!;
   for (const k of claves) if (gravedad(estados[k]) > gravedad(estados[elegido])) elegido = k;
-  return describir(elegido, i, metaVentas);
+  return describir(elegido, i, p);
 }
 
 /** El cuello de botella en una frase (detalle del asesor, §10.2). */
-export function fraseCuello(d: Destacado, i: Indicadores): string {
+export function fraseCuello(d: Destacado, i: Indicadores, p: Presentacion): string {
+  const lab = sufijoTiempo(p.corrido);
   switch (d.clave) {
     case 'tiempoRespuesta':
-      return `Tarda ${minutos(i.tiempoRespuestaMediana)} laborales en dar la primera respuesta`;
+      return `Tarda ${minutos(i.tiempoRespuestaMediana)}${lab} en dar la primera respuesta`;
     case 'sinResponder':
       return `Deja ${numero(i.sinResponder)} leads sin respuesta de un asesor`;
     case 'cumplimientoSeguimiento':
@@ -178,7 +190,7 @@ export function fraseCuello(d: Destacado, i: Indicadores): string {
     case 'conversion':
       return `Convierte ${porcentaje(i.conversion)} de sus leads en ventas`;
     case 'tiempoCierre':
-      return `Tarda ${dias(i.tiempoCierreDias)} laborales en cerrar una venta`;
+      return `Tarda ${dias(i.tiempoCierreDias)}${lab} en cerrar una venta`;
     case 'ventasVsMeta':
       return `Concretó ${numero(i.ventas)} ventas en el periodo`;
   }

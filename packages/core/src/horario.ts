@@ -335,3 +335,41 @@ export function enHorarioLaboral(
   const fecha = fechaLocal(instante, zona);
   return laboralesDelDia(horario, ausencias, fecha, zona).some(([i, f]) => t >= i && t < f);
 }
+
+// ------------------------------------------------------------------ Modo de tiempo por subcuenta
+
+/**
+ * Cómo se miden los tiempos de una subcuenta:
+ * - `laboral` (por defecto): solo dentro del horario de cada asesor, sin feriados ni ausencias.
+ * - `corrido`: tiempo de reloj las 24 horas, todos los días (para equipos con horarios variables).
+ */
+export type ModoTiempo = 'laboral' | 'corrido';
+
+/** Configuración de tiempo guardada en la subcuenta (`subcuentas.horario_general`). */
+export interface ConfiguracionTiempo {
+  modo: ModoTiempo;
+  /** Fecha local desde la que el worker debe recalcular el resumen diario (pendiente). */
+  recalcularDesde: string | null;
+}
+
+export function configuracionTiempo(guardada: unknown): ConfiguracionTiempo {
+  const g = (guardada && typeof guardada === 'object' ? guardada : {}) as Record<string, unknown>;
+  return {
+    modo: g.modo === 'corrido' ? 'corrido' : 'laboral',
+    recalcularDesde:
+      typeof g.recalcularDesde === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(g.recalcularDesde)
+        ? g.recalcularDesde
+        : null,
+  };
+}
+
+/** Horario de 24 horas los 7 días: con él, el tiempo "laboral" es el tiempo de reloj. */
+export const HORARIO_CORRIDO: Horario = Object.freeze(
+  [1, 2, 3, 4, 5, 6, 7].map((diaSemana) => ({
+    diaSemana,
+    inicio: '00:00',
+    fin: '24:00',
+    vigenteDesde: '2000-01-01',
+    vigenteHasta: null,
+  })),
+);

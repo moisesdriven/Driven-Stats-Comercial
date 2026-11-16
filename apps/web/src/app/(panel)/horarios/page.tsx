@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { sql } from 'drizzle-orm';
-import { fechaLocal, partesLocales } from '@driven/core';
+import { configuracionTiempo, fechaLocal, partesLocales } from '@driven/core';
 import { Ausencias, type AusenciaUI } from '@/componentes/panel/Ausencias';
 import { EditorHorario } from '@/componentes/panel/EditorHorario';
+import { ModoTiempo } from '@/componentes/panel/ModoTiempo';
+import { nombreZona } from '@/lib/zonas';
 import { horasSemana, type TramoUI } from '@/lib/horas';
 import { SelectorSubcuenta } from '@/componentes/panel/Filtros';
 import { fechaLarga, iniciales, nombreCorto, numero } from '@/lib/formato';
@@ -28,14 +30,6 @@ interface FilaAusencia {
   tipo: AusenciaUI['tipo'];
   motivo: string | null;
 }
-
-const ZONAS: Record<string, string> = {
-  'America/Lima': 'Lima',
-  'America/Bogota': 'Bogotá',
-  'America/Mexico_City': 'Ciudad de México',
-  'America/Santiago': 'Santiago',
-  'America/Guayaquil': 'Guayaquil',
-};
 
 /** Tramos vigentes hoy (la vigencia más reciente ya iniciada) y el próximo cambio programado, si hay. */
 function vigencia(filas: FilaHorario[], hoy: string) {
@@ -92,8 +86,13 @@ export default async function Horarios({
   const db = obtenerDb();
   const subs = ctx.subcuentas.length
     ? (
-        await db.execute<{ location_id: string; nombre: string; zona_horaria: string }>(
-          sql`select location_id, nombre, zona_horaria from comercial.subcuentas where activa and location_id in ${ctx.subcuentas} order by nombre`,
+        await db.execute<{
+          location_id: string;
+          nombre: string;
+          zona_horaria: string;
+          horario_general: unknown;
+        }>(
+          sql`select location_id, nombre, zona_horaria, horario_general from comercial.subcuentas where activa and location_id in ${ctx.subcuentas} order by nombre`,
         )
       ).rows
     : [];
@@ -162,7 +161,9 @@ export default async function Horarios({
     fecha: textoAusencia(a, zona),
     editable: !esAsesor || a.user_id === ctx.userIdGhl,
   }));
-  const zonaTexto = ZONAS[zona] ?? zona;
+  const zonaTexto = nombreZona(zona);
+  const tiempoCfg = configuracionTiempo(sub.horario_general);
+  const corrido = tiempoCfg.modo === 'corrido';
 
   return (
     <>
@@ -170,7 +171,9 @@ export default async function Horarios({
         <div className="encabezado__textos">
           <h1 className="titulo">Horarios por asesor</h1>
           <p className="subtitulo">
-            Los tiempos de respuesta, espera y seguimiento solo cuentan dentro de estos tramos.
+            {corrido
+              ? 'Esta subcuenta mide en tiempo corrido; los horarios se conservan para cuando vuelva al horario laboral.'
+              : 'Los tiempos de respuesta, espera y seguimiento solo cuentan dentro de estos tramos.'}
           </p>
         </div>
         {subs.length > 1 && (
@@ -184,6 +187,14 @@ export default async function Horarios({
           </div>
         )}
       </div>
+
+      <ModoTiempo
+        key={`modo-${id}`}
+        locationId={id}
+        modo={tiempoCfg.modo}
+        puedeEditar={puedeEditar && !esAsesor}
+        recalculando={tiempoCfg.recalcularDesde !== null}
+      />
 
       {!elegido ? (
         <p className="vacio">Esta subcuenta aún no tiene asesores cargados.</p>
@@ -234,6 +245,12 @@ export default async function Horarios({
                       ? `Vigente desde el ${fechaLarga(elegido.v.desde)} · zona horaria de ${zonaTexto}`
                       : `Sin horario cargado · zona horaria de ${zonaTexto}`}
                 </span>
+                {corrido && (
+                  <span className="aviso aviso--info">
+                    Esta subcuenta usa tiempo corrido: los horarios y las ausencias no se usan en
+                    los cálculos. Se conservan por si vuelves al horario laboral.
+                  </span>
+                )}
                 {elegido.v.futuro && elegido.propio && (
                   <span className="aviso aviso--info">
                     Cambio programado desde el {fechaLarga(elegido.v.futuro.desde)}:{' '}

@@ -11,7 +11,7 @@ import {
   VentasPorDia,
 } from '@/componentes/panel/Bloques';
 import { FiltroPeriodo } from '@/componentes/panel/Filtros';
-import { destacadoEtapa } from '@/lib/destacado';
+import { destacadoEtapa, sufijoTiempo, type Presentacion } from '@/lib/destacado';
 import { dias, haceCuanto, minutos, numero, porcentaje, rangoFechas, soles } from '@/lib/formato';
 import { diasDelPeriodo, leerPeriodo, qsPeriodo } from '@/lib/periodo';
 import {
@@ -53,6 +53,12 @@ export default async function VistaGeneral({
   const qs = qsPeriodo(periodo);
   const i = 'indicadores' in v ? v.indicadores : null;
   const ev = 'evaluacion' in v ? v.evaluacion : null;
+  const pres: Presentacion | null =
+    'metas' in v
+      ? { metas: v.metas, dias: diasDelPeriodo(periodo).length, corrido: v.corrido }
+      : null;
+  const lab = sufijoTiempo(pres?.corrido ?? false);
+  const unDia = pres?.corrido ? 'Más de 24 horas' : 'Más de 1 día laboral';
   const etiquetaAgencia = ctx.rol === 'admin' ? 'de la agencia' : 'de tus subcuentas';
 
   return (
@@ -96,7 +102,7 @@ export default async function VistaGeneral({
             <div className="rejilla rejilla--etapas">
               {ETAPAS_ORDEN.map((e, n) => {
                 const estado = ev.etapas[e];
-                const d = destacadoEtapa(e, ev.estados, i);
+                const d = destacadoEtapa(e, ev.estados, i, pres!);
                 return (
                   <div
                     key={e}
@@ -125,7 +131,7 @@ export default async function VistaGeneral({
             <Kpi
               etiqueta="Tiempo de respuesta"
               valor={minutos(i.tiempoRespuestaMediana)}
-              meta={`Mediana · promedio ${minutos(i.tiempoRespuestaPromedio)} · meta 5 min laborales`}
+              meta={`Mediana · promedio ${minutos(i.tiempoRespuestaPromedio)} · meta ${numero(pres!.metas.tiempoRespuestaMin, 1)} min${lab}`}
               estado={ev.estados.tiempoRespuesta}
             />
             <Kpi
@@ -137,19 +143,19 @@ export default async function VistaGeneral({
             <Kpi
               etiqueta="Pendientes de seguimiento"
               valor={numero(i.seguimientoVencido)}
-              meta={`Más de 1 día laboral sin contacto · ${numero(i.seguimientoProgramado)} programados`}
+              meta={`${unDia} sin contacto · ${numero(i.seguimientoProgramado)} programados`}
               estado={ev.estados.pendientes}
             />
             <Kpi
               etiqueta="Tasa de conversión"
               valor={porcentaje(i.conversion)}
-              meta={`Meta: 12 % · ${numero(i.ventas)} de ${numero(i.leadsRecibidos)} leads`}
+              meta={`Meta: ${numero(pres!.metas.conversionPct, 1)} % · ${numero(i.ventas)} de ${numero(i.leadsRecibidos)} leads`}
               estado={ev.estados.conversion}
             />
             <Kpi
               etiqueta="Tiempo de cierre"
               valor={dias(i.tiempoCierreDias)}
-              meta="Meta: 3 días laborales"
+              meta={`Meta: ${numero(pres!.metas.tiempoCierreDias, 1)} días${lab}`}
               estado={ev.estados.tiempoCierre}
             />
             <Kpi

@@ -1,6 +1,7 @@
 /** Horarios por asesor y ausencias (§4, pantalla Horarios). */
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { configuracionTiempo, fechaLocal } from '@driven/core';
 import { tablas, type Db } from '@driven/db';
 import { exigirAsesorPropio, exigirModulo, exigirSubcuenta, type ContextoAcceso } from './acceso';
 import { auditar } from './auditoria';
@@ -31,6 +32,65 @@ export const esquemaAusencia = z.object({
   tipo: z.enum(['feriado', 'vacaciones', 'permiso']),
   motivo: z.string().max(200).optional(),
 });
+
+export const esquemaModoTiempo = z.object({ modo: z.enum(['laboral', 'corrido']) });
+
+/**
+ * Pide al worker recalcular el resumen diario de la subcuenta desde `desde` (se conserva la fecha más
+ * antigua si ya había un pedido pendiente). El worker lo atiende en unos minutos.
+ */
+export async function marcarRecalculo(db: Db, locationId: string, desde: string): Promise<void> {
+  await db.execute(sql`
+    update comercial.subcuentas set horario_general = coalesce(horario_general, '{}'::jsonb) || jsonb_build_object(
+      'recalcularDesde',
+      case when horario_general->>'recalcularDesde' is not null and horario_general->>'recalcularDesde' < ${desde}
+        then horario_general->>'recalcularDesde' else ${desde} end)
+    where location_id = ${locationId}`);
+}
+
+/** Primer día con resumen de la subcuenta (para recalcular todo el historial). */
+async function primerDiaResumen(db: Db, locationId: string): Promise<string | null> {
+  const r = await db.execute<{ f: string | null }>(
+    sql`select min(fecha)::text as f from comercial.resumen_diario where location_id = ${locationId}`,
+  );
+  return r.rows[0]?.f ?? null;
+}
+
+/**
+ * Modo de tiempo de la subcuenta: horario laboral de cada asesor o tiempo corrido (24/7, para equipos
+ * con horarios variables). Solo quien edita horarios de toda la subcuenta (no un asesor). Al cambiar,
+ * se recalcula todo el historial del resumen diario.
+ */
+export async function guardarModoTiempo(
+  db: Db,
+  ctx: ContextoAcceso,
+  locationId: string,
+  e: z.infer<typeof esquemaModoTiempo>,
+) {
+  exigirModulo(ctx, 'horarios', 'editar');
+  exigirSubcuenta(ctx, locationId);
+  if (ctx.rol === 'asesor') throw prohibido('Solo puedes cambiar tu propio horario.');
+  const [sub] = await db
+    .select({
+      horarioGeneral: tablas.subcuentas.horarioGeneral,
+      zona: tablas.subcuentas.zonaHoraria,
+    })
+    .from(tablas.subcuentas)
+    .where(eq(tablas.subcuentas.locationId, locationId));
+  if (!sub) throw noEncontrado('Subcuenta no encontrada.');
+  const antes = configuracionTiempo(sub.horarioGeneral).modo;
+  if (antes === e.modo) return { ok: true, recalculo: false };
+  await db.execute(sql`
+    update comercial.subcuentas set horario_general = coalesce(horario_general, '{}'::jsonb) || jsonb_build_object('modo', ${e.modo}::text)
+    where location_id = ${locationId}`);
+  await marcarRecalculo(
+    db,
+    locationId,
+    (await primerDiaResumen(db, locationId)) ?? fechaLocal(new Date(), sub.zona),
+  );
+  await auditar(db, ctx.usuarioId, 'modo_tiempo', { locationId, antes, despues: e.modo });
+  return { ok: true, recalculo: true };
+}
 
 export async function obtenerHorarios(db: Db, ctx: ContextoAcceso, locationId: string) {
   exigirModulo(ctx, 'horarios', 'ver');
@@ -110,6 +170,12 @@ export async function guardarHorario(
       );
     }
   });
+  const [sub] = await db
+    .select({ zona: tablas.subcuentas.zonaHoraria })
+    .from(tablas.subcuentas)
+    .where(eq(tablas.subcuentas.locationId, locationId));
+  if (e.vigenteDesde < fechaLocal(new Date(), sub?.zona ?? 'America/Lima'))
+    await marcarRecalculo(db, locationId, e.vigenteDesde);
   await auditar(db, ctx.usuarioId, 'horario_guardado', {
     locationId,
     userId: e.userId,
@@ -143,6 +209,7 @@ export async function registrarAusencia(
       motivo: e.motivo ?? null,
     })
     .returning({ id: tablas.ausencias.id });
+  await marcarSiEsPasado(db, locationId, new Date(e.inicio));
   await auditar(db, ctx.usuarioId, 'ausencia_registrada', { locationId, ...e });
   return { id: a!.id };
 }
@@ -156,7 +223,7 @@ export async function eliminarAusencia(
   exigirModulo(ctx, 'horarios', 'editar');
   exigirSubcuenta(ctx, locationId);
   const [a] = await db
-    .select({ userId: tablas.ausencias.userId })
+    .select({ userId: tablas.ausencias.userId, inicio: tablas.ausencias.inicio })
     .from(tablas.ausencias)
     .where(and(eq(tablas.ausencias.id, id), eq(tablas.ausencias.locationId, locationId)))
     .limit(1);
@@ -165,6 +232,17 @@ export async function eliminarAusencia(
   await db
     .delete(tablas.ausencias)
     .where(and(eq(tablas.ausencias.id, id), eq(tablas.ausencias.locationId, locationId)));
+  await marcarSiEsPasado(db, locationId, a.inicio);
   await auditar(db, ctx.usuarioId, 'ausencia_eliminada', { locationId, id });
   return { ok: true };
+}
+
+/** Una ausencia que empieza antes de ahora cambia indicadores ya calculados: se pide recálculo. */
+async function marcarSiEsPasado(db: Db, locationId: string, inicio: Date): Promise<void> {
+  if (inicio.getTime() >= Date.now()) return;
+  const [sub] = await db
+    .select({ zona: tablas.subcuentas.zonaHoraria })
+    .from(tablas.subcuentas)
+    .where(eq(tablas.subcuentas.locationId, locationId));
+  await marcarRecalculo(db, locationId, fechaLocal(inicio, sub?.zona ?? 'America/Lima'));
 }

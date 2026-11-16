@@ -12,9 +12,11 @@
  */
 import { and, eq, gte, inArray, isNotNull, lte, sql } from 'drizzle-orm';
 import {
+  HORARIO_CORRIDO,
   UMBRALES_POR_DEFECTO,
   acumuladoVacio,
   calcularIndicadores,
+  configuracionTiempo,
   diasLaborales,
   evaluar,
   fechaLocal,
@@ -102,9 +104,15 @@ export async function calcularResumen(
     .filter((a) => !a.userId)
     .map((a) => ({ inicio: a.inicio, fin: a.fin }));
   const tiempos = new Map<string, TiempoAsesor>();
+  // Tiempo corrido (horarios variables): reloj de 24 horas, sin feriados ni ausencias.
+  const corrido = configuracionTiempo(sub.horarioGeneral).modo === 'corrido';
   const tiempoDe = (asesor: string | null): TiempoAsesor => {
     const clave = asesor ?? SIN_ASESOR;
     let t = tiempos.get(clave);
+    if (!t && corrido) {
+      t = { horario: HORARIO_CORRIDO, ausencias: [], zona };
+      tiempos.set(clave, t);
+    }
     if (!t) {
       const propias = filasAusencia
         .filter((a) => a.userId && a.userId === asesor)

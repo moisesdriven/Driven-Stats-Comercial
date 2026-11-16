@@ -8,6 +8,7 @@ import { ETAPAS_ESTANDAR } from '@driven/core';
 import { cifrar, tablas, type Db } from '@driven/db';
 import { ClienteGhl, ErrorGhl, Limitador, PERMISOS_GHL } from '@driven/ghl';
 import { exigirModulo, exigirSubcuenta, type ContextoAcceso } from './acceso';
+import { marcarRecalculo } from './horarios';
 import { auditar } from './auditoria';
 import { ErrorHttp, noEncontrado, solicitudInvalida } from './errores';
 
@@ -250,4 +251,45 @@ export async function cargasRecientes(db: Db, ctx: ContextoAcceso, locationId: s
     .where(eq(tablas.syncEjecuciones.locationId, locationId))
     .orderBy(desc(tablas.syncEjecuciones.inicio))
     .limit(30);
+}
+
+/** Zonas horarias que reconoce el entorno (IANA). */
+const ZONAS_VALIDAS = new Set(Intl.supportedValuesOf('timeZone'));
+
+export const esquemaZonaHoraria = z.object({
+  zonaHoraria: z.string().refine((z) => ZONAS_VALIDAS.has(z), 'Zona horaria inválida.'),
+});
+
+/**
+ * Cambia la zona horaria de la subcuenta. La carga desde GHL no la sobrescribe. Como cambia qué
+ * hora cae en cada día, se recalcula todo el historial del resumen diario.
+ */
+export async function guardarZonaHoraria(
+  db: Db,
+  ctx: ContextoAcceso,
+  locationId: string,
+  e: z.infer<typeof esquemaZonaHoraria>,
+) {
+  exigirModulo(ctx, 'configuracion', 'editar');
+  exigirSubcuenta(ctx, locationId);
+  const [sub] = await db
+    .select({ zona: tablas.subcuentas.zonaHoraria })
+    .from(tablas.subcuentas)
+    .where(eq(tablas.subcuentas.locationId, locationId));
+  if (!sub) throw noEncontrado('Subcuenta no encontrada.');
+  if (sub.zona === e.zonaHoraria) return { ok: true, recalculo: false };
+  await db
+    .update(tablas.subcuentas)
+    .set({ zonaHoraria: e.zonaHoraria })
+    .where(eq(tablas.subcuentas.locationId, locationId));
+  const r = await db.execute<{ f: string | null }>(
+    sql`select min(fecha)::text as f from comercial.resumen_diario where location_id = ${locationId}`,
+  );
+  await marcarRecalculo(db, locationId, r.rows[0]?.f ?? new Date().toISOString().slice(0, 10));
+  await auditar(db, ctx.usuarioId, 'zona_horaria', {
+    locationId,
+    antes: sub.zona,
+    despues: e.zonaHoraria,
+  });
+  return { ok: true, recalculo: true };
 }
