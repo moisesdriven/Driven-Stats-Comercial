@@ -217,3 +217,59 @@ export async function resultadoAnalizador(db: Db, ctx: ContextoAcceso, id: numbe
     })),
   };
 }
+
+export const esquemaEtapasAnalizador = z.object({
+  subcuenta: z.string().min(1),
+  creadosDesde: z.iso.date().optional(),
+  creadosHasta: z.iso.date().optional(),
+});
+
+/**
+ * Etapas seleccionables del analizador: todas las del pipeline de la subcuenta (no solo las 3 de
+ * calidad), en el orden del pipeline, con cuántos leads están hoy en cada una y, si se indica el rango,
+ * cuántos de ellos se crearon dentro de él. Sirve para armar el selector de etapas.
+ */
+export async function etapasAnalizador(
+  db: Db,
+  ctx: ContextoAcceso,
+  e: z.infer<typeof esquemaEtapasAnalizador>,
+) {
+  exigirAdmin(ctx);
+  exigirSubcuenta(ctx, e.subcuenta);
+  const conRango = e.creadosDesde && e.creadosHasta;
+  if (conRango && e.creadosDesde! > e.creadosHasta!)
+    throw solicitudInvalida('Rango de fechas inválido.');
+  const [desde, hasta] = conRango
+    ? rango(e.creadosDesde!, e.creadosHasta!)
+    : [new Date(0), new Date(8.64e15)];
+  const filas = await db.execute<{
+    pipeline_id: string;
+    stage_id: string;
+    nombre: string;
+    etapa_estandar: string | null;
+    leads_hoy: number;
+    leads_en_rango: number;
+  }>(sql`
+    select e.pipeline_id, e.stage_id, e.nombre_original as nombre, e.etapa_estandar,
+      count(l.contact_id)::int as leads_hoy,
+      count(l.contact_id) filter (
+        where coalesce(l.conversacion_creada_en, l.ingreso_en) >= ${desde}
+          and coalesce(l.conversacion_creada_en, l.ingreso_en) < ${hasta})::int as leads_en_rango
+    from comercial.mapa_etapas e
+    left join comercial.oportunidades o on o.location_id = e.location_id and o.stage_id = e.stage_id
+    left join comercial.leads l on l.location_id = e.location_id and l.opportunity_id = o.opportunity_id
+    where e.location_id = ${e.subcuenta}
+    group by e.pipeline_id, e.stage_id, e.nombre_original, e.etapa_estandar, e.creado_en
+    order by e.pipeline_id, e.creado_en, e.stage_id`);
+  return {
+    subcuenta: e.subcuenta,
+    etapas: filas.rows.map((f) => ({
+      pipelineId: f.pipeline_id,
+      stageId: f.stage_id,
+      nombre: f.nombre,
+      etapaEstandar: f.etapa_estandar,
+      leadsHoy: f.leads_hoy,
+      ...(conRango ? { leadsEnRango: f.leads_en_rango } : {}),
+    })),
+  };
+}

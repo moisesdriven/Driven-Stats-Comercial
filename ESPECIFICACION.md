@@ -277,7 +277,8 @@ cambia el indicador "Calidad de mensajes" ni comparte su tope.
   Un analizador en curso por subcuenta; no lo bloquea la medición mensual ni al revés. Queda en
   `auditoria` con sus filtros.
 - **Datos:** `analisis_calidad.tipo = 'analizador'`, `filtros` (jsonb) y `periodo_desde/hasta` = rango
-  de creación de los leads. API: `POST /api/calidad/analizador/estimacion`, `POST /api/calidad/analizador`
+  de creación de los leads. API: `GET /api/calidad/analizador/etapas` (todas las etapas del pipeline,
+  seleccionables, con los leads que hay hoy en cada una y los creados en el rango), `POST /api/calidad/analizador/estimacion`, `POST /api/calidad/analizador`
   y `GET /api/calidad/analizador/{id}` (resultado: promedio, por asesor, por categoría, criterios y
   mejor/peor mensaje). La pantalla se construye con la interfaz (fase 5).
 

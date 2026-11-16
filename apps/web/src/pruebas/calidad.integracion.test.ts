@@ -7,6 +7,7 @@ import { POST as estimarRuta } from '@/app/api/calidad/estimacion/route';
 import { POST as lanzarAnalizadorRuta } from '@/app/api/calidad/analizador/route';
 import { POST as estimarAnalizadorRuta } from '@/app/api/calidad/analizador/estimacion/route';
 import { GET as resultadoAnalizadorRuta } from '@/app/api/calidad/analizador/[id]/route';
+import { GET as etapasAnalizadorRuta } from '@/app/api/calidad/analizador/etapas/route';
 import { GET as ejemplosRuta } from '@/app/api/subcuentas/[id]/asesores/[userId]/calidad/route';
 import { GET as subIndRuta } from '@/app/api/subcuentas/[id]/indicadores/route';
 import {
@@ -384,6 +385,56 @@ describe.skipIf(!hayBaseDePruebas)('análisis de calidad desde la web (integraci
         cuerpo: { ...FILTROS, etapas: ['S1'] },
       });
       expect(otra.cuerpo.conversacionesElegibles).toBe(0);
+    });
+
+    it('lista todas las etapas del pipeline para elegir, con los leads de hoy en cada una', async () => {
+      const r = await llamar(
+        etapasAnalizadorRuta,
+        `/api/calidad/analizador/etapas?subcuenta=${LOC}&creadosDesde=2026-10-01&creadosHasta=2026-10-31`,
+        { cookie: cookies.admin },
+      );
+      expect(r.estado).toBe(200);
+      expect(r.cuerpo.etapas).toEqual([
+        {
+          pipelineId: 'P',
+          stageId: 'S1',
+          nombre: 'Contactado',
+          etapaEstandar: null,
+          leadsHoy: 0,
+          leadsEnRango: 0,
+        },
+        {
+          pipelineId: 'P',
+          stageId: 'S2',
+          nombre: 'Cotizado',
+          etapaEstandar: null,
+          leadsHoy: 1,
+          leadsEnRango: 1,
+        },
+        {
+          pipelineId: 'P',
+          stageId: 'S3',
+          nombre: 'Adelanto',
+          etapaEstandar: null,
+          leadsHoy: 0,
+          leadsEnRango: 0,
+        },
+      ]);
+      const nov = await llamar(
+        etapasAnalizadorRuta,
+        `/api/calidad/analizador/etapas?subcuenta=${LOC}&creadosDesde=2026-11-01&creadosHasta=2026-11-30`,
+        { cookie: cookies.admin },
+      );
+      expect((nov.cuerpo.etapas as { leadsEnRango: number }[]).map((e) => e.leadsEnRango)).toEqual([
+        0, 0, 0,
+      ]);
+      expect(
+        (
+          await llamar(etapasAnalizadorRuta, `/api/calidad/analizador/etapas?subcuenta=${LOC}`, {
+            cookie: cookies.dueno,
+          })
+        ).estado,
+      ).toBe(403);
     });
 
     it('valida la cantidad (500–1.000) y que las etapas sean del pipeline', async () => {
