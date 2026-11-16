@@ -28,6 +28,53 @@ Contenedores (proyecto Docker "driven-comercial")
   obtiene Traefik con Let's Encrypt.
 - Ningún secreto se guarda en tu PC ni se escribe en la línea de comandos.
 
+## Opción recomendada para este servidor: desde su terminal
+
+Driven Conteo se desplegó con comandos en la terminal del servidor (como `root`). Driven Comercial
+se puede desplegar igual con `scripts/deploy/servidor.sh`, que hace lo mismo que los scripts de
+PowerShell pero construye las imágenes en el propio servidor: no hace falta una PC con Windows ni
+esperar a GHCR.
+
+### Primera instalación
+
+1. **Token de GitHub de solo lectura** (el repositorio es privado): GitHub → _Settings → Developer
+   settings → Personal access tokens → Fine-grained tokens → Generate new token_. Repositorio:
+   `moisesdriven/Driven-Stats-Comercial`; permiso _Contents: Read-only_. Cópialo.
+2. **Código en el servidor.** Git pedirá usuario (tu usuario de GitHub) y contraseña (pega el
+   token; no se ve al escribir). El token no queda guardado.
+
+   ```bash
+   git clone --branch main https://github.com/moisesdriven/Driven-Stats-Comercial.git /opt/driven-comercial/codigo
+   ```
+
+3. **Instalar**, un comando a la vez:
+
+   ```bash
+   cd /opt/driven-comercial/codigo/scripts/deploy
+   bash servidor.sh preparar      # pide la clave de Anthropic (Enter para dejarla vacía)
+   bash servidor.sh base          # escribe SI
+   bash servidor.sh desplegar     # construye las imágenes (5–10 min la primera vez)
+   bash servidor.sh admin tu-correo@empresa.com "Tu Nombre"
+   bash servidor.sh verificar
+   ```
+
+   Cada comando termina con `LISTO` (verde) o `FALLÓ` (rojo, con el motivo). `admin` muestra la
+   contraseña temporal una sola vez.
+
+### Mantenimiento
+
+| Necesito…                        | Comando (en `/opt/driven-comercial/codigo/scripts/deploy`)                       |
+| -------------------------------- | -------------------------------------------------------------------------------- |
+| Actualizar a lo último de `main` | `bash servidor.sh respaldo && bash servidor.sh actualizar` (git pedirá el token) |
+| Volver a la versión anterior     | `bash servidor.sh revertir`                                                      |
+| Respaldo                         | `bash servidor.sh respaldo` (queda en `/opt/driven-comercial/respaldos`)         |
+| Carga histórica                  | `bash servidor.sh historico 90` o `bash servidor.sh historico 90 LOCATION_ID`    |
+| Estado general                   | `bash servidor.sh verificar`                                                     |
+
+Las secciones siguientes describen los scripts de PowerShell (desde una PC con Windows). Ambos
+caminos usan la misma carpeta `/opt/driven-comercial`, el mismo `.env` y los mismos contenedores;
+conviene usar siempre el mismo.
+
 ## Antes de empezar (una sola vez)
 
 ### 1. En tu PC con Windows
