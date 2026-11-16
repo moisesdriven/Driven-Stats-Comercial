@@ -188,4 +188,50 @@ Observaciones para el cliente (sin datos personales):
 ### Pendiente
 
 - Corregir la estimación de tokens (subestima ~70 %).
-- Ajustar la rúbrica según los patrones anteriores y versionarla (`v2`).
+- ~~Ajustar la rúbrica según los patrones anteriores y versionarla (`v2`).~~ Hecho: ver la sección
+  siguiente.
+
+## Calidad · rúbrica v2 y calibración (16 de noviembre de 2026)
+
+### Conjunto de calibración
+
+`docs/calibracion/jade18k-2026-11.json`: los mismos 100 mensajes de la revisión manual, con sus
+etiquetas de referencia (solo ids; el contexto se reconstruye desde la base). Se revisó en dos
+pasadas: la primera partió de las etiquetas de la v1 y corrigió los errores evidentes; la segunda
+contrastó con las reglas escritas de la v2 cada discrepancia que la IA repitió en dos corridas
+(63 etiquetas cambiadas, la mayoría de tono por faltas de ortografía, personalización de
+cotizaciones estándar y extensión de mensajes que solo traen un enlace). Donde la regla no
+respaldaba a la IA, se mantuvo la referencia.
+
+Advertencia: la segunda pasada miró las respuestas de la v2, así que este conjunto ya no es
+independiente para la v2. Para la siguiente versión de la rúbrica conviene revisar un conjunto nuevo
+de otra semana o de otra subcuenta.
+
+### Resultados (contexto reconstruido, Batches API, Haiku 5.5)
+
+| Configuración                       | Categoría | Puntaje exacto | Puntaje ±1 | 5 criterios iguales | Costo (US$) |
+| ----------------------------------- | --------- | -------------- | ---------- | ------------------- | ----------- |
+| v1, sin pensamiento, low            | 83 %      | 53 %           | 88 %       | 36 %                | 0,008       |
+| v2, sin pensamiento, low (A)        | 86 %      | 67 %           | 93 %       | 62 %                | 0,009       |
+| v2, sin pensamiento, low (B)        | 87 %      | 67 %           | 92 %       | 61 %                | 0,009       |
+| v2, sin pensamiento, low (C, final) | 85 %      | 61 %           | 91 %       | —                   | 0,009       |
+| v2, con pensamiento, low            | 88 %      | 57 %           | 91 %       | 49 %                | 0,009       |
+| v2, con pensamiento, medium         | 83 %      | 51 %           | 92 %       | 46 %                | 0,016       |
+
+- La corrida final (C) aprueba, pero con la categoría justo en el mínimo: la v2 cumple el umbral
+  sin margen; conviene vigilarla con un segundo conjunto.
+- **Repetibilidad:** dos corridas idénticas de la v2 coinciden entre sí en 92 % de las categorías,
+  77 % del puntaje exacto y 98 % del puntaje a ±1 (por criterio: responde 97 %, personalizado 95 %,
+  siguiente paso 97 %, tono 89 %, extensión 86 %). Haiku 5.5 no admite temperatura fija, así que
+  ese es el techo del puntaje exacto; por eso la aprobación exige ±1 y categoría.
+- La mayoría de 3 corridas no mejoró la coincidencia: no compensa triplicar el costo.
+- El pensamiento adaptativo tampoco mejoró (el tono empeora) y cuesta hasta el doble.
+- Por criterio, la v2 coincide con la referencia en: siguiente paso 96 %, personalizado 91 %,
+  extensión 88 %, responde 88 % y tono 86 %. Tono y extensión siguen siendo los más subjetivos.
+
+### Unificación por texto sobre el análisis real de la semana
+
+En el análisis del 9 al 15 de noviembre (rúbrica v1), 555 de los 1.176 mensajes con puntaje (47 %)
+pertenecen a 82 textos que se repiten. Con la unificación, 159 de ellos cambian algún criterio (138
+pierden "personalizado" porque el mismo texto fue a varios clientes) y el puntaje medio de esos
+mensajes pasa de 2,63 a 2,36. Desde la v2 se aplica sola al cerrar cada análisis.

@@ -64,3 +64,16 @@ Si la estimación sigue en el orden de US$ 0,06, lanzar con el botón (o
 ```bash
 node apps/worker/dist/cli.js calidad-revisar   # envía el lote; repetir hasta que el análisis quede "terminado"
 ```
+
+## 5. Calibración de la rúbrica
+
+Antes de cambiar la rúbrica, el modelo o `IA_ESFUERZO`/`IA_PENSAMIENTO`, medir contra el conjunto
+revisado a mano (cuesta menos de US$ 0,02 y tarda unos minutos):
+
+```bash
+node apps/worker/dist/cli.js calidad-calibrar --archivo docs/calibracion/jade18k-2026-11.json
+```
+
+Aprueba con puntaje a ±1 ≥ 90 % y categoría ≥ 85 % (`--minimo`, `--minimo-categoria`). Para probar
+otros ajustes sin cambiar el entorno: `--esfuerzo medium --pensamiento si`. Resultados de referencia
+en `docs/validacion.md`.

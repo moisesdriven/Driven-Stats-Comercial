@@ -1,5 +1,5 @@
 {
-  "descripcion": "Jade18K, semana del 9 al 15 nov 2026: 100 mensajes elegidos al azar del análisis 1 (orden md5(message_id || semilla42)), revisados a mano el 16 nov 2026 con la rúbrica v2. Solo ids y etiquetas de referencia; el contexto se lee de la base.",
+  "descripcion": "Jade18K, semana del 9 al 15 nov 2026: 100 mensajes elegidos al azar del análisis 1 (orden md5(message_id || semilla42)). Etiquetas de referencia revisadas a mano el 16 nov 2026 en dos pasadas con la rúbrica v2 (la segunda, contrastando con las reglas escritas cada discrepancia estable de la IA). Solo ids y etiquetas; el contexto se lee de la base.",
   "locationId": "93mgPQwURqpEvyzZcf9m",
   "mensajes": [
     {
@@ -65,12 +65,12 @@
         "personalizado": false,
         "siguiente_paso": false,
         "tono": false,
-        "extension": true
+        "extension": false
       }
     },
     {
       "messageId": "5wGpWuQG3721ilxv9Rtu",
-      "categoria": "info_producto_precio",
+      "categoria": "saludo_plantilla",
       "criterios": {
         "responde": false,
         "personalizado": false,
@@ -97,8 +97,8 @@
         "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
-        "tono": true,
-        "extension": false
+        "tono": false,
+        "extension": true
       }
     },
     {
@@ -119,7 +119,7 @@
         "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
-        "tono": true,
+        "tono": false,
         "extension": false
       }
     },
@@ -240,7 +240,7 @@
         "responde": false,
         "personalizado": false,
         "siguiente_paso": false,
-        "tono": true,
+        "tono": false,
         "extension": true
       }
     },
@@ -260,10 +260,10 @@
       "categoria": "info_producto_precio",
       "criterios": {
         "responde": true,
-        "personalizado": true,
+        "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
-        "extension": false
+        "extension": true
       }
     },
     {
@@ -273,7 +273,7 @@
         "responde": true,
         "personalizado": true,
         "siguiente_paso": false,
-        "tono": false,
+        "tono": true,
         "extension": true
       }
     },
@@ -281,7 +281,7 @@
       "messageId": "ZUNhjfHOzWHf0bkpYiBw",
       "categoria": "llamada_accion_cierre",
       "criterios": {
-        "responde": true,
+        "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
@@ -296,7 +296,7 @@
         "personalizado": true,
         "siguiente_paso": false,
         "tono": true,
-        "extension": false
+        "extension": true
       }
     },
     {
@@ -315,10 +315,10 @@
       "categoria": "saludo_plantilla",
       "criterios": {
         "responde": false,
-        "personalizado": true,
+        "personalizado": false,
         "siguiente_paso": false,
         "tono": false,
-        "extension": false
+        "extension": true
       }
     },
     {
@@ -328,7 +328,7 @@
         "responde": false,
         "personalizado": false,
         "siguiente_paso": false,
-        "tono": true,
+        "tono": false,
         "extension": true
       }
     },
@@ -359,10 +359,10 @@
       "categoria": "info_producto_precio",
       "criterios": {
         "responde": true,
-        "personalizado": true,
+        "personalizado": false,
         "siguiente_paso": true,
         "tono": true,
-        "extension": false
+        "extension": true
       }
     },
     {
@@ -394,7 +394,7 @@
         "responde": true,
         "personalizado": true,
         "siguiente_paso": false,
-        "tono": true,
+        "tono": false,
         "extension": true
       }
     },
@@ -439,12 +439,12 @@
         "personalizado": false,
         "siguiente_paso": false,
         "tono": false,
-        "extension": true
+        "extension": false
       }
     },
     {
       "messageId": "2MkAZSgLHQXvn3SIVVDQ",
-      "categoria": "llamada_accion_cierre",
+      "categoria": "info_producto_precio",
       "criterios": {
         "responde": true,
         "personalizado": true,
@@ -461,7 +461,7 @@
         "personalizado": true,
         "siguiente_paso": false,
         "tono": true,
-        "extension": false
+        "extension": true
       }
     },
     {
@@ -477,12 +477,12 @@
     },
     {
       "messageId": "SSOw1BAMNgqabCzDuLoV",
-      "categoria": "saludo_plantilla",
+      "categoria": "info_producto_precio",
       "criterios": {
         "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
-        "tono": true,
+        "tono": false,
         "extension": true
       }
     },
@@ -501,11 +501,11 @@
       "messageId": "pDnYO4OVXjkyD3q3dQ6o",
       "categoria": "seguimiento",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": true,
-        "extension": false
+        "extension": true
       }
     },
     {
@@ -543,11 +543,11 @@
     },
     {
       "messageId": "bZvkYijSdLrSV5TAfXvV",
-      "categoria": "saludo_plantilla",
+      "categoria": "pregunta_calificacion",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
-        "siguiente_paso": false,
+        "siguiente_paso": true,
         "tono": false,
         "extension": true
       }
@@ -568,9 +568,9 @@
       "categoria": "pregunta_calificacion",
       "criterios": {
         "responde": true,
-        "personalizado": false,
+        "personalizado": true,
         "siguiente_paso": true,
-        "tono": true,
+        "tono": false,
         "extension": false
       }
     },
@@ -622,8 +622,8 @@
       "messageId": "NvJByZM1jl22IbrmIs85",
       "categoria": "info_producto_precio",
       "criterios": {
-        "responde": true,
-        "personalizado": true,
+        "responde": false,
+        "personalizado": false,
         "siguiente_paso": false,
         "tono": false,
         "extension": true
@@ -634,7 +634,7 @@
       "categoria": "llamada_accion_cierre",
       "criterios": {
         "responde": true,
-        "personalizado": true,
+        "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
         "extension": true
@@ -648,7 +648,7 @@
         "personalizado": true,
         "siguiente_paso": false,
         "tono": true,
-        "extension": false
+        "extension": true
       }
     },
     {
@@ -667,7 +667,7 @@
       "categoria": "info_producto_precio",
       "criterios": {
         "responde": true,
-        "personalizado": true,
+        "personalizado": false,
         "siguiente_paso": true,
         "tono": true,
         "extension": false
@@ -678,7 +678,7 @@
       "categoria": "info_producto_precio",
       "criterios": {
         "responde": true,
-        "personalizado": true,
+        "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
         "extension": false
@@ -692,18 +692,18 @@
         "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
-        "extension": true
+        "extension": false
       }
     },
     {
       "messageId": "cUMMBjXQdA3hn0A1Bt80",
       "categoria": "info_producto_precio",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": true,
-        "extension": false
+        "extension": true
       }
     },
     {
@@ -711,9 +711,9 @@
       "categoria": "info_producto_precio",
       "criterios": {
         "responde": true,
-        "personalizado": true,
+        "personalizado": false,
         "siguiente_paso": true,
-        "tono": true,
+        "tono": false,
         "extension": false
       }
     },
@@ -725,14 +725,14 @@
         "personalizado": false,
         "siguiente_paso": false,
         "tono": false,
-        "extension": true
+        "extension": false
       }
     },
     {
       "messageId": "W1ODKp2kJ9WuPh3TIJil",
       "categoria": "pregunta_calificacion",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
@@ -776,10 +776,10 @@
       "messageId": "eqwWhvwJt8pGs5vza6QC",
       "categoria": "pregunta_calificacion",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": true,
-        "tono": true,
+        "tono": false,
         "extension": true
       }
     },
@@ -790,8 +790,8 @@
         "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
-        "tono": false,
-        "extension": true
+        "tono": true,
+        "extension": false
       }
     },
     {
@@ -821,7 +821,7 @@
       "categoria": "pregunta_calificacion",
       "criterios": {
         "responde": true,
-        "personalizado": true,
+        "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
         "extension": true
@@ -864,7 +864,7 @@
       "messageId": "gzOWg6ICHnV753VT9vCi",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": true,
         "siguiente_paso": false,
         "tono": true,
@@ -919,9 +919,9 @@
       "messageId": "jjN58L67ELguE3VcTDil",
       "categoria": "seguimiento",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
-        "siguiente_paso": true,
+        "siguiente_paso": false,
         "tono": true,
         "extension": true
       }
@@ -939,12 +939,12 @@
     },
     {
       "messageId": "LobLEM9avC1AMP1a3N1Y",
-      "categoria": "pregunta_calificacion",
+      "categoria": "info_producto_precio",
       "criterios": {
         "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
-        "tono": true,
+        "tono": false,
         "extension": false
       }
     },
@@ -964,15 +964,15 @@
       "categoria": "info_producto_precio",
       "criterios": {
         "responde": true,
-        "personalizado": true,
+        "personalizado": false,
         "siguiente_paso": true,
         "tono": true,
-        "extension": false
+        "extension": true
       }
     },
     {
       "messageId": "DThG8qqa35ZHhFcpl249",
-      "categoria": "pregunta_calificacion",
+      "categoria": "info_producto_precio",
       "criterios": {
         "responde": false,
         "personalizado": false,
@@ -999,7 +999,7 @@
         "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
-        "tono": true,
+        "tono": false,
         "extension": true
       }
     },
@@ -1019,7 +1019,7 @@
       "categoria": "info_producto_precio",
       "criterios": {
         "responde": true,
-        "personalizado": true,
+        "personalizado": false,
         "siguiente_paso": true,
         "tono": true,
         "extension": false
@@ -1027,12 +1027,12 @@
     },
     {
       "messageId": "AwM0ud21b45Lrk66Lal6",
-      "categoria": "pregunta_calificacion",
+      "categoria": "info_producto_precio",
       "criterios": {
         "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
-        "tono": true,
+        "tono": false,
         "extension": false
       }
     },
@@ -1052,7 +1052,7 @@
       "categoria": "info_producto_precio",
       "criterios": {
         "responde": true,
-        "personalizado": true,
+        "personalizado": false,
         "siguiente_paso": false,
         "tono": false,
         "extension": true
@@ -1065,7 +1065,7 @@
         "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
-        "tono": true,
+        "tono": false,
         "extension": false
       }
     },
@@ -1077,7 +1077,7 @@
         "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
-        "extension": true
+        "extension": false
       }
     },
     {
@@ -1088,7 +1088,7 @@
         "personalizado": true,
         "siguiente_paso": false,
         "tono": true,
-        "extension": false
+        "extension": true
       }
     },
     {
