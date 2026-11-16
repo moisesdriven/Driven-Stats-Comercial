@@ -361,6 +361,21 @@ export async function prepararSolicitudes(
 }
 
 /**
+ * Pensamiento según el modelo. Haiku 5.5 acepta `disabled` con esfuerzo bajo; Sonnet 5.5 lo rechaza
+ * (400) y se apaga con `between_tools`; Opus 5.5 y Fable siempre piensan (se omite y se controla
+ * con el esfuerzo).
+ */
+export function configuracionPensamiento(
+  modelo: string,
+  pensamiento: boolean,
+): { type: 'adaptive' } | { type: 'disabled' } | { type: 'between_tools' } | undefined {
+  if (pensamiento) return { type: 'adaptive' };
+  if (/^claude-sonnet-5-5/.test(modelo)) return { type: 'between_tools' };
+  if (/^claude-(opus-5-5|fable|mythos)/.test(modelo)) return undefined;
+  return { type: 'disabled' };
+}
+
+/**
  * Parámetros de una solicitud para la Messages / Batches API. Haiku 5.5 no admite `temperature`
  * distinta de la predeterminada: la consistencia se busca con la rúbrica, el esfuerzo y el
  * pensamiento (medidos con la calibración), y con la unificación por texto al cerrar.
@@ -383,7 +398,7 @@ export function parametrosSolicitud(
       },
     ],
     messages: [{ role: 'user' as const, content: s.texto }],
-    thinking: ajustes.pensamiento ? { type: 'adaptive' as const } : { type: 'disabled' as const },
+    thinking: configuracionPensamiento(modelo, ajustes.pensamiento),
     output_config: {
       effort: ajustes.esfuerzo,
       format: { type: 'json_schema' as const, schema: esquemaRespuestaCalidad(formato) },
