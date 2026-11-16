@@ -27,6 +27,8 @@ import {
   esSaludoSuelto,
   calificarSaludoPorRegla,
   separarSaludos,
+  bloquesDeRespuesta,
+  unificarRespuestaPorBloque,
   instruccionesCalidad,
   esquemaRespuestaCalidad,
   type MensajeCalidad,
@@ -206,11 +208,14 @@ describe('costo', () => {
    */
   const REAL_V1 = { entrada: 1_183_607, salida: 137_772, costo: 0.0523 };
   const REAL_V2 = { entrada: 1_630_635, salida: 137_432, costo: 0.0556 };
-  /** Parte fija con la rúbrica v1 (3.404 caracteres de instrucciones). */
-  const FIJOS_V1 =
-    Math.ceil(3404 / CALIBRACION_CALIDAD.caracteresPorToken) +
+  /** Parte fija con las instrucciones de una rúbrica de `caracteres` caracteres. */
+  const fijosCon = (caracteres: number) =>
+    Math.ceil(caracteres / CALIBRACION_CALIDAD.caracteresPorToken) +
     tokensAproximados(JSON.stringify(ESQUEMA_RESPUESTA_CALIDAD)) +
     CALIBRACION_CALIDAD.tokensEnvoltura;
+  /** Rúbricas v1 (3.404 caracteres de instrucciones) y v2 (5.753). */
+  const FIJOS_V1 = fijosCon(3404);
+  const FIJOS_V2 = fijosCon(5753);
   const casoPiloto = () => {
     const base = (156_677 * 3.5) / 452;
     return Array.from({ length: 452 }, (_, i) => {
@@ -236,8 +241,8 @@ describe('costo', () => {
     expect(dentroDe(e.costoUsd, REAL_V1.costo, 0.15)).toBe(true);
   });
 
-  it('con la rúbrica vigente (v2) la estimación queda dentro de ±15 % del uso y costo reales', () => {
-    const e = estimarCosto(casoPiloto());
+  it('con la rúbrica v2 la estimación queda dentro de ±15 % del uso y costo reales', () => {
+    const e = estimarCosto(casoPiloto(), PRECIOS_POR_DEFECTO, { tokensFijos: FIJOS_V2 });
     expect(dentroDe(e.tokensEntrada, REAL_V2.entrada, 0.15)).toBe(true);
     expect(dentroDe(e.tokensSalida, REAL_V2.salida, 0.15)).toBe(true);
     expect(dentroDe(e.costoUsd, REAL_V2.costo, 0.15)).toBe(true);
@@ -258,13 +263,14 @@ describe('costo', () => {
       tokensAproximados(INSTRUCCIONES_CALIDAD) +
         tokensAproximados(JSON.stringify(ESQUEMA_RESPUESTA_CALIDAD)),
     );
-    expect(tokensFijosSolicitud()).toBeGreaterThan(FIJOS_V1);
+    expect(tokensFijosSolicitud()).toBeGreaterThan(FIJOS_V2);
   });
 
   it('el costo máximo supone que ninguna solicitud lee de caché', () => {
     const caso = casoPiloto();
-    const e = estimarCosto(caso);
-    const todasEscriben = estimarCosto(caso, { ...PRECIOS_POR_DEFECTO, lecturaCache: 1.25 });
+    const o = { tokensFijos: FIJOS_V2 };
+    const e = estimarCosto(caso, PRECIOS_POR_DEFECTO, o);
+    const todasEscriben = estimarCosto(caso, { ...PRECIOS_POR_DEFECTO, lecturaCache: 1.25 }, o);
     expect(e.costoMaximoUsd).toBeGreaterThanOrEqual(todasEscriben.costoUsd);
     expect(e.costoMaximoUsd).toBeLessThanOrEqual(todasEscriben.costoUsd + 0.0001);
     // Con la v2, ~US$ 0,055 esperado y ~US$ 0,14 en el peor caso.
@@ -276,7 +282,9 @@ describe('costo', () => {
     expect(
       estimarCosto(casoPiloto(), PRECIOS_POR_DEFECTO, { tokensFijos: FIJOS_V1 }).costoMaximoUsd,
     ).toBeGreaterThan(REAL_V1.costo);
-    expect(estimarCosto(casoPiloto()).costoMaximoUsd).toBeGreaterThan(REAL_V2.costo);
+    expect(
+      estimarCosto(casoPiloto(), PRECIOS_POR_DEFECTO, { tokensFijos: FIJOS_V2 }).costoMaximoUsd,
+    ).toBeGreaterThan(REAL_V2.costo);
   });
 
   it('con pensamiento el máximo suma todo el margen de pensamiento y el esperado no cambia', () => {
@@ -432,7 +440,7 @@ describe('saludos sueltos por regla', () => {
   it('reconoce saludos, presentaciones y transiciones sin contenido', () => {
     for (const t of [
       'Hola, buenas noches ☺️',
-      '¡Hola, buenas tardes! 💚\nLe saluda Ximena, asesora de ventas de Joyeria Jade💍',
+      '¡Hola, buenas tardes! 💚\nLe saluda Ximena, asesora de ventas de Joyería Jade💍',
       'Soy Stephanie, asesora de ventas de Joyería Jade 💍',
       'Ahora le brindo información',
       'Ahora le brindo más información',
@@ -451,6 +459,8 @@ describe('saludos sueltos por regla', () => {
       'Coméntame cómo puedo ayudarte', // invita a seguir: lo decide la IA
       'Hola, buenos dias', // sin tilde: el tono lo decide la IA
       'Ahora le brindo informaciom',
+      'Le saluda Ximena, asesora de ventas de Joyeria Jade', // v3: tilde faltante en la empresa
+      'Ahora le brindo mas información',
       'Hola, el solitario cuesta S/ 890',
       '¿Lograste visualizar nuestro catálogo?',
       '',
@@ -582,5 +592,95 @@ describe('precios por modelo', () => {
       6,
     );
     expect(preciosDe('otro')).toBe(PRECIOS_POR_DEFECTO);
+  });
+});
+
+describe('bloques de respuesta (rúbrica v3)', () => {
+  const t0 = Date.UTC(2026, 10, 9, 14, 0);
+  const m = (
+    id: string,
+    direccion: 'inbound' | 'outbound',
+    minutos: number,
+    automatico = false,
+  ): MensajeCalidad => ({
+    id,
+    fecha: new Date(t0 + minutos * 60_000),
+    direccion,
+    calificable: direccion === 'outbound' && !automatico,
+    automatico,
+    texto: id,
+  });
+
+  it('agrupa lo que el asesor envía en los 5 minutos siguientes; después es seguimiento', () => {
+    const b = bloquesDeRespuesta([
+      m('c1', 'inbound', -240), // el cliente pregunta el precio a las 10:00
+      m('bot', 'outbound', -239, true), // automático: no abre ni corta
+      m('a1', 'outbound', 0), // 14:00 "Hola"
+      m('a2', 'outbound', 0.33), // 14:00:20 "Soy Stephanie"
+      m('a3', 'outbound', 3), // 14:03 cotización: mismo bloque
+      m('a4', 'outbound', 30), // 14:30 sin nuevo mensaje del cliente: seguimiento
+      m('c2', 'inbound', 40),
+      m('a5', 'outbound', 41), // nuevo bloque
+      m('c3', 'inbound', 42), // el cliente escribe dentro del margen: corta el bloque
+      m('a6', 'outbound', 43), // nuevo bloque
+    ]);
+    expect(Object.fromEntries(b)).toEqual({
+      a1: 'R1',
+      a2: 'R1',
+      a3: 'R1',
+      a4: 'S',
+      a5: 'R2',
+      a6: 'R3',
+    });
+  });
+
+  it('si el contexto empieza con el asesor, su primer mensaje abre un bloque', () => {
+    const b = bloquesDeRespuesta([m('a1', 'outbound', 0), m('a2', 'outbound', 10)]);
+    expect(Object.fromEntries(b)).toEqual({ a1: 'R1', a2: 'S' });
+  });
+
+  it('"responde" se unifica por bloque: el saludo responde si el bloque da el precio', () => {
+    const c = (responde: boolean): Criterios => ({
+      responde,
+      personalizado: false,
+      siguiente_paso: false,
+      tono: true,
+      extension: true,
+    });
+    const cambios = unificarRespuestaPorBloque(
+      [
+        { messageId: 'a1', criterios: c(false) }, // saludo
+        { messageId: 'a3', criterios: c(true) }, // cotización
+        { messageId: 'a4', criterios: c(false) }, // seguimiento: no se toca
+        { messageId: 'a5', criterios: c(false) },
+      ],
+      new Map([
+        ['a1', 'R1'],
+        ['a3', 'R1'],
+        ['a4', 'S'],
+        ['a5', 'R2'],
+      ] as const),
+    );
+    expect([...cambios.keys()]).toEqual(['a1']);
+    expect(cambios.get('a1')?.responde).toBe(true);
+  });
+
+  it('el texto marca el bloque de cada mensaje del asesor', () => {
+    const ctx = [m('c1', 'inbound', 0), m('a1', 'outbound', 1), m('a2', 'outbound', 20)];
+    const b = bloquesDeRespuesta(ctx);
+    const { texto } = textoConversacion(ctx, new Set(['a2']), b);
+    expect(texto).toContain('[ASESOR | respuesta R1] a1');
+    expect(texto).toContain('[ASESOR #1 | seguimiento] a2');
+  });
+
+  it('un saludo de seguimiento no se califica por regla', () => {
+    const ctx: MensajeCalidad[] = [
+      { ...m('c1', 'inbound', 0), texto: 'Hola' },
+      { ...m('a1', 'outbound', 1), texto: 'Hola, buenas tardes ☺️' },
+      { ...m('a2', 'outbound', 60), texto: 'Hola, buenas noches ☺️' },
+    ];
+    const r = separarSaludos(ctx, new Set(['a1', 'a2']), bloquesDeRespuesta(ctx));
+    expect([...r.porRegla.keys()]).toEqual(['a1']);
+    expect([...r.paraIa]).toEqual(['a2']);
   });
 });

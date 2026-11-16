@@ -49,7 +49,7 @@ export function crearProveedorSimulado(o: OpcionesSimulado = {}) {
           continue;
         }
         const contenido = s.params.messages[0]!.content;
-        const marcados = [...contenido.matchAll(/\[ASESOR #(\d+)\] (.*)/g)];
+        const marcados = [...contenido.matchAll(/\[ASESOR #(\d+)(?: \| [^\]]+)?\] (.*)/g)];
         const mensajes = marcados.map(([, num, texto]) => {
           const t = texto ?? '';
           const precio = /S\/|precio|cuesta/i.test(t);

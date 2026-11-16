@@ -4,7 +4,7 @@
  * mejor/peor mensaje. La E/S (base y Batches API) vive en el worker.
  */
 
-export const VERSION_RUBRICA = 'v2-2026-11';
+export const VERSION_RUBRICA = 'v3-2026-11';
 
 export const CATEGORIAS_CALIDAD = [
   'saludo_plantilla',
@@ -203,8 +203,29 @@ const RE_SOLO_SALUDO_CLIENTE = new RegExp(
  */
 export function esSaludoSuelto(texto: string): boolean {
   const t = normalizarConTildes(texto);
-  return t.length > 0 && RE_SALUDO_SUELTO.test(t);
+  if (!t.length || !RE_SALUDO_SUELTO.test(t)) return false;
+  // Rúbrica v3: las tildes faltantes son faltas de ortografía (también en el nombre de la empresa).
+  return !t.split(' ').some((p) => PALABRAS_SIN_TILDE.has(p));
 }
+
+/** Palabras frecuentes escritas sin su tilde: si aparecen, el tono lo decide la IA. */
+const PALABRAS_SIN_TILDE = new Set([
+  'joyeria',
+  'informacion',
+  'dias',
+  'dia',
+  'mas',
+  'catalogo',
+  'tambien',
+  'aqui',
+  'senorita',
+  'senor',
+  'senora',
+  'atencion',
+  'compania',
+  'optica',
+  'peru',
+]);
 
 /** ¿El mensaje del cliente es solo un saludo (no pide nada)? */
 export const esSoloSaludoCliente = (texto: string) => {
@@ -241,11 +262,14 @@ export function calificarSaludoPorRegla(
  * sueltos) y los que van a la IA. Recorre el contexto en orden para saber si el cliente tenía un
  * pedido pendiente: lo abre un mensaje del cliente que no es solo un saludo (y se supone abierto al
  * inicio), lo cierra un mensaje del asesor con contenido y lo deja cerrado un cliente que solo
- * saluda (los saludos del asesor y los mensajes automáticos no lo cierran).
+ * saluda (los saludos del asesor y los mensajes automáticos no lo cierran). Con `bloques` (v3), los
+ * saludos de seguimiento van a la IA y "responde" se ajusta después al del bloque completo
+ * (`unificarRespuestaPorBloque`).
  */
 export function separarSaludos(
   contexto: readonly MensajeCalidad[],
   elegidos: ReadonlySet<string>,
+  bloques?: ReadonlyMap<string, MarcaBloque>,
 ): { porRegla: Map<string, EtiquetaCalidad>; paraIa: Set<string> } {
   const porRegla = new Map<string, EtiquetaCalidad>();
   const paraIa = new Set<string>();
@@ -265,7 +289,9 @@ export function separarSaludos(
     if (m.automatico) continue;
     const saludo = esSaludoSuelto(m.texto);
     if (elegidos.has(m.id)) {
-      const e = saludo ? calificarSaludoPorRegla(m.texto, pendiente) : null;
+      // Rúbrica v3: un saludo de seguimiento (fuera de un bloque de respuesta) lo califica la IA.
+      const enSeguimiento = bloques?.get(m.id) === 'S';
+      const e = saludo && !enSeguimiento ? calificarSaludoPorRegla(m.texto, pendiente) : null;
       if (e) porRegla.set(m.id, e);
       else paraIa.add(m.id);
     }
@@ -372,6 +398,10 @@ Recibirás una conversación entre un cliente y un asesor dentro de las etiqueta
 
 Los mensajes del asesor que debes calificar están marcados como [ASESOR #n]. Los mensajes [ASESOR] sin número, los [CLIENTE] y los [AUTOMATICO] (enviados por un bot, un workflow o una campaña, no por el asesor) son solo contexto: no los califiques. Si un mensaje automático ya respondió algo, el asesor igual debe atender lo que el cliente necesita.
 
+Cada mensaje del asesor lleva una marca de bloque:
+- "respuesta R1", "respuesta R2"…: los mensajes con la misma marca son UNA sola respuesta al cliente (lo que el asesor envió dentro de los 5 minutos siguientes a su primer mensaje después de que el cliente escribió). Evalúa la respuesta como bloque.
+- "seguimiento": el asesor escribió pasados esos 5 minutos sin que el cliente haya vuelto a escribir.
+
 Para cada mensaje [ASESOR #n] devuelve:
 1. "categoria": exactamente una de:
    - "saludo_plantilla": saludo, presentación del asesor, frase de transición sin contenido ("ahora le brindo información") o confirmación breve ("perfecto, quedo atenta").
@@ -380,15 +410,15 @@ Para cada mensaje [ASESOR #n] devuelve:
    - "pregunta_calificacion": pregunta para entender la necesidad del cliente (tipo de joya, uso, presupuesto, talla, fecha, ciudad, modelo elegido).
    - "llamada_accion_cierre": invita a comprar, separar, pagar, enviar datos, agendar o visitar la tienda.
    - "manejo_objecion": responde a una duda, desconfianza o queja sobre precio, calidad, tiempos o garantía.
-   - "seguimiento": el asesor retoma una conversación en la que el cliente llevaba tiempo sin escribir (horas o días). Responder a un mensaje reciente del cliente NUNCA es seguimiento.
+   - "seguimiento": todo mensaje marcado "seguimiento" tiene esta categoría, y ningún mensaje marcado "respuesta" la tiene.
    - "multimedia": el mensaje es solo la descripción de una imagen, audio o video, sin texto propio del asesor.
    Si el mensaje cumple varias funciones, elige la principal: la que más aporta a lo que el cliente pidió.
 2. "criterios": cinco valores verdadero/falso:
-   - "responde": responde lo que el cliente preguntó o pidió en sus mensajes previos. Si el cliente pidió precio y el asesor solo envía un enlace, un saludo o una pregunta sin dar el precio, es falso. Pedir una aclaración necesaria para responder (por ejemplo, qué sistema de tallas usa) es verdadero. Si el cliente no preguntó nada, es verdadero cuando el mensaje es pertinente al momento de la conversación.
+   - "responde": se evalúa sobre el bloque completo y todos los mensajes del mismo bloque llevan el mismo valor: es verdadero si el bloque, en conjunto, responde lo que el cliente preguntó o pidió en sus mensajes previos. Si el cliente pidió precio, el bloque debe dar el precio; preguntar además la talla en el mismo bloque es válido, pero un bloque con saludos, enlaces o preguntas (incluida la talla) sin el precio es falso. Si el cliente no pidió precio, pedir una aclaración necesaria para responder (por ejemplo, qué sistema de tallas usa) es verdadero. Si el cliente no preguntó nada, y en los mensajes de seguimiento, es verdadero cuando el mensaje es pertinente al momento de la conversación.
    - "personalizado": verdadero solo si menciona el nombre del cliente o un dato concreto que el cliente dio en la conversación (su talla, su fecha, su ciudad, el modelo que envió o pidió). NO cuentan: el nombre del asesor o de la empresa, tratos genéricos ("caballero", "señorita", "estimado"), referencias vagas ("aquella joyita", "su modelo", "su pedido") ni textos de plantilla que servirían igual para cualquier cliente.
    - "siguiente_paso": incluye un siguiente paso claro (una pregunta concreta, una acción a tomar o una fecha). Anunciar que se enviará algo ("ahora le brindo información") no es un siguiente paso.
-   - "tono": tono cordial y profesional, y ortografía y redacción correctas en español. Faltas de ortografía evidentes, palabras mal escritas o frases confusas lo hacen falso.
-   - "extension": extensión adecuada para WhatsApp (ni un bloque excesivo para lo que se pidió, ni tan breve que deja la respuesta incompleta).
+   - "tono": tono cordial y profesional, y ortografía y redacción correctas en español. Faltas de ortografía, palabras mal escritas o frases confusas lo hacen falso; las tildes faltantes también son faltas ("dias", "mas", "catalogo", "informacion", "Joyeria", "que" o "cuando" en una pregunta).
+   - "extension": extensión adecuada para WhatsApp (ni un bloque excesivo para lo que se pidió, ni tan breve que deja la respuesta incompleta). Un mensaje corto que completa a otro del mismo bloque (un enlace o una frase breve después de la explicación) tiene extensión adecuada.
 3. "motivo": una frase breve en español (máximo 120 caracteres) con la razón principal de la evaluación.
 
 Reglas:
@@ -399,10 +429,12 @@ Reglas:
 
 Ejemplos (cliente → mensaje del asesor → evaluación):
 - "¿cuánto cuesta el solitario?" → "Hola María 😊 El anillo solitario en oro 18K de 2 g cuesta S/ 890. ¿Para qué fecha lo necesitas?" → info_producto_precio; responde, personalizado, siguiente_paso, tono y extension verdaderos.
-- "Precio por favor" → "Hola, buenas tardes ☺️ Soy Carla, asesora de ventas" → saludo_plantilla; responde=false, personalizado=false (el nombre es de la asesora), siguiente_paso=false, tono=true, extension=true.
-- "¿Cuánto cuesta un anillo de compromiso?" → "Compromiso: https://tienda.ejemplo/anillos" → info_producto_precio; responde=false (no da el precio), personalizado=false, siguiente_paso=false, tono=true, extension=false (incompleto).
+- "Precio por favor" → [respuesta R1] "Hola, buenas tardes ☺️ Soy Carla, asesora de ventas" (el bloque no tiene más mensajes) → saludo_plantilla; responde=false, personalizado=false (el nombre es de la asesora), siguiente_paso=false, tono=true, extension=true.
+- "¿Cuánto cuesta el solitario?" → [respuesta R1] "Hola, buenas tardes ☺️" y [respuesta R1] "El solitario en oro 18K cuesta S/ 890. ¿Qué talla usa?" → el primero saludo_plantilla y el segundo info_producto_precio; los dos responde=true (el bloque da el precio); el saludo tiene extension=true.
+- "¿Cuánto cuesta el solitario?" → [respuesta R1] "¿Qué talla usa? El precio depende del peso" (sin precio) → pregunta_calificacion; responde=false.
+- "¿Cuánto cuesta un anillo de compromiso?" → [respuesta R1] "Compromiso: https://tienda.ejemplo/anillos" (único mensaje del bloque) → info_producto_precio; responde=false (no da el precio), personalizado=false, siguiente_paso=false, tono=true, extension=false (incompleto).
 - "Soy talla 7" → "¿Talla 7 estándar o americana? Así le confirmo el peso" → pregunta_calificacion; responde=true (aclaración necesaria), personalizado=true (usa su talla), siguiente_paso=true, tono=true, extension=true.
-- (el cliente no escribe desde hace tres días) → "Buenas tardes 😊 Quería saber si aún tiene en mente aquella joyita que estuvimos viendo" → seguimiento; responde=true, personalizado=false (referencia vaga, sirve para cualquiera), siguiente_paso=false, tono=true, extension=true.
+- (el cliente no escribe desde hace tres días) → [seguimiento] "Buenas tardes 😊 Quería saber si aún tiene en mente aquella joyita que estuvimos viendo" → seguimiento; responde=true, personalizado=false (referencia vaga, sirve para cualquiera), siguiente_paso=false, tono=true, extension=true.
 - "Claro, el fin de semana le aviso" → "Perfecto señorita, quedo atenta" → saludo_plantilla; responde=true, personalizado=false, siguiente_paso=false, tono=true, extension=true.
 - "¿Hacen envíos?" → "si claro ennviamos a todo el peru" → respuesta_pregunta; responde=true, personalizado=false, siguiente_paso=false, tono=false (ortografía), extension=true.`;
 
@@ -514,22 +546,105 @@ export function esquemaRespuestaCalidad(f: FormatoSalida = FORMATO_SALIDA_VIGENT
   });
 }
 
+// ------------------------------------------------------------------ Bloques de respuesta (v3)
+
+/**
+ * Margen de un bloque de respuesta (decisión del cliente, 16 nov 2026): lo que el asesor envía
+ * dentro de los 5 minutos siguientes a su primer mensaje después de que el cliente escribe es una
+ * sola respuesta. Si el cliente vuelve a escribir dentro del margen, el bloque se corta.
+ */
+export const MARGEN_BLOQUE_MS = 5 * 60_000;
+
+/** `R1`, `R2`… = bloque de respuesta; `S` = seguimiento (fuera de cualquier bloque). */
+export type MarcaBloque = `R${number}` | 'S';
+
+/**
+ * Asigna cada mensaje del asesor (no automático) a un bloque de respuesta o a seguimiento.
+ * Un bloque empieza con el primer mensaje del asesor después de un mensaje del cliente y abarca lo
+ * que el asesor envía en los `MARGEN_BLOQUE_MS` siguientes, hasta que el cliente vuelva a escribir.
+ * Lo que el asesor envía pasado ese margen sin un mensaje nuevo del cliente es seguimiento. Si el
+ * contexto empieza con un mensaje del asesor (el del cliente quedó antes del tramo), ese mensaje
+ * abre un bloque. Los mensajes automáticos no abren ni cortan bloques.
+ */
+export function bloquesDeRespuesta(
+  mensajes: readonly MensajeCalidad[],
+  margenMs = MARGEN_BLOQUE_MS,
+): Map<string, MarcaBloque> {
+  const orden = [...mensajes].sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+  const r = new Map<string, MarcaBloque>();
+  let n = 0;
+  let inicio: number | null = null;
+  let clienteEscribio = true;
+  for (const m of orden) {
+    if (m.direccion === 'inbound') {
+      inicio = null;
+      clienteEscribio = true;
+      continue;
+    }
+    if (m.automatico) continue;
+    const t = m.fecha.getTime();
+    if (inicio !== null && t - inicio <= margenMs) {
+      r.set(m.id, `R${n}`);
+    } else if (clienteEscribio) {
+      n++;
+      inicio = t;
+      clienteEscribio = false;
+      r.set(m.id, `R${n}`);
+    } else {
+      inicio = null;
+      r.set(m.id, 'S');
+    }
+  }
+  return r;
+}
+
+/**
+ * "Responde" por bloque (v3): un bloque responde si alguno de sus mensajes calificados responde (por
+ * ejemplo, el que da el precio pedido); todos los mensajes del bloque reciben ese valor. Devuelve los
+ * criterios que cambian. Los mensajes de seguimiento no se tocan.
+ */
+export function unificarRespuestaPorBloque(
+  calificaciones: readonly { messageId: string; criterios: Criterios }[],
+  bloques: ReadonlyMap<string, MarcaBloque>,
+): Map<string, Criterios> {
+  const porBloque = new Map<string, boolean>();
+  for (const c of calificaciones) {
+    const b = bloques.get(c.messageId);
+    if (!b || b === 'S') continue;
+    porBloque.set(b, (porBloque.get(b) ?? false) || c.criterios.responde);
+  }
+  const cambios = new Map<string, Criterios>();
+  for (const c of calificaciones) {
+    const b = bloques.get(c.messageId);
+    if (!b || b === 'S') continue;
+    const responde = porBloque.get(b)!;
+    if (responde !== c.criterios.responde) cambios.set(c.messageId, { ...c.criterios, responde });
+  }
+  return cambios;
+}
+
 /** Arma el texto de la conversación con los mensajes a calificar numerados. */
 export function textoConversacion(
   contexto: readonly MensajeCalidad[],
-  aCalificar: Set<string>,
+  aCalificar: ReadonlySet<string>,
+  bloques?: ReadonlyMap<string, MarcaBloque>,
 ): { texto: string; numeracion: Map<number, string> } {
   const numeracion = new Map<number, string>();
   let n = 0;
+  // Marca de bloque (v3): "respuesta R2" o "seguimiento".
+  const marca = (id: string) => {
+    const b = bloques?.get(id);
+    return !b ? '' : b === 'S' ? ' | seguimiento' : ` | respuesta ${b}`;
+  };
   const lineas = contexto.map((m) => {
     const t = m.texto.replace(/<\/?conversacion>/gi, '').slice(0, 1500);
     if (m.direccion === 'inbound') return `[CLIENTE] ${t}`;
     if (m.automatico) return `[AUTOMATICO] ${t}`;
     if (aCalificar.has(m.id)) {
       numeracion.set(++n, m.id);
-      return `[ASESOR #${n}] ${t}`;
+      return `[ASESOR #${n}${marca(m.id)}] ${t}`;
     }
-    return `[ASESOR] ${t}`;
+    return `[ASESOR${marca(m.id)}] ${t}`;
   });
   return {
     texto: `<conversacion>\n${lineas.join('\n')}\n</conversacion>\n\nCalifica los ${n} mensajes [ASESOR #n] según las instrucciones.`,

@@ -13,6 +13,7 @@ import {
   estimarCosto,
   maxTokensPara,
   muestraEstratificada,
+  bloquesDeRespuesta,
   recortarContexto,
   separarSaludos,
   seleccionarMensajes,
@@ -21,6 +22,7 @@ import {
   type EstimacionCosto,
   type EtiquetaCalidad,
   type FormatoSalida,
+  type MarcaBloque,
   type MensajeCalidad,
 } from '@driven/core';
 import type { Db } from './cliente';
@@ -149,6 +151,8 @@ export interface SolicitudPreparada {
    * la conversación no se envía: todo lo elegido se calificó por regla.
    */
   porRegla: { messageId: string; etiqueta: EtiquetaCalidad }[];
+  /** Bloque de respuesta de cada mensaje elegido (v3): "R1", "R2"… o "S" (seguimiento). */
+  bloques: Record<string, MarcaBloque>;
   /** SHA-256 de lo que se enviaría a la IA (ver `huellaSolicitud`). */
   huella: string;
   /**
@@ -319,13 +323,12 @@ export async function prepararSolicitudes(
       // El contexto se arma con todo lo elegido; los saludos por regla quedan como contexto sin
       // número y no se piden a la IA.
       const contexto = recortarContexto(msgs, sel.ids);
+      const orden = [...msgs].sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+      const bloques = bloquesDeRespuesta(orden);
       const { porRegla, paraIa } = cfg.saludosPorRegla
-        ? separarSaludos(
-            [...msgs].sort((a, b) => a.fecha.getTime() - b.fecha.getTime()),
-            sel.ids,
-          )
+        ? separarSaludos(orden, sel.ids, bloques)
         : { porRegla: new Map<string, EtiquetaCalidad>(), paraIa: sel.ids };
-      const { texto, numeracion } = textoConversacion(contexto, paraIa);
+      const { texto, numeracion } = textoConversacion(contexto, paraIa, bloques);
       solicitudes.push({
         conversationId: x.conversationId,
         asesorId: x.asesorId,
@@ -337,6 +340,7 @@ export async function prepararSolicitudes(
         mensajes: numeracion.size,
         tokensConversacion: tokensAproximados(texto),
         porRegla: [...porRegla].map(([messageId, etiqueta]) => ({ messageId, etiqueta })),
+        bloques: Object.fromEntries([...sel.ids].map((id) => [id, bloques.get(id) ?? 'S'])),
         huella: huellaSolicitud(texto, cfg.modelo, cfg.ajustes),
         reutilizarDe: null,
       });

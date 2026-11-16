@@ -43,6 +43,7 @@ CREATE TABLE "comercial"."analisis_calidad_muestra" (
 	"batch_id" text,
 	"error" text,
 	"huella" text,
+	"bloques" jsonb,
 	"creado_en" timestamp with time zone DEFAULT now() NOT NULL,
 	"actualizado_en" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "analisis_calidad_muestra_analisis_id_conversation_id_pk" PRIMARY KEY("analisis_id","conversation_id")

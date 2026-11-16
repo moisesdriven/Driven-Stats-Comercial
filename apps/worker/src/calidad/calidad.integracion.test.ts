@@ -67,16 +67,17 @@ describe.skipIf(!URL_PRUEBAS)('análisis de calidad (integración con Anthropic 
       filas.push(
         msg(
           c,
-          d(10, 15, 7),
+          d(10, 15, 2),
           'outbound',
           'agente_ia',
           'Mensaje largo del agente de IA que no se califica nunca',
         ),
       );
+      // El saludo y la respuesta con el precio salen en el mismo bloque (dentro de 5 minutos).
       filas.push(
         msg(
           c,
-          d(10, 16),
+          d(10, 15, 4),
           'outbound',
           'manual',
           'Buenas tardes, soy asesora de ventas de la joyería',
@@ -172,12 +173,15 @@ describe.skipIf(!URL_PRUEBAS)('análisis de calidad (integración con Anthropic 
       new Set(cal.filter((c) => c.categoria === 'info_producto_precio').map((c) => c.puntaje)),
     ).toEqual(new Set([4]));
     // "Buenas tardes, soy asesora de ventas…" es un saludo suelto: se califica por regla, sin IA.
-    // El cliente había pedido el precio y ya se lo dieron: el pedido está cerrado, así que responde.
+    // Por sí solo no responde el pedido de precio, pero su bloque sí lo da (v3): responde.
     const saludo = cal.find((c) => c.categoria === 'saludo_plantilla');
     expect(saludo?.modelo).toBe('regla-saludos-v1');
     expect(saludo?.criterios).toMatchObject({ responde: true, personalizado: false });
     expect(saludo?.puntaje).toBe(3); // responde + tono + extensión
-    expect(primera.params.messages[0]!.content).toContain('[ASESOR] Buenas tardes, soy asesora');
+    expect(primera.params.messages[0]!.content).toContain(
+      '[ASESOR | respuesta R1] Buenas tardes, soy asesora',
+    );
+    expect(primera.params.messages[0]!.content).toContain('[ASESOR #1 | respuesta R1] Hola María');
 
     const ej = await db
       .select()
@@ -235,8 +239,8 @@ describe.skipIf(!URL_PRUEBAS)('análisis de calidad (integración con Anthropic 
     ]);
     expect(informe.costoUsd).toBeGreaterThan(0);
 
-    // Con la regla de saludos (como en un análisis real), el saludo no va a la IA: el cliente ya
-    // tenía su precio, así que responde, como dice la referencia.
+    // Con la regla de saludos, el saludo igual va a la IA: su bloque tiene otro mensaje con
+    // contenido (el precio) y el "responde" del bloque solo lo puede decidir la IA (v3).
     const conRegla = crearProveedorSimulado({ esperas: 0 });
     const informe2 = await calibrar(
       db,
@@ -255,10 +259,12 @@ describe.skipIf(!URL_PRUEBAS)('análisis de calidad (integración con Anthropic 
       },
       { modelo: 'claude-haiku-5-5', esperaMs: 0 },
     );
-    expect([...conRegla.lotes.values()][0]).toHaveLength(1);
-    expect(informe2.porRegla).toBe(1);
-    expect(informe2.puntajeExacto).toBe(2);
-    expect(informe2.diferencias).toEqual([]);
+    const enviados2 = [...conRegla.lotes.values()][0]!;
+    expect(enviados2).toHaveLength(2);
+    expect(informe2.porRegla).toBe(0);
+    expect(enviados2[1]!.params.messages[0]!.content).toContain(
+      '[ASESOR #1 | respuesta R1] Buenas tardes, soy asesora',
+    );
   });
 
   it('se detiene sin enviar si superaría el tope mensual', async () => {

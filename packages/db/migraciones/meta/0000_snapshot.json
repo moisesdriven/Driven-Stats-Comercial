@@ -1,5 +1,5 @@
 {
-  "id": "01d9d815-2259-47ce-81ae-4ea14d1e1b2f",
+  "id": "b97dbed8-a847-4629-bf58-317370068076",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -254,6 +254,12 @@
         "huella": {
           "name": "huella",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bloques": {
+          "name": "bloques",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },

@@ -13,15 +13,19 @@ import {
   CATEGORIAS_CALIDAD,
   CRITERIOS,
   FORMATO_SALIDA_VIGENTE,
+  MARGEN_BLOQUE_MS,
   VERSION_RUBRICA,
   compararCalibracion,
   costoReal,
   preciosDe,
+  bloquesDeRespuesta,
+  esSaludoSuelto,
   recortarContexto,
   separarSaludos,
   textoConversacion,
   type EtiquetaCalidad,
   type FormatoSalida,
+  type MarcaBloque,
   type MensajeCalidad,
   type ResultadoCalibracion,
 } from '@driven/core';
@@ -67,11 +71,14 @@ export async function solicitudesCalibracion(
   faltantes: string[];
   /** Mensajes calificados por la regla de saludos (no van a la IA). */
   porRegla: Map<string, EtiquetaCalidad>;
+  /** Bloque de respuesta de cada mensaje del conjunto (v3). */
+  marcas: Map<string, MarcaBloque>;
 }> {
   const solicitudes: SolicitudLote[] = [];
   const porCustomId = new Map<string, string>();
   const faltantes: string[] = [];
   const porRegla = new Map<string, EtiquetaCalidad>();
+  const marcas = new Map<string, MarcaBloque>();
   for (const [i, item] of conjunto.mensajes.entries()) {
     const filas = await db.execute<{
       message_id: string;
@@ -88,7 +95,8 @@ export async function solicitudesCalibracion(
       select m.message_id, m.fecha, m.direccion, m.origen, m.texto
       from comercial.mensajes m, objetivo o
       where m.location_id = ${conjunto.locationId} and m.conversation_id = o.conversation_id
-        and m.fecha <= o.fecha and m.fecha > o.fecha - make_interval(days => ${DIAS_CONTEXTO})
+        and m.fecha <= o.fecha + make_interval(secs => ${MARGEN_BLOQUE_MS / 1000})
+        and m.fecha > o.fecha - make_interval(days => ${DIAS_CONTEXTO})
         and coalesce(m.texto, '') <> ''`);
     const msgs: MensajeCalidad[] = filas.rows.map((f) => ({
       id: f.message_id,
@@ -103,15 +111,44 @@ export async function solicitudesCalibracion(
       faltantes.push(item.messageId);
       continue;
     }
+    const todos = [...msgs].sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+    const bloques = bloquesDeRespuesta(todos);
+    // Contexto: lo anterior al mensaje y, después de él, solo el resto de su bloque (v3: la
+    // respuesta se evalúa como bloque).
+    const fechaObjetivo = todos.find((m) => m.id === item.messageId)!.fecha.getTime();
+    const bloqueObjetivo = bloques.get(item.messageId);
+    const orden = todos.filter(
+      (m) =>
+        m.fecha.getTime() <= fechaObjetivo ||
+        (bloqueObjetivo !== 'S' && bloques.get(m.id) === bloqueObjetivo),
+    );
+    marcas.set(item.messageId, bloques.get(item.messageId) ?? 'S');
     if (saludosPorRegla) {
-      const orden = [...msgs].sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
-      const regla = separarSaludos(orden, objetivo).porRegla.get(item.messageId);
-      if (regla) {
+      // Como solo se califica este mensaje, la regla se usa si su bloque no tiene otros mensajes
+      // del asesor con contenido: si los tiene, el "responde" del bloque lo decide la IA.
+      const bloque = bloques.get(item.messageId);
+      const otros = orden.filter(
+        (m) =>
+          m.id !== item.messageId &&
+          m.direccion === 'outbound' &&
+          !m.automatico &&
+          bloques.get(m.id) === bloque,
+      );
+      const regla = separarSaludos(orden, objetivo, bloques).porRegla.get(item.messageId);
+      if (regla && otros.every((m) => esSaludoSuelto(m.texto))) {
         porRegla.set(item.messageId, regla);
         continue;
       }
     }
-    const { texto, numeracion } = textoConversacion(recortarContexto(msgs, objetivo), objetivo);
+    const posteriores = orden.filter((m) => m.fecha.getTime() > fechaObjetivo);
+    const contexto = [
+      ...recortarContexto(
+        orden.filter((m) => m.fecha.getTime() <= fechaObjetivo),
+        objetivo,
+      ),
+      ...posteriores,
+    ];
+    const { texto, numeracion } = textoConversacion(contexto, objetivo, bloques);
     const customId = `cal_${i}`;
     porCustomId.set(customId, item.messageId);
     solicitudes.push({
@@ -119,7 +156,7 @@ export async function solicitudesCalibracion(
       params: parametrosSolicitud({ texto, mensajes: numeracion.size }, modelo, ajustes, formato),
     });
   }
-  return { solicitudes, porCustomId, faltantes, porRegla };
+  return { solicitudes, porCustomId, faltantes, porRegla, marcas };
 }
 
 export interface InformeCalibracion extends ResultadoCalibracion {
@@ -153,7 +190,7 @@ export async function calibrar(
     formato?: FormatoSalida;
   },
 ): Promise<InformeCalibracion> {
-  const { solicitudes, porCustomId, faltantes, porRegla } = await solicitudesCalibracion(
+  const { solicitudes, porCustomId, faltantes, porRegla, marcas } = await solicitudesCalibracion(
     db,
     conjunto,
     o.modelo,
@@ -184,7 +221,17 @@ export async function calibrar(
       if (!id || r.tipo !== 'succeeded' || !r.texto || r.stopReason === 'refusal') continue;
       const datos = esquemaRespuesta.safeParse(safeJson(r.texto));
       const x = datos.success ? datos.data.mensajes.find((m) => m.n === 1) : undefined;
-      if (x) obtenidos.set(id, { categoria: x.categoria, criterios: x.criterios });
+      // Como en el análisis (v3): un mensaje de seguimiento queda con esa categoría.
+      const seguimiento =
+        marcas.get(id) === 'S' &&
+        x &&
+        x.categoria !== 'seguimiento' &&
+        x.categoria !== 'multimedia';
+      if (x)
+        obtenidos.set(id, {
+          categoria: seguimiento ? 'seguimiento' : x.categoria,
+          criterios: x.criterios,
+        });
     }
   }
   const esperados = new Map(

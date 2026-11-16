@@ -19,6 +19,8 @@ import {
   MODELO_REGLA_SALUDOS,
   cacheLeidaPct,
   desvioCostoPct,
+  unificarRespuestaPorBloque,
+  type MarcaBloque,
   mejorYPeor,
   puntajeDeCriterios,
   unificarPorTexto,
@@ -187,6 +189,7 @@ export async function prepararAnalisis(
         mensajes: s.mensajes,
         numeracion: s.numeracion,
         huella: s.huella,
+        bloques: s.bloques,
       })),
       ...prep.sinMensajes.map((c) => ({
         analisisId,
@@ -507,8 +510,72 @@ export async function unificarAnalisis(db: Db, analisisId: number): Promise<numb
   return cambios.size;
 }
 
-/** Cierra el análisis: unificación por texto, mejor y peor mensaje por asesor y totales. */
+/**
+ * Bloques de respuesta (rúbrica v3): los mensajes de seguimiento quedan con la categoría
+ * "seguimiento" y, dentro de cada bloque de respuesta, todos los mensajes llevan el "responde" del
+ * bloque completo (verdadero si alguno responde; por ejemplo, el que da el precio pedido). Devuelve
+ * cuántos mensajes cambiaron.
+ */
+export async function aplicarBloques(db: Db, analisisId: number): Promise<number> {
+  const muestra = await db
+    .select({
+      conversationId: tablas.analisisCalidadMuestra.conversationId,
+      bloques: tablas.analisisCalidadMuestra.bloques,
+    })
+    .from(tablas.analisisCalidadMuestra)
+    .where(eq(tablas.analisisCalidadMuestra.analisisId, analisisId));
+  const bloquesDe = new Map(
+    muestra.map((m) => [m.conversationId, (m.bloques ?? {}) as Record<string, MarcaBloque>]),
+  );
+  const cal = await db
+    .select()
+    .from(tablas.clasificaciones)
+    .where(eq(tablas.clasificaciones.analisisId, analisisId));
+  const porConversacion = new Map<string, typeof cal>();
+  for (const c of cal) {
+    const lista = porConversacion.get(c.conversationId) ?? [];
+    lista.push(c);
+    porConversacion.set(c.conversationId, lista);
+  }
+  let cambiados = 0;
+  for (const [conversationId, lista] of porConversacion) {
+    const bloques = new Map(Object.entries(bloquesDe.get(conversationId) ?? {}));
+    if (!bloques.size) continue;
+    const respuestas = unificarRespuestaPorBloque(
+      lista.map((c) => ({ messageId: c.messageId, criterios: c.criterios as Criterios })),
+      bloques,
+    );
+    for (const c of lista) {
+      const seguimiento =
+        bloques.get(c.messageId) === 'S' &&
+        c.categoria !== 'seguimiento' &&
+        c.categoria !== 'multimedia';
+      const criterios = respuestas.get(c.messageId);
+      if (!seguimiento && !criterios) continue;
+      const final = criterios ?? (c.criterios as Criterios);
+      await db
+        .update(tablas.clasificaciones)
+        .set({
+          ...(seguimiento ? { categoria: 'seguimiento' } : {}),
+          criterios: final,
+          puntaje: c.categoria === 'multimedia' ? null : puntajeDeCriterios(final),
+        })
+        .where(
+          and(
+            eq(tablas.clasificaciones.analisisId, analisisId),
+            eq(tablas.clasificaciones.messageId, c.messageId),
+          ),
+        );
+      cambiados++;
+    }
+  }
+  if (cambiados) log('calidad_bloques', { analisisId, mensajes: cambiados });
+  return cambiados;
+}
+
+/** Cierra el análisis: bloques de respuesta, unificación por texto, mejor y peor mensaje y totales. */
 export async function cerrarAnalisis(db: Db, analisisId: number): Promise<void> {
+  await aplicarBloques(db, analisisId);
   await unificarAnalisis(db, analisisId);
   const cal = await db.execute<{
     message_id: string;

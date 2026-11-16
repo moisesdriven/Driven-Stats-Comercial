@@ -444,6 +444,8 @@ export const analisisCalidadMuestra = comercial.table(
      * Si coincide con una conversación ya calificada, se reutiliza sin volver a enviarla (§6).
      */
     huella: text('huella'),
+    /** Bloque de cada mensaje calificado (rúbrica v3): message_id → "R1", "R2"… o "S" (seguimiento). */
+    bloques: jsonb('bloques'),
     ...auditoriaFilas,
   },
   (t) => [
