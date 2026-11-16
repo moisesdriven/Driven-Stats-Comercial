@@ -4,7 +4,7 @@ Subcuenta piloto: **Jade18K** (`93mgPQwURqpEvyzZcf9m`). Inspección del 16 de no
 solo lectura, con el PIT de la subcuenta. Este documento resume patrones de campos: no copia
 mensajes de clientes.
 
-> **Estado: pendiente de aprobación.** Las preguntas abiertas están al final.
+> **Estado: aprobado por el cliente el 16 de noviembre de 2026**, con las decisiones de la sección 5.
 
 ## 1. Lo que se revisó
 
@@ -160,3 +160,19 @@ si su origen es `manual`.
    asignado la primera vez que ve el lead (cargas cada 15 minutos). En la carga histórica se usará el
    asignado actual. Si no hay asignado, se usa el autor de la primera respuesta `manual` (§3).
 6. Agregar `conversation-ai.readonly` a los permisos obligatorios del PIT (§7).
+
+## 5. Decisiones del cliente (16 de noviembre de 2026)
+
+1. **Venta concretada en Jade18K:** oportunidad que entra a **Adelanto o cualquier etapa
+   posterior** (En Producción, Despachado, Pago Completo), o que se marca `won`. La fecha de la
+   venta es la primera entrada a una de esas etapas, según `historial_etapas`.
+2. **Mapa de etapas:** Nuevo → Nuevo; Contactado → Contactado; Cotizado → Por cerrar; Adelanto,
+   En Producción, Despachado y Pago Completo → Ganado.
+3. **Etapas de calidad de Jade18K** (las 3 de la §6.1): **Contactado, Cotizado y Adelanto**.
+4. **Leads con oportunidad perdida:** salen de las listas y conteos operativos (sin responder, en
+   espera, pendientes de seguimiento, interesados de días anteriores) y se cuentan en
+   **leads perdidos**, con su motivo. Siguen contando como leads recibidos en el periodo para la tasa
+   de conversión (por confirmar).
+5. Las preguntas 3 a 6 de la sección 4 quedan con la propuesta: `api` como `workflow`, el modo
+   sugerencia como `agente_ia`, asignación registrada desde la primera vez que se ve el lead, y
+   `conversation-ai.readonly` como permiso obligatorio del PIT.
