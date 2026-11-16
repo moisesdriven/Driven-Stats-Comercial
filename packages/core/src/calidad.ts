@@ -555,6 +555,30 @@ export const PRECIOS_POR_DEFECTO: Precios = {
 };
 
 /**
+ * Precios por modelo (Batches API al 50 %), para el costo real de análisis o calibraciones con otro
+ * modelo. Verificar con los precios vigentes; un modelo desconocido usa los de Haiku 5.5.
+ */
+export function preciosDe(modelo: string): Precios {
+  if (/^claude-sonnet-5-5/.test(modelo))
+    return {
+      entradaMTok: 2,
+      salidaMTok: 10,
+      lecturaCache: 0.05,
+      escrituraCache: 1.25,
+      factorLote: 0.5,
+    };
+  if (/^claude-opus-5-5/.test(modelo))
+    return {
+      entradaMTok: 4,
+      salidaMTok: 20,
+      lecturaCache: 0.05,
+      escrituraCache: 1.25,
+      factorLote: 0.5,
+    };
+  return PRECIOS_POR_DEFECTO;
+}
+
+/**
  * Calibración de la estimación con el primer análisis real (Jade18K, 9–15 nov 2026: 452 solicitudes,
  * 1.212 mensajes, 1.183.607 tokens de entrada, 137.772 de salida, US$ 0,0523). La primera versión
  * suponía 3,5 caracteres por token, 300 tokens para el esquema y 25 + 55 tokens de salida por

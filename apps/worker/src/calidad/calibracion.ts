@@ -16,6 +16,7 @@ import {
   VERSION_RUBRICA,
   compararCalibracion,
   costoReal,
+  preciosDe,
   recortarContexto,
   separarSaludos,
   textoConversacion,
@@ -172,7 +173,7 @@ export async function calibrar(
     }
     for await (const r of proveedor.resultados(lote)) {
       if (r.uso) {
-        costo += costoReal(r.uso);
+        costo += costoReal(r.uso, preciosDe(o.modelo));
         tokensEntrada +=
           r.uso.input_tokens +
           (r.uso.cache_read_input_tokens ?? 0) +
