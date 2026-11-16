@@ -4,16 +4,16 @@ Fases según la sección 14 de `ESPECIFICACION.md`. Se trabaja en la rama
 `claude/bold-ptolemy-6m09ny`, con un commit por fase, y se espera aprobación antes de pasar a la
 siguiente.
 
-| Fase | Entregable                                                                          | Estado                 |
-| ---- | ----------------------------------------------------------------------------------- | ---------------------- |
-| 0    | Monorepo, CI, `.env.example`, `CLAUDE.md`, este plan                                | Terminada              |
-| 1    | Esquema `comercial`, roles, migraciones, cifrado, `crear-admin`, login y permisos   | Terminada              |
-| 2    | Cliente GHL, alta de subcuentas y tokens, cargas; `docs/mapeo-origen.md`            | Terminada              |
-| 3    | `packages/core`: horario laboral, indicadores, semáforo, cuello de botella, alertas | Terminada              |
-| 4    | Historial de etapas y análisis de calidad por muestra                               | Construida, validando  |
-| 5    | Interfaz: vista general, subcuenta, asesor, horarios, usuarios, configuración       | Terminada              |
-| 6    | Purga de textos (alertas y resumen diario por WhatsApp: versión 2)                  | Terminada              |
-| 7    | Scripts de despliegue en PowerShell y `docs/DEPLOY.md`                              | Terminada, en revisión |
+| Fase | Entregable                                                                          | Estado                |
+| ---- | ----------------------------------------------------------------------------------- | --------------------- |
+| 0    | Monorepo, CI, `.env.example`, `CLAUDE.md`, este plan                                | Terminada             |
+| 1    | Esquema `comercial`, roles, migraciones, cifrado, `crear-admin`, login y permisos   | Terminada             |
+| 2    | Cliente GHL, alta de subcuentas y tokens, cargas; `docs/mapeo-origen.md`            | Terminada             |
+| 3    | `packages/core`: horario laboral, indicadores, semáforo, cuello de botella, alertas | Terminada             |
+| 4    | Historial de etapas y análisis de calidad por muestra                               | Construida, validando |
+| 5    | Interfaz: vista general, subcuenta, asesor, horarios, usuarios, configuración       | Terminada             |
+| 6    | Purga de textos (alertas y resumen diario por WhatsApp: versión 2)                  | Terminada             |
+| 7    | Scripts de despliegue en PowerShell y `docs/DEPLOY.md`                              | Terminada             |
 
 ## Decisiones tomadas al inicio
 

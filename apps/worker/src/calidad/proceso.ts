@@ -14,6 +14,7 @@ import {
   CRITERIOS,
   VERSION_RUBRICA,
   costoReal,
+  preciosDe,
   CLAVES_COMPACTAS,
   MODELO_REGLA_SALUDOS,
   cacheLeidaPct,
@@ -371,7 +372,7 @@ export async function revisarAnalisis(
         entradaRonda += entrada;
         leidosCacheRonda += r.uso.cache_read_input_tokens ?? 0;
         tokensSalida += r.uso.output_tokens;
-        costo += costoReal(r.uso);
+        costo += costoReal(r.uso, preciosDe(a.modelo ?? cfg.modelo));
       }
       if (r.tipo !== 'succeeded' || !r.texto) {
         await fallar(m, r.error ?? r.tipo);

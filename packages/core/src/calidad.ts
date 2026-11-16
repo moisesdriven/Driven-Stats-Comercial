@@ -239,8 +239,9 @@ export function calificarSaludoPorRegla(
 /**
  * Separa los mensajes elegidos de una conversación en los que se califican por regla (saludos
  * sueltos) y los que van a la IA. Recorre el contexto en orden para saber si el cliente tenía un
- * pedido pendiente: lo abre un mensaje del cliente que no es solo un saludo y lo cierra un mensaje
- * del asesor con contenido (los saludos y los mensajes automáticos no lo cierran).
+ * pedido pendiente: lo abre un mensaje del cliente que no es solo un saludo (y se supone abierto al
+ * inicio), lo cierra un mensaje del asesor con contenido y lo deja cerrado un cliente que solo
+ * saluda (los saludos del asesor y los mensajes automáticos no lo cierran).
  */
 export function separarSaludos(
   contexto: readonly MensajeCalidad[],
@@ -248,10 +249,17 @@ export function separarSaludos(
 ): { porRegla: Map<string, EtiquetaCalidad>; paraIa: Set<string> } {
   const porRegla = new Map<string, EtiquetaCalidad>();
   const paraIa = new Set<string>();
-  let pendiente = false;
+  // Si el contexto no muestra ningún mensaje del cliente antes del saludo (empieza al entrar a las
+  // etapas de calidad, a veces con el saludo del asesor), se asume un pedido pendiente: el cliente
+  // escribe primero (un anuncio, una consulta) y un saludo no lo responde.
+  let pendiente = true;
+  let vioCliente = false;
   for (const m of contexto) {
     if (m.direccion === 'inbound') {
+      // Un cliente que solo saluda, tras una respuesta del asesor o al inicio, no pide nada nuevo.
       if (!esSoloSaludoCliente(m.texto)) pendiente = true;
+      else if (!vioCliente) pendiente = false;
+      vioCliente = true;
       continue;
     }
     if (m.automatico) continue;
@@ -553,6 +561,30 @@ export const PRECIOS_POR_DEFECTO: Precios = {
   escrituraCache: 1.25,
   factorLote: 0.5,
 };
+
+/**
+ * Precios por modelo (Batches API al 50 %), para el costo real de análisis o calibraciones con otro
+ * modelo. Verificar con los precios vigentes; un modelo desconocido usa los de Haiku 5.5.
+ */
+export function preciosDe(modelo: string): Precios {
+  if (/^claude-sonnet-5-5/.test(modelo))
+    return {
+      entradaMTok: 2,
+      salidaMTok: 10,
+      lecturaCache: 0.05,
+      escrituraCache: 1.25,
+      factorLote: 0.5,
+    };
+  if (/^claude-opus-5-5/.test(modelo))
+    return {
+      entradaMTok: 4,
+      salidaMTok: 20,
+      lecturaCache: 0.05,
+      escrituraCache: 1.25,
+      factorLote: 0.5,
+    };
+  return PRECIOS_POR_DEFECTO;
+}
 
 /**
  * Calibración de la estimación con el primer análisis real (Jade18K, 9–15 nov 2026: 452 solicitudes,

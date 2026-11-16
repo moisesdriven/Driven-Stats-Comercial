@@ -1,0 +1,1106 @@
+{
+  "descripcion": "Jade18K, semana del 2 al 8 nov 2026: 100 mensajes elegidos al azar entre los 1.889 que el análisis calificaría (semilla conjunto-2-nov; orden md5(message_id || semilla-nov2)). Etiquetas de referencia revisadas a mano el 16 nov 2026 con la rúbrica v2, en una sola pasada y sin ver respuestas de la IA (conjunto independiente). Solo ids y etiquetas; el contexto se lee de la base.",
+  "locationId": "93mgPQwURqpEvyzZcf9m",
+  "mensajes": [
+    {
+      "messageId": "28KwPwKLwKS9wqOdBC9L",
+      "categoria": "llamada_accion_cierre",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "6P18MiRCE7Dn0EMulhDT",
+      "categoria": "seguimiento",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "uDmaPzM61scxDwKeFSQg",
+      "categoria": "manejo_objecion",
+      "criterios": {
+        "responde": false,
+        "personalizado": true,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": false
+      }
+    },
+    {
+      "messageId": "50Kl64a9D3Vyt0fDjafP",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": false,
+        "personalizado": true,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": false
+      }
+    },
+    {
+      "messageId": "Ex0DRtHjCbzK5qmB4qjS",
+      "categoria": "seguimiento",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "tZ1fds7QNIx428hpkf89",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "iEQB0FrSDxVVx5dGsPke",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "jspMCtjsLClZodVQRvEw",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "BigyBTEN3JOjFOKuMAE3",
+      "categoria": "llamada_accion_cierre",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "7eYwnNwPENfdJaj8RPF8",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "W1impvPQzuilcyJ7iaSB",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "psjHKRchooWjPfImxYZY",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": true,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": false
+      }
+    },
+    {
+      "messageId": "7vG4jBJSCgjrnuaZBhN5",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "B5c5vcOc1Wwkpwn4gRgW",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "hoofr4Br2Fz3uZNXImWR",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "w3SHE3g6BiXxokXy4R1d",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "QsZM9rwDgru2QiA9BB8O",
+      "categoria": "respuesta_pregunta",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "bZwLXHlBC1a20kfp8vLK",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": true,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "HShGJPaAeKcHLfR5VPsB",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "AwlHBn2jw7AfbM1ayXUx",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": true,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "B9tX1xGRWScBLsEdp57q",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": true,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "eAMhFM1NnWiVGtVJcajY",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "ks2NWen2VYA7K4hg6DYB",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "vCVefQoIm1TA2QxxoIG2",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "yxO8TRPQi62MgYhi9heY",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "aEvlh1TbbOx2184Bw91L",
+      "categoria": "respuesta_pregunta",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "siZtjJvUjHTW0HeLWmJ9",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "PAh897UI5kLkQA8d57bJ",
+      "categoria": "llamada_accion_cierre",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "SttaIcJe4dCNfof8HNPv",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "LoyTo37nKPyqBRBaQtae",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "oZAolBfTWlvJhL11hpUr",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "WbAbHjYj7zm8DqjGq8AS",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": false
+      }
+    },
+    {
+      "messageId": "tsIJk94oofZe6G4j72NH",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "k0YaWacIaIA1yK45aEQr",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "zBd8R6ZmRfGhTsRlrg5k",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "opPAVWxTdjOGgh69gyXG",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": true,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "zcF5YhWE0YkgQMtNOjZr",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "fXSdotFb4nbyprukBkjs",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "8LpMJuk9if2RL88D3LQe",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "pdAJ16FV1HTE43bLxsfZ",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": true,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "IleOvaipi5YypiJtwP9K",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "SPtO9D2N8u5YxnyWwHLl",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "a20vcSrWOEnGyNiSkGMf",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "fB4rP7pbqRasCFqb7ebv",
+      "categoria": "respuesta_pregunta",
+      "criterios": {
+        "responde": true,
+        "personalizado": true,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "XIHrCz6lmWcqeOE6cwpa",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "G6mSQ0Aec7zYprqIqISE",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "BTnDsd6bXeyNB46srIEM",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "gAuAS9pUJNTMFsZkBmf3",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "iGcwO2TIDw7NEaaujiWj",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "A38RwamjcYEsS7Rz7mnC",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "fwzpeKS4FgxcwyR7BlYP",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": false
+      }
+    },
+    {
+      "messageId": "nMd08jhmrSiBfGu4Cx9v",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "07PwDC13YICbwtgbqZx4",
+      "categoria": "respuesta_pregunta",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "O1TKEsPY6gIg7WbTS8xL",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "i8iBiB51nLqfQNf681Nx",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": true,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "wDdRssa45zQjc5EY5w6c",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "YA9yjVrcdhgPkuNf0pQD",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "xLoFpeFmGt4HG5RVV0Fk",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "qCWRDzB1dCt9MINxvoFq",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "NRGWvT0vOIJ7wHe3YkZU",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": true,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "B930jHiRXFi39uk7O20g",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "N14soHRarJ3BZzhceLuw",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "0iuYvJlYJWtCTVol6sH6",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "E2sa5BAylyFJmy8NMkE2",
+      "categoria": "respuesta_pregunta",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "BOvlqYey4MOEkWOuJqYd",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "BJRiOkgpQqqVief8uTv2",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "j9egWygoJ4YsQ34FVECQ",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "8o97ppVkfDquXGtDZzga",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "hQGMeMoVUj574AxLgg9M",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "BJNTFnQG4ltbbqOaLUhh",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "ajB5DJLw1eCINAUPeetN",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "11KFsLbSmVIIwlDaCe65",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "cfU5vYX34PUMly0c7Nf4",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": false
+      }
+    },
+    {
+      "messageId": "LnIlPTvE9UWDJT6HflEA",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "ym1WMo2eMvM33rjrPiel",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": false
+      }
+    },
+    {
+      "messageId": "cbsl6I5Tywv92Ym21ai4",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "z3AhvBF0QTNm6trGMNda",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "3UD4iq9vDRcbVWcEIyjY",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "sVRLDA0t1Uspjk8QTRNF",
+      "categoria": "respuesta_pregunta",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "dbTr4jGEIka6ZeR4bRqP",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "bqmFiy1MCnGCtnGKDFKF",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "lXCca5zWaTfSjZbZ4H47",
+      "categoria": "manejo_objecion",
+      "criterios": {
+        "responde": true,
+        "personalizado": true,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "PujZvbr5jHZg2QRD4g3D",
+      "categoria": "seguimiento",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "i3W1c3H6lV9WsELA0wqk",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "t0WUBTL0lW3QAg3OliGH",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "XRXB7VPlYzLhK0oQLFvV",
+      "categoria": "llamada_accion_cierre",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "9Uc7FNSBQwN6082Xt9yf",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "6UKwh4VeQRLlE5TSa5uI",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "9BoDanFMnkYr5rzxXIFD",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "864gQLKl4nPxAhZf9DUA",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "873I7oR8e9tc79odR6EB",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "5Cmb8fiAXadiH9neLCQi",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "q5WyPe3yD5mzDDCSW9bl",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "dWz8W0cmJlMw7cgoMQp6",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "PKYGFe5CAz1jmi2p3V3e",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": true,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "idOGojDDKQJj3i3Aks6r",
+      "categoria": "respuesta_pregunta",
+      "criterios": {
+        "responde": true,
+        "personalizado": true,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "I6s1EV9UbtCLHLE73ke5",
+      "categoria": "saludo_plantilla",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "yU1UkoQkMp4mXHqmj6V5",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": true,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "aELHiiygf95VH9e9CVMv",
+      "categoria": "pregunta_calificacion",
+      "criterios": {
+        "responde": false,
+        "personalizado": false,
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": true
+      }
+    },
+    {
+      "messageId": "VAL93aq0HOQ9aXdHQlTk",
+      "categoria": "info_producto_precio",
+      "criterios": {
+        "responde": true,
+        "personalizado": false,
+        "siguiente_paso": false,
+        "tono": false,
+        "extension": true
+      }
+    }
+  ]
+}

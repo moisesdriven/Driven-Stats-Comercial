@@ -84,9 +84,14 @@ Antes de cambiar la rúbrica, el modelo o `IA_ESFUERZO`/`IA_PENSAMIENTO`, medir 
 revisado a mano (cuesta menos de US$ 0,02 y tarda unos minutos):
 
 ```bash
+node apps/worker/dist/cli.js calidad-calibrar --archivo docs/calibracion/jade18k-2026-11-semana2.json
 node apps/worker/dist/cli.js calidad-calibrar --archivo docs/calibracion/jade18k-2026-11.json
 ```
 
-Aprueba con puntaje a ±1 ≥ 90 % y categoría ≥ 85 % (`--minimo`, `--minimo-categoria`). Para probar
-otros ajustes sin cambiar el entorno: `--esfuerzo medium --pensamiento si`. Resultados de referencia
-en `docs/validacion.md`.
+El conjunto de la semana 2–8 es el independiente (etiquetado sin ver a la IA); necesita la carga de
+esos días (`historico --dias 15`). Aprueba con puntaje a ±1 ≥ 90 % y categoría ≥ 85 % (`--minimo`,
+`--minimo-categoria`). Para probar otros ajustes sin cambiar el entorno: `--esfuerzo medium
+--pensamiento si`, `--modelo claude-sonnet-5-5`, `--formato motivo_primero|compacto` o
+`--saludos-por-regla no`. El worker necesita `CLAVE_CIFRADO` aunque la calibración no la use, y la
+clave de Anthropic en `ANTHROPIC_API_KEY` (sin `ANTHROPIC_BASE_URL` del entorno de desarrollo).
+Resultados de referencia en `docs/validacion.md`.

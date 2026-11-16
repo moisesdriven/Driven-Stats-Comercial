@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { configuracionPensamiento, parametrosSolicitud } from '@driven/db';
 import { esquemaRespuesta } from './proceso';
 
 const criterios = {
@@ -54,5 +55,18 @@ describe('lectura de la respuesta de la IA', () => {
       esquemaRespuesta.safeParse({ mensajes: [{ n: 1, categoria: 'seguimiento', motivo: 'x' }] })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('pensamiento según el modelo', () => {
+  it('Haiku se apaga con disabled, Sonnet 5.5 con between_tools y Opus 5.5 no lo recibe', () => {
+    expect(configuracionPensamiento('claude-haiku-5-5', false)).toEqual({ type: 'disabled' });
+    expect(configuracionPensamiento('claude-sonnet-5-5', false)).toEqual({
+      type: 'between_tools',
+    });
+    expect(configuracionPensamiento('claude-opus-5-5', false)).toBeUndefined();
+    expect(configuracionPensamiento('claude-sonnet-5-5', true)).toEqual({ type: 'adaptive' });
+    const p = parametrosSolicitud({ texto: 'x', mensajes: 1 }, 'claude-opus-5-5');
+    expect(JSON.parse(JSON.stringify(p))).not.toHaveProperty('thinking');
   });
 });

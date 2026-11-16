@@ -23,6 +23,7 @@ import {
   TOKENS_MARGEN_PENSAMIENTO,
   cacheLeidaPct,
   desvioCostoPct,
+  preciosDe,
   esSaludoSuelto,
   calificarSaludoPorRegla,
   separarSaludos,
@@ -505,6 +506,26 @@ describe('saludos sueltos por regla', () => {
     expect(porRegla.get('a5')?.criterios.responde).toBe(true);
     expect(puntajeDeCriterios(porRegla.get('a2')!.criterios)).toBe(2);
   });
+
+  it('sin mensajes del cliente a la vista se supone un pedido pendiente', () => {
+    const m = (id: string, direccion: 'inbound' | 'outbound', texto: string): MensajeCalidad => ({
+      id,
+      fecha: new Date(0),
+      direccion,
+      calificable: direccion === 'outbound',
+      automatico: false,
+      texto,
+    });
+    // El tramo en las etapas de calidad empieza con el saludo: el pedido del cliente quedó antes.
+    const r = separarSaludos([m('a1', 'outbound', 'Hola, buenos días ☺️')], new Set(['a1']));
+    expect(r.porRegla.get('a1')?.criterios.responde).toBe(false);
+    // Si el cliente solo saludó, no hay pedido.
+    const r2 = separarSaludos(
+      [m('c1', 'inbound', 'Hola'), m('a1', 'outbound', 'Hola, buenos días ☺️')],
+      new Set(['a1']),
+    );
+    expect(r2.porRegla.get('a1')?.criterios.responde).toBe(true);
+  });
 });
 
 describe('formatos de respuesta', () => {
@@ -550,5 +571,16 @@ describe('formatos de respuesta', () => {
     const compacto = estimarCosto(caso, PRECIOS_POR_DEFECTO, { formato: 'compacto' });
     expect(compacto.tokensSalida).toBeLessThan(v2.tokensSalida);
     expect(tokensFijosSolicitud('compacto')).toBeGreaterThan(tokensFijosSolicitud('v2'));
+  });
+});
+
+describe('precios por modelo', () => {
+  it('Sonnet 5.5 cuesta 20 veces Haiku 5.5; un modelo desconocido usa los de Haiku', () => {
+    const uso = { input_tokens: 1_000_000, output_tokens: 100_000 };
+    expect(costoReal(uso, preciosDe('claude-sonnet-5-5'))).toBeCloseTo(
+      20 * costoReal(uso, preciosDe('claude-haiku-5-5')),
+      6,
+    );
+    expect(preciosDe('otro')).toBe(PRECIOS_POR_DEFECTO);
   });
 });
