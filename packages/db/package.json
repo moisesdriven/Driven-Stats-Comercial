@@ -1,0 +1,25 @@
+{
+  "name": "@driven/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./esquema": "./src/esquema/index.ts",
+    "./migrar": "./src/migrar.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "generar": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@driven/core": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0",
+    "drizzle-kit": "^0.31.11"
+  }
+}

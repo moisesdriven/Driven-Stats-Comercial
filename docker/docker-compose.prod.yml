@@ -1,0 +1,68 @@
+# Producción en el servidor (se termina de ajustar en la fase 7).
+#
+# Aislamiento total de las demás aplicaciones del servidor (DrivenBox, Driven Conteo, etc.):
+# - PostgreSQL propio (comercial-db) con su volumen, sin puertos publicados.
+# - Red propia "comercial" entre db, web y worker.
+# - La web se une además a la red de Traefik ("web", externa) solo para publicarse por etiquetas:
+#   no se edita ni se recarga la configuración de Traefik.
+name: driven-comercial
+
+services:
+  db:
+    image: postgres:16.10-alpine
+    container_name: comercial-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: comercial
+      TZ: UTC
+    volumes:
+      - comercial-db-datos:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d comercial']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [comercial]
+
+  web:
+    image: ${IMAGEN_WEB:-ghcr.io/moisesdriven/driven-comercial-web}:${ETIQUETA:-latest}
+    container_name: comercial-web
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      # Solo local, para diagnóstico desde el servidor (05-verificar.ps1).
+      - '127.0.0.1:${PUERTO_WEB:-3100}:3100'
+    labels:
+      traefik.enable: 'true'
+      traefik.docker.network: web
+      traefik.http.routers.driven-comercial.rule: Host(`${DOMINIO:-comercial.drivenbox.drivenautomations.com}`)
+      traefik.http.routers.driven-comercial.entrypoints: websecure
+      traefik.http.routers.driven-comercial.tls.certresolver: letsencrypt
+      traefik.http.services.driven-comercial.loadbalancer.server.port: '3100'
+    networks: [comercial, traefik]
+
+  worker:
+    image: ${IMAGEN_WORKER:-ghcr.io/moisesdriven/driven-comercial-worker}:${ETIQUETA:-latest}
+    container_name: comercial-worker
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [comercial]
+
+volumes:
+  comercial-db-datos:
+    name: comercial-db-datos
+
+networks:
+  comercial:
+    name: comercial
+  traefik:
+    name: web
+    external: true

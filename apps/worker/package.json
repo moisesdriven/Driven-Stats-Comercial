@@ -1,0 +1,27 @@
+{
+  "name": "@driven/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "@driven/core": "workspace:*",
+    "@driven/db": "workspace:*",
+    "@driven/ghl": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1",
+    "pg-boss": "^12.38.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "tsup": "^9.0.0",
+    "tsx": "^4.23.15"
+  }
+}
