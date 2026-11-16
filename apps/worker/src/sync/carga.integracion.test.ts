@@ -3,10 +3,9 @@
  * Usa su propia base (<DATABASE_URL_TEST>_worker) para no chocar con las pruebas de la web.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
-import pg from 'pg';
 import { and, eq } from 'drizzle-orm';
-import { crearConexion, tablas, type Db } from '@driven/db';
-import { migrar } from '@driven/db/migrar';
+import { tablas, type Db } from '@driven/db';
+import { baseWorker } from '../pruebas/base';
 import {
   ClienteGhl,
   Limitador,
@@ -22,24 +21,6 @@ const URL = process.env.DATABASE_URL_TEST;
 const LOC = 'LOC_JADE_SIM';
 const AHORA = new Date('2026-11-10T20:00:00Z');
 const h = (hhmm: string, dia = 10) => `2026-11-${dia}T${hhmm}:00.000Z`;
-
-async function baseWorker(): Promise<Db> {
-  const urlBase = new globalThis.URL(URL!);
-  const nombre = `${urlBase.pathname.slice(1)}_worker`;
-  const admin = new pg.Client({ connectionString: URL });
-  await admin.connect();
-  const existe = await admin.query('select 1 from pg_database where datname = $1', [nombre]);
-  if (!existe.rowCount) await admin.query(`create database "${nombre}"`);
-  await admin.end();
-  urlBase.pathname = `/${nombre}`;
-  const c = new pg.Client({ connectionString: urlBase.toString() });
-  await c.connect();
-  await c.query('drop schema if exists comercial cascade; create schema comercial;');
-  await c.end();
-  const { db } = crearConexion(urlBase.toString(), 4);
-  await migrar(db);
-  return db;
-}
 
 const PIPELINE = {
   id: 'P1',

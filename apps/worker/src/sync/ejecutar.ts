@@ -11,6 +11,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { tablas, type Db } from '@driven/db';
 import type { ClienteGhl } from '@driven/ghl';
+import { calcularResumen, hoyEn, sumarDias } from '../calculo/resumen';
 import { sincronizarCatalogos } from './catalogos';
 import { cargarConversaciones } from './conversaciones';
 import { recalcularLeads } from './leads';
@@ -18,6 +19,19 @@ import { cargarMensajes, reverificarSinOrigen, type ResultadoMensajes } from './
 import { cargarOportunidades, reconstruirHistorial, recalcularVentas } from './oportunidades';
 import { cargarTareas } from './tareas';
 import { log } from './util';
+
+async function zonaSubcuenta(db: Db, locationId: string): Promise<string> {
+  const [s] = await db
+    .select({ z: tablas.subcuentas.zonaHoraria })
+    .from(tablas.subcuentas)
+    .where(eq(tablas.subcuentas.locationId, locationId))
+    .limit(1);
+  return s?.z ?? 'America/Lima';
+}
+
+async function hoySubcuenta(db: Db, locationId: string, ahora: Date): Promise<string> {
+  return hoyEn(await zonaSubcuenta(db, locationId), ahora);
+}
 
 export type TipoCarga = 'incremental' | 'nocturno' | 'historico';
 
@@ -115,6 +129,12 @@ export async function ejecutarCarga(
       resumen.ventas = await recalcularVentas(db, loc, [...opp.ids]);
       resumen.leads = await recalcularLeads(db, loc, contactos);
       await guardarMarca(db, loc, 'mensajes', ahora);
+      const hoy = await hoySubcuenta(db, loc, ahora);
+      resumen.resumen = await calcularResumen(db, loc, {
+        desde: sumarDias(hoy, -1),
+        hasta: hoy,
+        ahora,
+      });
     } else if (tipo === 'nocturno') {
       resumen.catalogos = await sincronizarCatalogos(db, cliente);
       const opp = await cargarOportunidades(db, cliente);
@@ -128,6 +148,12 @@ export async function ejecutarCarga(
       resumen.reverificados = await reverificarSinOrigen(db, cliente);
       resumen.leads = await recalcularLeads(db, loc);
       await guardarMarca(db, loc, 'nocturno', ahora);
+      const hoy = await hoySubcuenta(db, loc, ahora);
+      resumen.resumen = await calcularResumen(db, loc, {
+        desde: sumarDias(hoy, -3),
+        hasta: hoy,
+        ahora,
+      });
     } else {
       const dias = o.dias ?? 90;
       const inicio = new Date(ahora.getTime() - dias * 86_400_000);
@@ -187,6 +213,12 @@ export async function ejecutarCarga(
       resumen.leads = await recalcularLeads(db, loc);
       if (!(await leerMarca(db, loc, 'mensajes'))) await guardarMarca(db, loc, 'mensajes', ahora);
       await limpiarMarca(db, loc, 'historico');
+      const hoy = await hoySubcuenta(db, loc, ahora);
+      resumen.resumen = await calcularResumen(db, loc, {
+        desde: hoyEn(await zonaSubcuenta(db, loc), inicio),
+        hasta: hoy,
+        ahora,
+      });
     }
     const llamadas = cliente.llamadas - llamadasInicio;
     await db

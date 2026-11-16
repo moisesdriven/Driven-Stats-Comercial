@@ -3,6 +3,7 @@
  *   node dist/cli.js historico [--dias 90] [--subcuenta <locationId>]   encola la carga histórica
  *   node dist/cli.js incremental [--subcuenta <locationId>]             encola una incremental ya
  *   node dist/cli.js nocturno [--subcuenta <locationId>]                encola la nocturna ya
+ *   node dist/cli.js resumen [--dias 7] [--subcuenta <locationId>]      recalcula resumen_diario
  *   node dist/cli.js estado                                             últimas ejecuciones
  * Con --directo se ejecuta en este proceso en vez de encolar (útil en pruebas en modo sombra).
  */
@@ -11,6 +12,7 @@ import { PgBoss } from 'pg-boss';
 import { crearConexion, ESQUEMA_COLA, tablas } from '@driven/db';
 import { leerConfiguracion } from './configuracion';
 import { subcuentasActivas } from './subcuentas';
+import { calcularResumen, hoyEn, sumarDias } from './calculo/resumen';
 import { ejecutarCarga, type TipoCarga } from './sync/ejecutar';
 
 const COLAS: Record<TipoCarga, string> = {
@@ -38,6 +40,23 @@ async function principal() {
       for (const f of filas) {
         console.log(
           `${f.inicio.toISOString()}  ${f.locationId}  ${f.tipo.padEnd(11)} ${f.estado.padEnd(8)} llamadas=${f.llamadas}${f.error ? `  error: ${f.error}` : ''}`,
+        );
+      }
+      return;
+    }
+    if (comando === 'resumen') {
+      const dias = Number(arg('dias') ?? 7);
+      const filas = await db.select().from(tablas.subcuentas);
+      for (const s of filas.filter(
+        (x) => x.activa && (!arg('subcuenta') || x.locationId === arg('subcuenta')),
+      )) {
+        const hoy = hoyEn(s.zonaHoraria);
+        const r = await calcularResumen(db, s.locationId, {
+          desde: sumarDias(hoy, -dias + 1),
+          hasta: hoy,
+        });
+        console.log(
+          `${s.nombre}: ${r.dias} días, ${r.leads} leads, ${r.filas} filas en ${Math.round(r.ms / 1000)} s`,
         );
       }
       return;
