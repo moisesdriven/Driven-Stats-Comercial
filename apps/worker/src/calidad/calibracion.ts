@@ -12,13 +12,15 @@ import { z } from 'zod';
 import {
   CATEGORIAS_CALIDAD,
   CRITERIOS,
+  FORMATO_SALIDA_VIGENTE,
   VERSION_RUBRICA,
   compararCalibracion,
   costoReal,
   recortarContexto,
+  separarSaludos,
   textoConversacion,
-  tokensAproximados,
   type EtiquetaCalidad,
+  type FormatoSalida,
   type MensajeCalidad,
   type ResultadoCalibracion,
 } from '@driven/core';
@@ -56,14 +58,19 @@ export async function solicitudesCalibracion(
   conjunto: ConjuntoCalibracion,
   modelo: string,
   ajustes: AjustesIa = AJUSTES_IA_POR_DEFECTO,
+  saludosPorRegla = true,
+  formato: FormatoSalida = FORMATO_SALIDA_VIGENTE,
 ): Promise<{
   solicitudes: SolicitudLote[];
   porCustomId: Map<string, string>;
   faltantes: string[];
+  /** Mensajes calificados por la regla de saludos (no van a la IA). */
+  porRegla: Map<string, EtiquetaCalidad>;
 }> {
   const solicitudes: SolicitudLote[] = [];
   const porCustomId = new Map<string, string>();
   const faltantes: string[] = [];
+  const porRegla = new Map<string, EtiquetaCalidad>();
   for (const [i, item] of conjunto.mensajes.entries()) {
     const filas = await db.execute<{
       message_id: string;
@@ -95,31 +102,34 @@ export async function solicitudesCalibracion(
       faltantes.push(item.messageId);
       continue;
     }
+    if (saludosPorRegla) {
+      const orden = [...msgs].sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+      const regla = separarSaludos(orden, objetivo).porRegla.get(item.messageId);
+      if (regla) {
+        porRegla.set(item.messageId, regla);
+        continue;
+      }
+    }
     const { texto, numeracion } = textoConversacion(recortarContexto(msgs, objetivo), objetivo);
     const customId = `cal_${i}`;
     porCustomId.set(customId, item.messageId);
     solicitudes.push({
       custom_id: customId,
-      params: parametrosSolicitud(
-        {
-          conversationId: '',
-          asesorId: '',
-          customId,
-          texto,
-          numeracion: Object.fromEntries(numeracion),
-          mensajes: numeracion.size,
-          tokensConversacion: tokensAproximados(texto),
-        },
-        modelo,
-        ajustes,
-      ),
+      params: parametrosSolicitud({ texto, mensajes: numeracion.size }, modelo, ajustes, formato),
     });
   }
-  return { solicitudes, porCustomId, faltantes };
+  return { solicitudes, porCustomId, faltantes, porRegla };
 }
 
 export interface InformeCalibracion extends ResultadoCalibracion {
   versionRubrica: string;
+  /** Mensajes del conjunto calificados por la regla de saludos. */
+  porRegla: number;
+  formato: FormatoSalida;
+  /** Solicitudes enviadas a la IA y su uso de tokens. */
+  solicitudes: number;
+  tokensEntrada: number;
+  tokensSalida: number;
   modelo: string;
   ajustes: AjustesIa;
   faltantes: string[];
@@ -131,16 +141,29 @@ export async function calibrar(
   db: Db,
   proveedor: ProveedorLotes,
   conjunto: ConjuntoCalibracion,
-  o: { modelo: string; ajustes?: AjustesIa; esperaMs?: number; maxEsperas?: number },
+  o: {
+    modelo: string;
+    ajustes?: AjustesIa;
+    esperaMs?: number;
+    maxEsperas?: number;
+    /** Calificar los saludos sueltos por regla, como en un análisis real (por defecto sí). */
+    saludosPorRegla?: boolean;
+    /** Formato de la respuesta (por defecto el vigente). */
+    formato?: FormatoSalida;
+  },
 ): Promise<InformeCalibracion> {
-  const { solicitudes, porCustomId, faltantes } = await solicitudesCalibracion(
+  const { solicitudes, porCustomId, faltantes, porRegla } = await solicitudesCalibracion(
     db,
     conjunto,
     o.modelo,
     o.ajustes,
+    o.saludosPorRegla ?? true,
+    o.formato ?? FORMATO_SALIDA_VIGENTE,
   );
-  const obtenidos = new Map<string, EtiquetaCalidad>();
+  const obtenidos = new Map<string, EtiquetaCalidad>(porRegla);
   let costo = 0;
+  let tokensEntrada = 0;
+  let tokensSalida = 0;
   if (solicitudes.length) {
     const lote = await proveedor.crearLote(solicitudes);
     for (let n = 0; (await proveedor.estadoLote(lote)) !== 'ended'; n++) {
@@ -148,7 +171,14 @@ export async function calibrar(
       await new Promise((r) => setTimeout(r, o.esperaMs ?? 15_000));
     }
     for await (const r of proveedor.resultados(lote)) {
-      if (r.uso) costo += costoReal(r.uso);
+      if (r.uso) {
+        costo += costoReal(r.uso);
+        tokensEntrada +=
+          r.uso.input_tokens +
+          (r.uso.cache_read_input_tokens ?? 0) +
+          (r.uso.cache_creation_input_tokens ?? 0);
+        tokensSalida += r.uso.output_tokens;
+      }
       const id = porCustomId.get(r.custom_id);
       if (!id || r.tipo !== 'succeeded' || !r.texto || r.stopReason === 'refusal') continue;
       const datos = esquemaRespuesta.safeParse(safeJson(r.texto));
@@ -166,6 +196,11 @@ export async function calibrar(
     modelo: o.modelo,
     ajustes: o.ajustes ?? AJUSTES_IA_POR_DEFECTO,
     faltantes,
+    porRegla: porRegla.size,
+    formato: o.formato ?? FORMATO_SALIDA_VIGENTE,
+    solicitudes: solicitudes.length,
+    tokensEntrada,
+    tokensSalida,
     costoUsd: Math.round(costo * 10_000) / 10_000,
     ...compararCalibracion(esperados, obtenidos),
   };

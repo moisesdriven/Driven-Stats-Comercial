@@ -23,6 +23,11 @@ import {
   TOKENS_MARGEN_PENSAMIENTO,
   cacheLeidaPct,
   desvioCostoPct,
+  esSaludoSuelto,
+  calificarSaludoPorRegla,
+  separarSaludos,
+  instruccionesCalidad,
+  esquemaRespuestaCalidad,
   type MensajeCalidad,
 } from './calidad';
 
@@ -419,5 +424,131 @@ describe('calibración', () => {
     expect(r.criterios.personalizado).toBe(1);
     expect(r.diferencias.map((d) => `${d.messageId}:${d.campo}`)).toContain('m2:categoria');
     expect(r.diferencias.map((d) => `${d.messageId}:${d.campo}`)).toContain('m3:respuesta');
+  });
+});
+
+describe('saludos sueltos por regla', () => {
+  it('reconoce saludos, presentaciones y transiciones sin contenido', () => {
+    for (const t of [
+      'Hola, buenas noches ☺️',
+      '¡Hola, buenas tardes! 💚\nLe saluda Ximena, asesora de ventas de Joyeria Jade💍',
+      'Soy Stephanie, asesora de ventas de Joyería Jade 💍',
+      'Ahora le brindo información',
+      'Ahora le brindo más información',
+      'Buenas tardes, soy asesora de ventas de la joyería',
+      'Hola caballero, buenas noches',
+      'Buenos días, gracias por escribirnos',
+      '¡Hola, buenas noches! 💚 Le saluda Ana María, asesora de ventas de Tienda Sol 💍 ahora le brindo información',
+    ])
+      expect(esSaludoSuelto(t), t).toBe(true);
+  });
+
+  it('deja para la IA lo que trae contenido, el nombre del cliente o faltas de ortografía', () => {
+    for (const t of [
+      'Hola Ana, buenas noches ☺️', // nombre del cliente: puede ser personalizado
+      'Hola, buenas noches Paul',
+      'Coméntame cómo puedo ayudarte', // invita a seguir: lo decide la IA
+      'Hola, buenos dias', // sin tilde: el tono lo decide la IA
+      'Ahora le brindo informaciom',
+      'Hola, el solitario cuesta S/ 890',
+      '¿Lograste visualizar nuestro catálogo?',
+      '',
+      '💍',
+    ])
+      expect(esSaludoSuelto(t), t).toBe(false);
+  });
+
+  it('califica como la rúbrica: plantilla, sin personalización ni siguiente paso', () => {
+    expect(calificarSaludoPorRegla('Hola, buenas tardes ☺️', true)).toEqual({
+      categoria: 'saludo_plantilla',
+      criterios: {
+        responde: false,
+        personalizado: false,
+        siguiente_paso: false,
+        tono: true,
+        extension: true,
+      },
+    });
+    expect(calificarSaludoPorRegla('Hola, buenas tardes ☺️', false)?.criterios.responde).toBe(true);
+    expect(calificarSaludoPorRegla('Hola, el precio es S/ 890', false)).toBeNull();
+  });
+
+  it('un saludo no responde un pedido pendiente; un mensaje con contenido lo cierra', () => {
+    const m = (
+      id: string,
+      direccion: 'inbound' | 'outbound',
+      texto: string,
+      automatico = false,
+    ): MensajeCalidad => ({
+      id,
+      fecha: new Date(0),
+      direccion,
+      calificable: direccion === 'outbound' && !automatico,
+      automatico,
+      texto,
+    });
+    const contexto = [
+      m('c1', 'inbound', 'Hola, buenas tardes'),
+      m('a1', 'outbound', 'Hola, buenas tardes ☺️'), // el cliente solo saludó: responde
+      m('c2', 'inbound', '¿Cuánto cuesta el solitario?'),
+      m('b1', 'outbound', 'Gracias por escribirnos, en breve le atendemos', true), // automático
+      m('a2', 'outbound', 'Soy Carla, asesora de ventas'), // pedido pendiente: no responde
+      m('a3', 'outbound', 'Ahora le brindo información'), // sigue pendiente
+      m('a4', 'outbound', 'El solitario cuesta S/ 890. ¿Para qué fecha lo necesita?'), // a la IA
+      m('a5', 'outbound', 'Hola, buenas noches ☺️'), // ya se respondió: responde
+    ];
+    const { porRegla, paraIa } = separarSaludos(contexto, new Set(['a1', 'a2', 'a3', 'a4', 'a5']));
+    expect([...paraIa]).toEqual(['a4']);
+    expect(porRegla.get('a1')?.criterios.responde).toBe(true);
+    expect(porRegla.get('a2')?.criterios.responde).toBe(false);
+    expect(porRegla.get('a3')?.criterios.responde).toBe(false);
+    expect(porRegla.get('a5')?.criterios.responde).toBe(true);
+    expect(puntajeDeCriterios(porRegla.get('a2')!.criterios)).toBe(2);
+  });
+});
+
+describe('formatos de respuesta', () => {
+  it('v2 mantiene las instrucciones y el esquema originales', () => {
+    expect(instruccionesCalidad('v2')).toBe(INSTRUCCIONES_CALIDAD);
+    expect(esquemaRespuestaCalidad('v2')).toBe(ESQUEMA_RESPUESTA_CALIDAD);
+  });
+
+  it('motivo primero pide el motivo antes de la categoría y los criterios', () => {
+    const e = esquemaRespuestaCalidad('motivo_primero') as {
+      properties: { mensajes: { items: { properties: object; required: string[] } } };
+    };
+    expect(Object.keys(e.properties.mensajes.items.properties)).toEqual([
+      'n',
+      'motivo',
+      'categoria',
+      'criterios',
+    ]);
+    expect(instruccionesCalidad('motivo_primero')).toContain('escribe primero "motivo"');
+  });
+
+  it('compacto usa claves cortas, con el motivo primero', () => {
+    const e = esquemaRespuestaCalidad('compacto') as {
+      properties: { mensajes: { items: { properties: object; required: string[] } } };
+    };
+    expect(Object.keys(e.properties.mensajes.items.properties)).toEqual([
+      'n',
+      'm',
+      'cat',
+      'r',
+      'p',
+      's',
+      't',
+      'e',
+    ]);
+    expect(e.properties.mensajes.items.required).toHaveLength(8);
+    expect(instruccionesCalidad('compacto')).toContain('"r" = responde');
+  });
+
+  it('la estimación sigue al formato: el compacto espera menos salida', () => {
+    const caso = [{ tokensConversacion: 600, mensajes: 3 }];
+    const v2 = estimarCosto(caso, PRECIOS_POR_DEFECTO, { formato: 'v2' });
+    const compacto = estimarCosto(caso, PRECIOS_POR_DEFECTO, { formato: 'compacto' });
+    expect(compacto.tokensSalida).toBeLessThan(v2.tokensSalida);
+    expect(tokensFijosSolicitud('compacto')).toBeGreaterThan(tokensFijosSolicitud('v2'));
   });
 });

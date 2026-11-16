@@ -14,6 +14,8 @@ import {
   CRITERIOS,
   VERSION_RUBRICA,
   costoReal,
+  CLAVES_COMPACTAS,
+  MODELO_REGLA_SALUDOS,
   cacheLeidaPct,
   desvioCostoPct,
   mejorYPeor,
@@ -34,20 +36,40 @@ import {
 import { enLotes, log } from '../sync/util';
 import { dividirEnLotes, type ProveedorLotes, type SolicitudLote } from './proveedor';
 
+const criteriosZod = z.object(
+  Object.fromEntries(CRITERIOS.map((c) => [c, z.boolean()])) as Record<
+    (typeof CRITERIOS)[number],
+    z.ZodBoolean
+  >,
+);
+const k = CLAVES_COMPACTAS;
+/** Un mensaje en el formato `v2` o `motivo_primero` (mismas claves, distinto orden). */
+const mensajeCompleto = z.object({
+  n: z.number().int().min(1),
+  categoria: z.enum(CATEGORIAS_CALIDAD),
+  criterios: criteriosZod,
+  motivo: z.string(),
+});
+/** Un mensaje en el formato `compacto` (claves cortas), llevado a la forma completa. */
+const mensajeCompacto = z
+  .object({
+    n: z.number().int().min(1),
+    [k.motivo]: z.string(),
+    [k.categoria]: z.enum(CATEGORIAS_CALIDAD),
+    ...Object.fromEntries(CRITERIOS.map((c) => [k[c], z.boolean()])),
+  })
+  .transform((x) => {
+    const v = x as Record<string, unknown>;
+    return {
+      n: x.n,
+      categoria: v[k.categoria] as (typeof CATEGORIAS_CALIDAD)[number],
+      criterios: Object.fromEntries(CRITERIOS.map((c) => [c, v[k[c]] as boolean])) as Criterios,
+      motivo: v[k.motivo] as string,
+    };
+  });
+/** Respuesta de la IA en cualquiera de los formatos (`FORMATOS_SALIDA`), en su forma completa. */
 export const esquemaRespuesta = z.object({
-  mensajes: z.array(
-    z.object({
-      n: z.number().int().min(1),
-      categoria: z.enum(CATEGORIAS_CALIDAD),
-      criterios: z.object(
-        Object.fromEntries(CRITERIOS.map((c) => [c, z.boolean()])) as Record<
-          (typeof CRITERIOS)[number],
-          z.ZodBoolean
-        >,
-      ),
-      motivo: z.string(),
-    }),
-  ),
+  mensajes: z.array(z.union([mensajeCompleto, mensajeCompacto])),
 });
 
 /** Crea un análisis en estado `solicitado` (lo procesa el job de solicitudes). */
@@ -128,7 +150,7 @@ export async function prepararAnalisis(
       conversacionesElegibles: prep.universo.conversaciones,
       conversacionesMuestra: prep.muestra.length,
       descartes: { ...prep.descartes, sinMensajesCalificables: prep.sinMensajes.length },
-      mensajesEstimados: prep.solicitudes.reduce((s, x) => s + x.mensajes, 0),
+      mensajesEstimados: prep.solicitudes.reduce((s, x) => s + x.mensajes + x.porRegla.length, 0),
       costoEstimado: prep.estimacion.costoUsd,
     };
     if (!prep.solicitudes.length) {
@@ -160,9 +182,10 @@ export async function prepararAnalisis(
         analisisId,
         conversationId: s.conversationId,
         asesorId: s.asesorId,
-        estado: 'pendiente',
+        estado: !s.mensajes ? 'por_regla' : s.reutilizarDe === null ? 'pendiente' : 'reutilizado',
         mensajes: s.mensajes,
         numeracion: s.numeracion,
+        huella: s.huella,
       })),
       ...prep.sinMensajes.map((c) => ({
         analisisId,
@@ -174,25 +197,70 @@ export async function prepararAnalisis(
     for (const parte of enLotes(filasMuestra, 500)) {
       await db.insert(tablas.analisisCalidadMuestra).values(parte).onConflictDoNothing();
     }
-    const solicitudes: SolicitudLote[] = prep.solicitudes.map((s) => ({
+    // Saludos sueltos calificados por regla (sin IA).
+    const porRegla = prep.solicitudes.flatMap((s) =>
+      s.porRegla.map((r) => ({
+        analisisId,
+        messageId: r.messageId,
+        conversationId: s.conversationId,
+        asesorId: s.asesorId,
+        categoria: r.etiqueta.categoria,
+        puntaje: puntajeDeCriterios(r.etiqueta.criterios),
+        criterios: r.etiqueta.criterios,
+        motivo: 'Saludo o presentación sin contenido (calificado por regla).',
+        modelo: MODELO_REGLA_SALUDOS,
+        versionRubrica: VERSION_RUBRICA,
+      })),
+    );
+    for (const parte of enLotes(porRegla, 500)) {
+      await db.insert(tablas.clasificaciones).values(parte).onConflictDoNothing();
+    }
+    // Sin trabajo repetido (§6): se copian las calificaciones de las conversaciones ya calificadas
+    // con la misma huella y solo se envía el resto.
+    const reutilizadas = prep.solicitudes.filter((s) => s.reutilizarDe !== null);
+    for (const s of reutilizadas) {
+      const previa = s.reutilizarDe!;
+      // Los mensajes se emparejan por su número: la previa puede ser otra conversación con el
+      // mismo texto.
+      const pares = Object.entries(s.numeracion)
+        .map(([n, id]) => ({ id, origen: previa.numeracion[n] }))
+        .filter((x): x is { id: string; origen: string } => !!x.origen);
+      for (const x of pares) {
+        await db.execute(sql`
+          insert into comercial.clasificaciones
+            (analisis_id, message_id, conversation_id, asesor_id, categoria, puntaje, criterios, motivo, modelo, version_rubrica)
+          select ${analisisId}, ${x.id}, ${s.conversationId}, ${s.asesorId}, categoria, puntaje, criterios, motivo, modelo, version_rubrica
+          from comercial.clasificaciones
+          where analisis_id = ${previa.analisisId} and message_id = ${x.origen}
+          on conflict do nothing`);
+      }
+    }
+    const aEnviar = prep.solicitudes.filter((s) => s.mensajes > 0 && s.reutilizarDe === null);
+    const solicitudes: SolicitudLote[] = aEnviar.map((s) => ({
       custom_id: s.customId,
       params: parametrosSolicitud(s, cfg.modelo, cfg.ajustes),
     }));
-    const batchIds = await enviar(
-      db,
-      proveedor,
-      analisisId,
-      solicitudes,
-      prep.solicitudes.map((s) => s.conversationId),
-    );
+    const batchIds = solicitudes.length
+      ? await enviar(
+          db,
+          proveedor,
+          analisisId,
+          solicitudes,
+          aEnviar.map((s) => s.conversationId),
+        )
+      : [];
     await actualizar(db, analisisId, { ...base, estado: 'enviado', batchIds });
     log('calidad_enviado', {
       analisisId,
       solicitudes: solicitudes.length,
+      reutilizadas: reutilizadas.length,
+      mensajesPorRegla: porRegla.length,
       lotes: batchIds.length,
       estimado: prep.estimacion.costoUsd,
       maximo: prep.estimacion.costoMaximoUsd,
     });
+    // Si todo se reutilizó no hay lotes que esperar: se cierra de inmediato.
+    if (!solicitudes.length) await revisarAnalisis(db, proveedor, analisisId, cfg);
   } catch (e) {
     const mensaje = e instanceof Error ? e.message : String(e);
     await actualizar(db, analisisId, {

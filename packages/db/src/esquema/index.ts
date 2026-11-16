@@ -439,9 +439,17 @@ export const analisisCalidadMuestra = comercial.table(
     numeracion: jsonb('numeracion'),
     batchId: text('batch_id'),
     error: text('error'),
+    /**
+     * SHA-256 de lo que se envía a la IA (rúbrica, modelo, ajustes y texto de la conversación).
+     * Si coincide con una conversación ya calificada, se reutiliza sin volver a enviarla (§6).
+     */
+    huella: text('huella'),
     ...auditoriaFilas,
   },
-  (t) => [primaryKey({ columns: [t.analisisId, t.conversationId] })],
+  (t) => [
+    primaryKey({ columns: [t.analisisId, t.conversationId] }),
+    index('analisis_calidad_muestra_huella_idx').on(t.huella),
+  ],
 );
 
 export const clasificaciones = comercial.table(

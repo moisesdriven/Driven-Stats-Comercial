@@ -69,7 +69,11 @@ export async function estimarAnalisis(
       nombre: s.nombre,
       conversacionesElegibles: p.universo.conversaciones,
       muestra: p.muestra.length,
-      mensajesEstimados: p.solicitudes.reduce((t, x) => t + x.mensajes, 0),
+      // Todo lo que se califica: con IA y saludos por regla.
+      mensajesEstimados: p.solicitudes.reduce((t, x) => t + x.mensajes + x.porRegla.length, 0),
+      mensajesPorRegla: p.solicitudes.reduce((t, x) => t + x.porRegla.length, 0),
+      // Ya calificadas con la misma rúbrica y sin mensajes nuevos: no se pagan otra vez.
+      conversacionesReutilizadas: p.solicitudes.filter((x) => x.reutilizarDe !== null).length,
       costoEstimadoUsd: p.estimacion.costoUsd,
       costoMaximoUsd: p.estimacion.costoMaximoUsd,
       descartes: { ...p.descartes, sinMensajesCalificables: p.sinMensajes.length },

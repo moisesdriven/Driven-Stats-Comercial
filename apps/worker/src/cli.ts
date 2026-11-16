@@ -6,7 +6,7 @@
  *   node dist/cli.js resumen [--dias 7] [--subcuenta <locationId>]      recalcula resumen_diario
  *   node dist/cli.js calidad-estimar --subcuenta ID --desde F --hasta F   costo estimado (no envía nada)
  *   node dist/cli.js calidad-revisar                                     revisa lotes enviados ahora
- *   node dist/cli.js calidad-calibrar --archivo F [--minimo 0.9] [--minimo-categoria 0.85] [--esfuerzo low] [--pensamiento si]  coincidencia con la revisión humana
+ *   node dist/cli.js calidad-calibrar --archivo F [--minimo 0.9] [--minimo-categoria 0.85] [--esfuerzo low] [--pensamiento si] [--saludos-por-regla no] [--modelo M] [--formato v2|motivo_primero|compacto]  coincidencia con la revisión humana
  *   node dist/cli.js estado                                             últimas ejecuciones
  * Con --directo se ejecuta en este proceso en vez de encolar (útil en pruebas en modo sombra).
  */
@@ -21,12 +21,21 @@ import {
   prepararSolicitudes,
   tablas,
 } from '@driven/db';
+import { FORMATOS_SALIDA, FORMATO_SALIDA_VIGENTE, type FormatoSalida } from '@driven/core';
 import { calibrar, leerConjunto } from './calidad/calibracion';
 import { procesarPendientes } from './calidad/proceso';
 import { ProveedorAnthropic } from './calidad/proveedor';
 import { leerConfiguracion } from './configuracion';
 import { subcuentasActivas } from './subcuentas';
 import { calcularResumen, hoyEn, sumarDias } from './calculo/resumen';
+
+/** Formato de respuesta pedido por línea de comandos (por defecto el vigente). */
+function leerFormato(v: string | undefined): FormatoSalida {
+  if (!v) return FORMATO_SALIDA_VIGENTE;
+  const f = FORMATOS_SALIDA.find((x) => x === v);
+  if (!f) throw new Error(`Formato desconocido: ${v} (${FORMATOS_SALIDA.join(', ')}).`);
+  return f;
+}
 import { ejecutarCarga, type TipoCarga } from './sync/ejecutar';
 
 const COLAS: Record<TipoCarga, string> = {
@@ -81,7 +90,12 @@ async function principal() {
             porAsesor: Object.fromEntries([...p.universo.porAsesor].map(([a, l]) => [a, l.length])),
             muestra: p.muestra.length,
             solicitudes: p.solicitudes.length,
-            mensajesACalificar: p.solicitudes.reduce((s2, x) => s2 + x.mensajes, 0),
+            reutilizadas: p.solicitudes.filter((x) => x.reutilizarDe !== null).length,
+            mensajesACalificar: p.solicitudes.reduce(
+              (s2, x) => s2 + x.mensajes + x.porRegla.length,
+              0,
+            ),
+            mensajesPorRegla: p.solicitudes.reduce((s2, x) => s2 + x.porRegla.length, 0),
             descartes: { ...p.descartes, sinMensajesCalificables: p.sinMensajes.length },
             estimacion: p.estimacion,
             gastoDelMesUsd: gasto,
@@ -112,13 +126,18 @@ async function principal() {
           arg('esfuerzo') ?? process.env.IA_ESFUERZO,
           arg('pensamiento') ?? process.env.IA_PENSAMIENTO,
         ),
+        formato: leerFormato(arg('formato')),
+        saludosPorRegla: configuracionCalidad({
+          CALIDAD_SALUDOS_POR_REGLA:
+            arg('saludos-por-regla') ?? process.env.CALIDAD_SALUDOS_POR_REGLA,
+        }).saludosPorRegla,
       });
       console.log(JSON.stringify(informe, null, 2));
       const t = informe.tasas;
       const aprobado = t.puntajeUnPunto >= minimo && t.categoria >= minimoCategoria;
       const pct = (x: number) => `${(x * 100).toFixed(1)} %`;
       console.log(
-        `${aprobado ? 'APROBADO' : 'NO APROBADO'}: puntaje a ±1 ${pct(t.puntajeUnPunto)} (mínimo ${pct(minimo)}), categoría ${pct(t.categoria)} (mínimo ${pct(minimoCategoria)}), puntaje exacto ${pct(t.puntajeExacto)}; rúbrica ${informe.versionRubrica}, costo US$ ${informe.costoUsd}`,
+        `${aprobado ? 'APROBADO' : 'NO APROBADO'}: puntaje a ±1 ${pct(t.puntajeUnPunto)} (mínimo ${pct(minimo)}), categoría ${pct(t.categoria)} (mínimo ${pct(minimoCategoria)}), puntaje exacto ${pct(t.puntajeExacto)}; rúbrica ${informe.versionRubrica}, formato ${informe.formato}, modelo ${informe.modelo}, por regla ${informe.porRegla}, salida ${informe.tokensSalida} tokens, costo US$ ${informe.costoUsd}`,
       );
       if (!aprobado) process.exitCode = 1;
       return;
