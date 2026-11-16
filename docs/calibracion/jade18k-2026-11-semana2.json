@@ -1,5 +1,5 @@
 {
-  "descripcion": "Jade18K, semana del 2 al 8 nov 2026: 100 mensajes elegidos al azar entre los 1.889 que el análisis calificaría (semilla conjunto-2-nov; orden md5(message_id || semilla-nov2)). Etiquetas de referencia revisadas a mano el 16 nov 2026 con la rúbrica v2, en una sola pasada y sin ver respuestas de la IA (conjunto independiente). Solo ids y etiquetas; el contexto se lee de la base.",
+  "descripcion": "Jade18K, semana del 2 al 8 nov 2026: 100 mensajes elegidos al azar entre los 1.889 que el análisis calificaría (semilla conjunto-2-nov; orden md5(message_id || semilla-nov2)). Etiquetas de referencia revisadas a mano el 16 nov 2026 sin ver respuestas de la IA (conjunto independiente) y actualizadas a la rúbrica v3 (bloques de respuesta de 5 minutos, tildes y extensión de mensajes que completan a otro): 30 etiquetas cambiaron. Solo ids y etiquetas; el contexto se lee de la base.",
   "locationId": "93mgPQwURqpEvyzZcf9m",
   "mensajes": [
     {
@@ -15,7 +15,7 @@
     },
     {
       "messageId": "6P18MiRCE7Dn0EMulhDT",
-      "categoria": "seguimiento",
+      "categoria": "pregunta_calificacion",
       "criterios": {
         "responde": true,
         "personalizado": false,
@@ -48,7 +48,7 @@
     },
     {
       "messageId": "Ex0DRtHjCbzK5qmB4qjS",
-      "categoria": "seguimiento",
+      "categoria": "pregunta_calificacion",
       "criterios": {
         "responde": true,
         "personalizado": false,
@@ -131,14 +131,14 @@
         "personalizado": true,
         "siguiente_paso": false,
         "tono": true,
-        "extension": false
+        "extension": true
       }
     },
     {
       "messageId": "7vG4jBJSCgjrnuaZBhN5",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
@@ -160,7 +160,7 @@
       "messageId": "hoofr4Br2Fz3uZNXImWR",
       "categoria": "pregunta_calificacion",
       "criterios": {
-        "responde": true,
+        "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
@@ -204,7 +204,7 @@
       "messageId": "HShGJPaAeKcHLfR5VPsB",
       "categoria": "pregunta_calificacion",
       "criterios": {
-        "responde": true,
+        "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
@@ -226,7 +226,7 @@
       "messageId": "B9tX1xGRWScBLsEdp57q",
       "categoria": "info_producto_precio",
       "criterios": {
-        "responde": true,
+        "responde": false,
         "personalizado": true,
         "siguiente_paso": true,
         "tono": false,
@@ -270,7 +270,7 @@
       "messageId": "yxO8TRPQi62MgYhi9heY",
       "categoria": "pregunta_calificacion",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
@@ -281,7 +281,7 @@
       "messageId": "aEvlh1TbbOx2184Bw91L",
       "categoria": "respuesta_pregunta",
       "criterios": {
-        "responde": true,
+        "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
@@ -314,7 +314,7 @@
       "messageId": "SttaIcJe4dCNfof8HNPv",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
@@ -351,7 +351,7 @@
         "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
-        "extension": false
+        "extension": true
       }
     },
     {
@@ -468,7 +468,7 @@
       "messageId": "a20vcSrWOEnGyNiSkGMf",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
@@ -490,7 +490,7 @@
       "messageId": "XIHrCz6lmWcqeOE6cwpa",
       "categoria": "pregunta_calificacion",
       "criterios": {
-        "responde": true,
+        "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
@@ -523,7 +523,7 @@
       "messageId": "gAuAS9pUJNTMFsZkBmf3",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
@@ -534,7 +534,7 @@
       "messageId": "iGcwO2TIDw7NEaaujiWj",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
@@ -545,7 +545,7 @@
       "messageId": "A38RwamjcYEsS7Rz7mnC",
       "categoria": "pregunta_calificacion",
       "criterios": {
-        "responde": true,
+        "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
@@ -576,7 +576,7 @@
     },
     {
       "messageId": "07PwDC13YICbwtgbqZx4",
-      "categoria": "respuesta_pregunta",
+      "categoria": "seguimiento",
       "criterios": {
         "responde": true,
         "personalizado": false,
@@ -611,10 +611,10 @@
       "messageId": "wDdRssa45zQjc5EY5w6c",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
-        "tono": true,
+        "tono": false,
         "extension": true
       }
     },
@@ -631,7 +631,7 @@
     },
     {
       "messageId": "xLoFpeFmGt4HG5RVV0Fk",
-      "categoria": "info_producto_precio",
+      "categoria": "seguimiento",
       "criterios": {
         "responde": true,
         "personalizado": false,
@@ -666,7 +666,7 @@
       "messageId": "B930jHiRXFi39uk7O20g",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
@@ -677,7 +677,7 @@
       "messageId": "N14soHRarJ3BZzhceLuw",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
         "tono": false,
@@ -730,7 +730,7 @@
     },
     {
       "messageId": "j9egWygoJ4YsQ34FVECQ",
-      "categoria": "info_producto_precio",
+      "categoria": "seguimiento",
       "criterios": {
         "responde": true,
         "personalizado": false,
@@ -765,7 +765,7 @@
       "messageId": "BJNTFnQG4ltbbqOaLUhh",
       "categoria": "info_producto_precio",
       "criterios": {
-        "responde": true,
+        "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
@@ -824,14 +824,14 @@
         "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
-        "extension": false
+        "extension": true
       }
     },
     {
       "messageId": "cbsl6I5Tywv92Ym21ai4",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
@@ -842,7 +842,7 @@
       "messageId": "z3AhvBF0QTNm6trGMNda",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
@@ -873,7 +873,7 @@
     },
     {
       "messageId": "dbTr4jGEIka6ZeR4bRqP",
-      "categoria": "info_producto_precio",
+      "categoria": "seguimiento",
       "criterios": {
         "responde": true,
         "personalizado": false,
@@ -886,10 +886,10 @@
       "messageId": "bqmFiy1MCnGCtnGKDFKF",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
-        "tono": true,
+        "tono": false,
         "extension": true
       }
     },
@@ -906,9 +906,9 @@
     },
     {
       "messageId": "PujZvbr5jHZg2QRD4g3D",
-      "categoria": "seguimiento",
+      "categoria": "pregunta_calificacion",
       "criterios": {
-        "responde": true,
+        "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": true,
@@ -974,7 +974,7 @@
       "messageId": "9BoDanFMnkYr5rzxXIFD",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
