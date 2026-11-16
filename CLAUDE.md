@@ -102,6 +102,7 @@ TypeScript se mantiene en 6.0.x porque `typescript-eslint` aún no soporta la 7.
   son de otra subcuenta (ETT) y **no** se usan para el piloto. `GHL_AGENCY_TOKEN` solo para listar
   subcuentas.
 - PostgreSQL 16 local para pruebas: binarios en `/usr/lib/postgresql/16/bin` (initdb como usuario
-  `postgres`).
+  `postgres`). Para recrear la base del piloto y lanzar el análisis de calidad real:
+  `docs/desarrollo-piloto.md`.
 - Para construir imágenes Docker aquí, el proxy del entorno exige su certificado dentro del build;
   se usa una copia temporal del Dockerfile (nunca se modifica el del repositorio).
