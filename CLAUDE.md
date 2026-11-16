@@ -6,9 +6,11 @@ GoHighLevel. **Fuente de verdad:** `ESPECIFICACION.md`. Diseño aprobado: `disen
 
 ## Reglas que no se rompen
 
-- Proyecto **independiente de Driven Conteo**. Solo se usan los esquemas `comercial` y
-  `comercial_cola` y los roles `comercial_web`, `comercial_worker` y `comercial_migrador`. Nunca leer
-  ni modificar los esquemas `ghl` o `app`, ni contenedores, redes o proxy de Conteo.
+- Proyecto **independiente de Driven Conteo y de DrivenBox**, con **PostgreSQL propio**
+  (contenedor `comercial-db`; decisión del cliente que reemplaza la "misma instancia" de la §2).
+  Esquemas `comercial` y `comercial_cola`, roles `comercial_web`, `comercial_worker` y
+  `comercial_migrador`. Nunca tocar `drivenbox-db`, los esquemas `ghl`/`app` ni contenedores, redes
+  o configuración de otras aplicaciones. Única red ajena: `web` (Traefik), solo para publicarse.
 - **Solo lectura sobre GHL.** Ningún código escribe ni envía nada a GHL.
 - **Ningún secreto en el repositorio.** Variables nuevas se documentan en `.env.example`.
 - **Permisos en el servidor:** toda consulta filtra por las subcuentas del usuario (y por su
