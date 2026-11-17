@@ -24,7 +24,7 @@ const GRUPOS: { etapa: string; pregunta: string; campos: Campo[] }[] = [
       {
         clave: 'tiempoRespuestaMin',
         etiqueta: 'Tiempo de respuesta del asesor',
-        ayuda: 'Mediana en minutos laborales',
+        ayuda: 'Mediana en minutos, desde que el asesor está en jornada',
         unidad: 'min',
         paso: 0.5,
         min: 0.5,

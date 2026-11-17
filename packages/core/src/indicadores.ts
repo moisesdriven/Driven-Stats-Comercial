@@ -9,6 +9,9 @@
  *   responder" es un mensaje que no respondió nadie (ni asesor, ni agente IA, ni workflow). Solo ahí
  *   la responsabilidad cae en el asesor: un lead que deja en visto una respuesta y se pierde no es
  *   "perdido por falta de seguimiento".
+ * - (17 nov 2026) Turno automático (`crearJornadas`): el asesor está fuera de turno si lleva más de
+ *   3 h sin escribir a ningún cliente. Su tiempo de respuesta corre desde que está en turno, y un
+ *   mensaje sin responder es falta suya a los 15 min solo si está en turno.
  * - Un lead perdido sale de las listas operativas (sin responder, en espera, pendientes,
  *   interesados) y se cuenta en leads perdidos; sigue contando como recibido para la conversión.
  * - Seguimiento vencido (requiere acción) frente a programado (tarea futura).
@@ -54,6 +57,75 @@ export interface MensajeLead {
   origen: Origen | null;
   /** Mensaje de entrada al CRM ("Headline: …"): no es un mensaje del cliente y no se cuenta. */
   entrada?: boolean;
+  /** Usuario de GHL que envió un saliente `manual` (para saber desde cuándo estaba en jornada). */
+  userId?: string | null;
+}
+
+/** Más de este tiempo sin escribir a ningún cliente = el asesor está fuera de turno (regla del cliente). */
+export const HORAS_FUERA_DE_TURNO = 3;
+
+/**
+ * Turno automático del asesor, a partir de su actividad real (salientes `manual` a cualquier
+ * cliente), sin depender de horarios cargados (reglas del cliente del 17 nov 2026):
+ * - Está en turno mientras no pasen más de 3 horas sin que escriba a ningún cliente.
+ * - `inicio`: desde cuándo corre su tiempo de respuesta a un mensaje escrito en `desde`. Si estaba
+ *   en turno, desde el mensaje; si estaba fuera de turno, desde su primera actividad siguiente.
+ * - `enTurno`: si en ese instante está en turno. Sin actividad conocida se considera en turno.
+ */
+export interface Jornadas {
+  inicio(userId: string | null | undefined, desde: Date): Date;
+  enTurno(userId: string | null | undefined, en: Date): boolean;
+  /** Última actividad del asesor hasta `hasta` (inclusive), o null si no tiene. */
+  ultimaActividad(userId: string | null | undefined, hasta: Date): Date | null;
+}
+
+export function crearJornadas(actividad: ReadonlyMap<string, readonly Date[]>): Jornadas {
+  const limite = HORAS_FUERA_DE_TURNO * 3_600_000;
+  const ordenada = new Map<string, number[]>();
+  for (const [u, fechas] of actividad)
+    ordenada.set(
+      u,
+      fechas.map((f) => f.getTime()).sort((a, b) => a - b),
+    );
+  // Primer índice con valor > x (búsqueda binaria).
+  const despuesDe = (v: number[], x: number) => {
+    let lo = 0;
+    let hi = v.length;
+    while (lo < hi) {
+      const m = (lo + hi) >> 1;
+      if (v[m]! <= x) lo = m + 1;
+      else hi = m;
+    }
+    return lo;
+  };
+  return {
+    inicio(userId, desde) {
+      const v = userId ? ordenada.get(userId) : undefined;
+      if (!v?.length) return desde;
+      const t = desde.getTime();
+      const i = despuesDe(v, t);
+      const previa = i > 0 ? v[i - 1]! : null;
+      const siguiente = i < v.length ? v[i]! : null;
+      const enTurno =
+        previa !== null &&
+        t - previa <= limite &&
+        (siguiente === null || siguiente - previa <= limite);
+      if (enTurno) return desde;
+      return siguiente !== null ? new Date(siguiente) : desde;
+    },
+    enTurno(userId, en) {
+      const v = userId ? ordenada.get(userId) : undefined;
+      if (!v?.length) return true;
+      const i = despuesDe(v, en.getTime());
+      return i > 0 && en.getTime() - v[i - 1]! <= limite;
+    },
+    ultimaActividad(userId, hasta) {
+      const v = userId ? ordenada.get(userId) : undefined;
+      if (!v?.length) return null;
+      const i = despuesDe(v, hasta.getTime());
+      return i > 0 ? new Date(v[i - 1]!) : null;
+    },
+  };
 }
 
 /** Patrón de los mensajes de entrada al CRM: empiezan con "Headline" o "*Headline*". */
@@ -92,6 +164,13 @@ export interface DatosLead {
   tareas?: readonly TareaLead[];
   /** Periodos en la etapa Nuevo (historial de etapas). Sin historial, cuenta la etapa actual. */
   periodosNuevo?: readonly PeriodoEtapa[];
+  /** Asesor dueño del contacto (para saber si está en turno). */
+  asesorId?: string | null;
+  /**
+   * Turno real de los asesores. Con él, los tiempos son minutos de reloj desde que el asesor está
+   * en turno; sin él, minutos laborales desde el mensaje del cliente.
+   */
+  jornadas?: Jornadas;
 }
 
 export interface TiempoAsesor {
@@ -111,6 +190,10 @@ export interface MetricasLead {
   respondidasWorkflow: Date[];
   /** Primer mensaje del cliente aún sin respuesta (ni del asesor, ni del agente IA, ni de un workflow). */
   pendienteDesde: Date | null;
+  /** Hay un mensaje pendiente pero el asesor está fuera de turno (más de 3 h sin actividad): no es falta. */
+  pendienteFueraDeTurno: boolean;
+  /** Minutos que lleva esperando el mensaje pendiente (desde que el asesor está en turno). */
+  minutosEspera: number;
   primeraHumanaEn: Date | null;
   sinResponder: boolean;
   enEspera: boolean;
@@ -212,7 +295,13 @@ export function metricasLead(
       if (m.origen === 'manual')
         respuestasAsesor.push({
           clienteEn: pendienteDesde,
-          minutos: minLab(pendienteDesde, m.fecha),
+          minutos: d.jornadas
+            ? Math.max(
+                0,
+                (m.fecha.getTime() - d.jornadas.inicio(m.userId, pendienteDesde).getTime()) /
+                  60_000,
+              )
+            : minLab(pendienteDesde, m.fecha),
         });
       else if (m.origen === 'agente_ia') ganadasIa.push(pendienteDesde);
       else respondidasWorkflow.push(pendienteDesde);
@@ -236,8 +325,18 @@ export function metricasLead(
 
   // Sin responder: un mensaje del cliente que no respondió nadie (asesor, agente IA ni workflow),
   // fuera de la etapa Nuevo. "En espera" es el subconjunto que ya venía conversando y lleva más de N minutos.
-  const sinResponder = !perdido && pendienteDesde !== null && d.etapaEstandar !== 'nuevo';
-  const enEspera = sinResponder && huboRespuesta && minLab(pendienteDesde!, ahora) > u.esperaMin;
+  // Falta del asesor: lleva 15 min o más sin respuesta de nadie y el asesor está en turno. Si lleva
+  // más de 3 h sin escribir a ningún cliente, está fuera de turno y el pendiente no es falta suya.
+  const pendienteActivo = !perdido && pendienteDesde !== null && d.etapaEstandar !== 'nuevo';
+  const enTurno = d.jornadas ? d.jornadas.enTurno(d.asesorId, ahora) : true;
+  const minutosEspera = !pendienteActivo
+    ? 0
+    : d.jornadas
+      ? (ahora.getTime() - d.jornadas.inicio(d.asesorId, pendienteDesde!).getTime()) / 60_000
+      : minLab(pendienteDesde!, ahora);
+  const sinResponder = pendienteActivo && enTurno && minutosEspera >= u.esperaMin;
+  const pendienteFueraDeTurno = pendienteActivo && !enTurno;
+  const enEspera = sinResponder && huboRespuesta;
 
   const enSeguimiento =
     abierto && d.etapaEstandar !== null && ETAPAS_SEGUIMIENTO.has(d.etapaEstandar);
@@ -268,6 +367,8 @@ export function metricasLead(
     ganadasIa,
     respondidasWorkflow,
     pendienteDesde,
+    pendienteFueraDeTurno,
+    minutosEspera,
     primeraHumanaEn: primeraHumana,
     sinResponder,
     enEspera,
@@ -319,6 +420,8 @@ export interface Acumulado {
   perdidosPorMotivo: Record<string, number>;
   perdidosFaltaSeguimiento: number;
   fotoSinResponder: number;
+  /** Pendientes sin responder con el asesor fuera de turno (no son falta). */
+  fotoFueraDeTurno?: number;
   fotoEnEspera: number;
   fotoSeguimientoVencido: number;
   fotoSeguimientoProgramado: number;
@@ -347,6 +450,7 @@ export function acumuladoVacio(): Acumulado {
     perdidosPorMotivo: {},
     perdidosFaltaSeguimiento: 0,
     fotoSinResponder: 0,
+    fotoFueraDeTurno: 0,
     fotoEnEspera: 0,
     fotoSeguimientoVencido: 0,
     fotoSeguimientoProgramado: 0,
@@ -357,6 +461,7 @@ export function acumuladoVacio(): Acumulado {
 
 const CAMPOS_FOTO = [
   'fotoSinResponder',
+  'fotoFueraDeTurno',
   'fotoEnEspera',
   'fotoSeguimientoVencido',
   'fotoSeguimientoProgramado',
@@ -387,7 +492,7 @@ export function sumarAcumulados(lista: readonly Acumulado[]): Acumulado {
     for (const [k, v] of Object.entries(a.perdidosPorMotivo))
       r.perdidosPorMotivo[k] = (r.perdidosPorMotivo[k] ?? 0) + v;
     r.perdidosFaltaSeguimiento += a.perdidosFaltaSeguimiento;
-    for (const c of CAMPOS_FOTO) r[c] += a[c];
+    for (const c of CAMPOS_FOTO) r[c] = (r[c] ?? 0) + (a[c] ?? 0);
   }
   return r;
 }
@@ -399,7 +504,7 @@ export function sumarAcumulados(lista: readonly Acumulado[]): Acumulado {
 export function agregarPeriodo(dias: readonly Acumulado[]): Acumulado {
   const r = sumarAcumulados(dias);
   const ultimo = dias.at(-1);
-  for (const c of CAMPOS_FOTO) r[c] = ultimo ? ultimo[c] : 0;
+  for (const c of CAMPOS_FOTO) r[c] = ultimo ? (ultimo[c] ?? 0) : 0;
   return r;
 }
 
@@ -429,6 +534,8 @@ export interface Indicadores {
   /** Indicador 2: lo completa el último análisis de calidad (fase 4); null = "Sin análisis". */
   calidad: number | null;
   sinResponder: number;
+  /** Pendientes con el asesor fuera de turno (no cuentan como falta). */
+  fueraDeTurno: number;
   enEspera: number;
   seguimientoVencido: number;
   seguimientoProgramado: number;
@@ -473,6 +580,7 @@ export function calcularIndicadores(
     respuestasWorkflow: a.respuestasWorkflow ?? 0,
     calidad,
     sinResponder: a.fotoSinResponder,
+    fueraDeTurno: a.fotoFueraDeTurno ?? 0,
     enEspera: a.fotoEnEspera,
     seguimientoVencido: a.fotoSeguimientoVencido,
     seguimientoProgramado: a.fotoSeguimientoProgramado,

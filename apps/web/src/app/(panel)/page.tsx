@@ -131,13 +131,13 @@ export default async function VistaGeneral({
             <Kpi
               etiqueta="Tiempo de respuesta"
               valor={minutos(i.tiempoRespuestaMediana)}
-              meta={`Mediana de ${numero(i.respuestasAsesor)} respuestas del asesor · ${numero(i.respuestasIa)} del agente IA y ${numero(i.respuestasWorkflow)} del workflow · meta ${numero(pres!.metas.tiempoRespuestaMin, 1)} min${lab}`}
+              meta={`Mediana de ${numero(i.respuestasAsesor)} respuestas del asesor · ${numero(i.respuestasIa)} del agente IA y ${numero(i.respuestasWorkflow)} del workflow · meta ${numero(pres!.metas.tiempoRespuestaMin, 1)} min`}
               estado={ev.estados.tiempoRespuesta}
             />
             <Kpi
               etiqueta="Leads sin responder"
               valor={numero(i.sinResponder)}
-              meta={`Nadie respondió (asesor, agente IA ni workflow) · ${numero(i.enEspera)} en espera`}
+              meta={`15 min o más sin respuesta de nadie, asesor en turno · ${numero(i.fueraDeTurno)} con el asesor fuera de turno`}
               estado={ev.estados.sinResponder}
             />
             <Kpi

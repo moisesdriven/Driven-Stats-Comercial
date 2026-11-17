@@ -55,14 +55,14 @@ export function describir(clave: ClaveIndicador, i: Indicadores, p: Presentacion
         clave,
         valor: minutos(i.tiempoRespuestaMediana),
         etiqueta: 'Mediana de respuesta del asesor',
-        meta: `Meta ${num(m.tiempoRespuestaMin)} min${lab}`,
+        meta: `Meta ${num(m.tiempoRespuestaMin)} min`,
         avance: pctInverso(i.tiempoRespuestaMediana, m.tiempoRespuestaMin),
       };
     case 'sinResponder':
       return {
         clave,
         valor: `${numero(i.sinResponder)} sin responder`,
-        etiqueta: 'Sin respuesta de asesor, agente IA ni workflow',
+        etiqueta: 'Sin respuesta de nadie, asesor en turno (15 min o más)',
         meta: `Meta 0 · ${numero(i.enEspera)} en espera`,
         avance: i.sinResponder ? 0 : 100,
       };
@@ -170,7 +170,7 @@ export function fraseCuello(d: Destacado, i: Indicadores, p: Presentacion): stri
   const lab = sufijoTiempo(p.corrido);
   switch (d.clave) {
     case 'tiempoRespuesta':
-      return `Tarda ${minutos(i.tiempoRespuestaMediana)}${lab} en responder a sus clientes`;
+      return `Tarda ${minutos(i.tiempoRespuestaMediana)} en responder a sus clientes`;
     case 'sinResponder':
       return `Deja ${numero(i.sinResponder)} leads sin respuesta`;
     case 'cumplimientoSeguimiento':
