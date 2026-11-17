@@ -2,9 +2,16 @@
  * Listas para actuar de una subcuenta (§10.2): sin responder, pendientes de seguimiento e
  * interesados de días anteriores sin contacto hoy. Se calculan en vivo, en tiempo laboral del
  * asesor de cada lead. Los leads perdidos no aparecen (decisión del cliente).
+ * Sin responder (regla del 16 nov 2026): el primer mensaje del cliente que no respondió ni el asesor
+ * ni el agente IA, sin contar los mensajes de entrada ("Headline") ni la etapa Nuevo.
  */
 import { sql } from 'drizzle-orm';
-import { diasLaborales, inicioDelDia, minutosLaborales } from '@driven/core';
+import {
+  diasLaborales,
+  inicioDelDia,
+  minutosLaborales,
+  PATRON_MENSAJE_ENTRADA_SQL,
+} from '@driven/core';
 import type { Db } from '@driven/db';
 import { exigirModulo, exigirSubcuenta, type ContextoAcceso } from '../acceso';
 import { tiemposSubcuenta } from './tiempo';
@@ -71,16 +78,41 @@ export async function listasParaActuar(
     etapa_estandar: string | null;
     ultimo_texto: string | null;
     tarea_vencida: boolean;
+    pendiente_desde: Date | null;
   }>(sql`
+    with ultima_respuesta as (
+      select m.contact_id, max(m.fecha) as fecha from comercial.mensajes m
+      where m.location_id = ${locationId} and m.direccion = 'outbound' and m.origen in ('manual', 'agente_ia')
+        and m.fecha > ${new Date(ahora.getTime() - 61 * 86_400_000)}
+      group by m.contact_id
+    ),
+    pendiente as (
+      select m.contact_id, min(m.fecha) as desde from comercial.mensajes m
+      left join ultima_respuesta r on r.contact_id = m.contact_id
+      where m.location_id = ${locationId} and m.direccion = 'inbound'
+        and m.fecha > ${new Date(ahora.getTime() - 61 * 86_400_000)}
+        and (r.fecha is null or m.fecha > r.fecha)
+        and coalesce(m.texto, '') !~* ${PATRON_MENSAJE_ENTRADA_SQL}
+        and not exists (
+          select 1 from comercial.historial_etapas h
+          left join comercial.mapa_etapas e on e.location_id = h.location_id and e.stage_id = h.stage_id
+          where h.location_id = m.location_id and h.contact_id = m.contact_id
+            and coalesce(e.etapa_estandar, h.etapa_estandar) = 'nuevo'
+            and m.fecha >= h.desde and (h.hasta is null or m.fecha < h.hasta))
+      group by m.contact_id
+    )
     select l.contact_id, l.conversation_id, l.canal, l.asesor_id, a.nombre as asesor, l.ingreso_en,
       l.primera_resp_humana_en, l.ultimo_humano_en, l.ultimo_inbound_en, l.estado, l.etapa_estandar,
+      p.desde as pendiente_desde,
       (select m.texto from comercial.mensajes m
         where m.location_id = l.location_id and m.contact_id = l.contact_id and m.direccion = 'inbound'
+          and coalesce(m.texto, '') !~* ${PATRON_MENSAJE_ENTRADA_SQL}
         order by m.fecha desc limit 1) as ultimo_texto,
       exists (select 1 from comercial.tareas t where t.location_id = l.location_id and t.contact_id = l.contact_id
         and not t.completada and t.vence_en < ${ahora}) as tarea_vencida
     from comercial.leads l
     left join comercial.asesores a on a.user_id = l.asesor_id
+    left join pendiente p on p.contact_id = l.contact_id
     where l.location_id = ${locationId} and l.location_id in (${sql.join(
       ctx.subcuentas.map((x) => sql`${x}`),
       sql`, `,
@@ -88,7 +120,8 @@ export async function listasParaActuar(
       and l.ingreso_en is not null and not l.ingreso_anterior_a_carga
       and coalesce(l.estado, 'abierto') <> 'perdido'
       and l.ingreso_en > ${new Date(ahora.getTime() - 60 * 86_400_000)}
-      and (l.primera_resp_humana_en is null or l.etapa_estandar in ('interesado', 'por_cerrar'))`);
+      and ((p.desde is not null and coalesce(l.etapa_estandar, '') <> 'nuevo')
+        or l.etapa_estandar in ('interesado', 'por_cerrar'))`);
 
   const hoy = inicioDelDia(ahora, zona);
   const sinResponder: FilaAccion[] = [];
@@ -104,8 +137,14 @@ export async function listasParaActuar(
       enlace: enlaceGhl(locationId, f.conversation_id),
     };
     const textoCliente = verTextos ? (f.ultimo_texto?.slice(0, 140) ?? '(sin texto)') : null;
-    if (!f.primera_resp_humana_en) {
-      const min = minutosLaborales(new Date(f.ingreso_en), ahora, t.horario, t.ausencias, t.zona);
+    if (f.pendiente_desde && f.etapa_estandar !== 'nuevo') {
+      const min = minutosLaborales(
+        new Date(f.pendiente_desde),
+        ahora,
+        t.horario,
+        t.ausencias,
+        t.zona,
+      );
       sinResponder.push({
         ...base,
         mensaje: textoCliente,

@@ -99,6 +99,13 @@ export default async function DetalleAsesor({
       minutos(s.tiempoRespuestaMediana),
     ),
     fila(
+      'Respuestas ganadas por el agente IA',
+      null,
+      `${numero(i.respuestasIa)} de ${numero(i.respuestasIa + i.respuestasAsesor)}`,
+      '—',
+      porcentaje(s.respuestasIaPct, 0),
+    ),
+    fila(
       'Calidad de mensajes',
       'calidad',
       calidad(i.calidad),

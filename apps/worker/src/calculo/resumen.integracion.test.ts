@@ -22,6 +22,7 @@ describe.skipIf(!URL_PRUEBAS)('calcular:resumen (integración)', () => {
     fecha: Date,
     direccion: 'inbound' | 'outbound',
     origen: string | null,
+    texto: string | null = null,
   ) => ({
     messageId: `m${++n}`,
     locationId: LOC,
@@ -29,6 +30,7 @@ describe.skipIf(!URL_PRUEBAS)('calcular:resumen (integración)', () => {
     contactId: contacto,
     direccion,
     origen: origen as 'manual' | null,
+    texto,
     fecha,
   });
 
@@ -66,7 +68,7 @@ describe.skipIf(!URL_PRUEBAS)('calcular:resumen (integración)', () => {
       msg('K1', L(16, '14:03'), 'outbound', 'manual'),
       msg('K1', L(16, '14:10'), 'inbound', null),
       msg('K1', L(16, '14:12'), 'outbound', 'manual'),
-      // K2 (U1): solo la IA. Queda sin responder.
+      // K2 (U1): sigue en Nuevo (sin historial): no se mide aunque le respondió la IA.
       msg('K2', L(16, '10:00'), 'inbound', null),
       msg('K2', L(16, '10:00'), 'outbound', 'agente_ia'),
       // K3 (U2): respuesta a los 30 min; venta el martes.
@@ -76,7 +78,37 @@ describe.skipIf(!URL_PRUEBAS)('calcular:resumen (integración)', () => {
       msg('K4', L(16, '11:00'), 'inbound', null),
       msg('K4', L(16, '11:20'), 'outbound', 'manual'),
       msg('K4', L(16, '11:30'), 'inbound', null),
+      // K5 (U3): entra con el Headline; mientras está en Nuevo (9:00–10:00) no se mide; luego 10 min.
+      msg(
+        'K5',
+        L(16, '09:00'),
+        'inbound',
+        null,
+        '*Headline:* Anillo de compromiso *Source URL:* …',
+      ),
+      msg('K5', L(16, '09:30'), 'inbound', null),
+      msg('K5', L(16, '09:40'), 'outbound', 'manual'),
+      msg('K5', L(16, '10:15'), 'inbound', null),
+      msg('K5', L(16, '10:25'), 'outbound', 'manual'),
     ]);
+    // La etapa estándar sale del mapa: la fila del historial (de una actividad) no la trae.
+    await db.insert(tablas.mapaEtapas).values({
+      locationId: LOC,
+      pipelineId: 'P1',
+      stageId: 'S_NUEVO',
+      nombreOriginal: 'Nuevo',
+      etapaEstandar: 'nuevo',
+    });
+    await db.insert(tablas.historialEtapas).values({
+      opportunityId: 'O5',
+      locationId: LOC,
+      contactId: 'K5',
+      stageId: 'S_NUEVO',
+      etapaEstandar: null,
+      desde: L(16, '09:00'),
+      hasta: L(16, '10:00'),
+      fuente: 'actividad',
+    });
     await db.insert(tablas.oportunidades).values([
       {
         opportunityId: 'O3',
@@ -126,6 +158,7 @@ describe.skipIf(!URL_PRUEBAS)('calcular:resumen (integración)', () => {
         lead('K2', 'U1', L(16, '10:00'), 'abierto', 'nuevo', null),
         lead('K3', 'U2', L(16, '10:00'), 'ganado', 'ganado', 'O3'),
         lead('K4', 'U2', L(16, '11:00'), 'perdido', 'contactado', 'O4'),
+        lead('K5', 'U3', L(16, '09:00'), 'abierto', 'contactado', null),
       ]);
     await calcularResumen(db, LOC, {
       desde: '2026-11-16',
@@ -150,20 +183,22 @@ describe.skipIf(!URL_PRUEBAS)('calcular:resumen (integración)', () => {
     return f?.indicadores as Acumulado | undefined;
   };
 
-  it('cohorte del lunes: leads recibidos y tiempos de respuesta humanos en minutos laborales', async () => {
+  it('tiempos de respuesta del asesor por mensaje, sin Headline ni etapa Nuevo; ganadas por la IA', async () => {
     const total = await fila('2026-11-16', null);
-    expect(total?.leadsRecibidos).toBe(4);
-    expect([...(total?.tiemposRespuesta ?? [])].sort((a, b) => a - b)).toEqual([5, 20, 30]);
-    expect(total?.respuestasEfectivas).toBe(1); // K1: 5 min y el cliente volvió a escribir
+    expect(total?.leadsRecibidos).toBe(5);
+    // K1: la IA ganó el primer mensaje y el asesor respondió el segundo en 2 min; K3 30; K4 20; K5 10.
+    expect([...(total?.tiemposRespuesta ?? [])].sort((a, b) => a - b)).toEqual([2, 10, 20, 30]);
+    expect(total?.respuestasIa).toBe(1); // K1 (K2 sigue en Nuevo: no se mide)
+    expect(total?.respuestasEfectivas).toBe(1); // K1: 2 min y el cliente volvió a escribir
     const u1 = await fila('2026-11-16', 'U1');
     expect(u1?.leadsRecibidos).toBe(2);
-    expect(u1?.tiemposRespuesta).toEqual([5]);
+    expect(u1?.tiemposRespuesta).toEqual([2]);
+    expect((await fila('2026-11-16', 'U3'))?.tiemposRespuesta).toEqual([10]);
   });
 
-  it('fotos al cierre: el lead atendido solo por la IA sigue sin responder; el perdido no cuenta', async () => {
+  it('fotos al cierre: el lead respondido por la IA no queda sin responder; el perdido no cuenta', async () => {
     const martes = await fila('2026-11-17', null);
-    expect(martes?.fotoSinResponder).toBe(1);
-    expect((await fila('2026-11-17', 'U1'))?.fotoSinResponder).toBe(1);
+    expect(martes?.fotoSinResponder).toBe(0);
   });
 
   it('la venta se atribuye al asesor de la oportunidad el día de la venta, con días laborales de cierre', async () => {
@@ -183,7 +218,7 @@ describe.skipIf(!URL_PRUEBAS)('calcular:resumen (integración)', () => {
 
   it('actualiza los campos derivados de cada lead', async () => {
     const [k1] = await db.select().from(tablas.leads).where(eq(tablas.leads.contactId, 'K1'));
-    expect(k1?.minutosLaboralesRespuesta).toBe(5);
+    expect(k1?.minutosLaboralesRespuesta).toBe(2);
     expect(k1?.intentos).toBe(2);
     expect(k1?.respuestaEfectiva).toBe(true);
   });
@@ -215,9 +250,8 @@ describe.skipIf(!URL_PRUEBAS)('calcular:resumen (integración)', () => {
       .set({ horarioGeneral: { modo: 'corrido', recalcularDesde: '2026-11-16' } })
       .where(eq(tablas.subcuentas.locationId, LOC));
     expect(await recalcularPendientes(db, L(17, '18:30'))).toBe(1);
-    const total = await fila('2026-11-16', null);
-    // K1: 12:58 → 14:03 son 65 min de reloj (en horario laboral eran 5 por el almuerzo).
-    expect([...(total?.tiemposRespuesta ?? [])].sort((a, b) => a - b)).toEqual([20, 30, 65]);
+    // K3: lunes 10:00 → martes 11:00 son 25 h de reloj = 1,04 días (en horario laboral eran 1,125).
+    expect((await fila('2026-11-17', 'U2'))?.sumaDiasCierre).toBeCloseTo(25 / 24);
     const [s] = await db
       .select()
       .from(tablas.subcuentas)

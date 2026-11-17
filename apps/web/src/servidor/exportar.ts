@@ -38,7 +38,9 @@ const ETAPA: Record<string, string> = {
 
 const CABECERA = [
   'Leads recibidos',
-  'Tiempo de respuesta (min laborales, mediana)',
+  'Tiempo de respuesta del asesor (min, mediana)',
+  'Respuestas del asesor',
+  'Respuestas ganadas por el agente IA',
   'Sin responder',
   'Pendientes de seguimiento',
   'Intentos por lead',
@@ -65,6 +67,8 @@ function valores(
   return [
     i.leadsRecibidos,
     i.tiempoRespuestaMediana,
+    i.respuestasAsesor,
+    i.respuestasIa,
     i.sinResponder,
     i.seguimientoVencido,
     i.intentosPorLead,

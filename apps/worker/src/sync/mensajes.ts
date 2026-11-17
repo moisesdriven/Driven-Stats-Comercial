@@ -9,6 +9,7 @@ import {
   clasificarOrigen,
   corteRetencionTexto,
   esActividad,
+  esMensajeDeEntrada,
   requiereVerificarIa,
   tipoContenido,
   type ResultadoGeneracionIa,
@@ -67,7 +68,8 @@ export async function guardarMensajes(
   r.verificadosIa += porVerificar.length;
 
   const ahora = new Date();
-  // Un mensaje con más de 90 días se guarda sin texto: así una recarga no deshace la purga.
+  // Un mensaje con más de 90 días se guarda sin texto (un Headline, solo con su marca): así una
+  // recarga no deshace la purga.
   const corte = corteRetencionTexto(ahora).getTime();
   const filas = utiles.map((m) => {
     const yaVerificado = verificados.get(m.id);
@@ -96,7 +98,12 @@ export async function guardarMensajes(
       origen,
       userId: m.userId ?? null,
       origenVerificadoEn: verificado && origen ? ahora : null,
-      texto: Date.parse(m.dateAdded) < corte ? null : (m.body ?? null),
+      texto:
+        Date.parse(m.dateAdded) < corte
+          ? esMensajeDeEntrada(m.body)
+            ? '*Headline*'
+            : null
+          : (m.body ?? null),
       fecha: new Date(m.dateAdded),
     };
   });

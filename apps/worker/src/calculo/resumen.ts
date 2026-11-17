@@ -13,6 +13,7 @@
 import { and, eq, gte, inArray, isNotNull, lte, sql } from 'drizzle-orm';
 import {
   HORARIO_CORRIDO,
+  PATRON_MENSAJE_ENTRADA_SQL,
   UMBRALES_POR_DEFECTO,
   acumuladoVacio,
   calcularIndicadores,
@@ -29,6 +30,7 @@ import {
   type DatosLead,
   type MensajeLead,
   type Origen,
+  type PeriodoEtapa,
   type TiempoAsesor,
   type Tramo,
   type Umbrales,
@@ -159,6 +161,8 @@ export async function calcularResumen(
         fecha: tablas.mensajes.fecha,
         direccion: tablas.mensajes.direccion,
         origen: tablas.mensajes.origen,
+        // Mensaje de entrada al CRM ("Headline"): no se cuenta como mensaje del cliente.
+        entrada: sql<boolean>`coalesce(${tablas.mensajes.texto}, '') ~* ${PATRON_MENSAJE_ENTRADA_SQL}`,
       })
       .from(tablas.mensajes)
       .where(
@@ -170,12 +174,32 @@ export async function calcularResumen(
       );
     for (const f of filas) {
       const lista = mensajesPorContacto.get(f.contactId!) ?? [];
-      lista.push({ fecha: f.fecha, direccion: f.direccion, origen: f.origen as Origen | null });
+      lista.push({
+        fecha: f.fecha,
+        direccion: f.direccion,
+        origen: f.origen as Origen | null,
+        entrada: f.direccion === 'inbound' && f.entrada,
+      });
       mensajesPorContacto.set(f.contactId!, lista);
     }
   }
   for (const lista of mensajesPorContacto.values())
     lista.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+
+  // Periodos en la etapa Nuevo: mientras el lead está ahí (lo atiende el workflow) no se mide.
+  // La etapa estándar sale del mapa actual (las filas que vienen de actividades no la guardan).
+  const filasNuevo = await db.execute<{ contact_id: string; desde: Date; hasta: Date | null }>(sql`
+    select h.contact_id, h.desde, h.hasta
+    from comercial.historial_etapas h
+    left join comercial.mapa_etapas m on m.location_id = h.location_id and m.stage_id = h.stage_id
+    where h.location_id = ${locationId} and h.contact_id is not null
+      and coalesce(m.etapa_estandar, h.etapa_estandar) = 'nuevo'`);
+  const nuevoPorContacto = new Map<string, PeriodoEtapa[]>();
+  for (const f of filasNuevo.rows) {
+    const lista = nuevoPorContacto.get(f.contact_id) ?? [];
+    lista.push({ desde: new Date(f.desde), hasta: f.hasta ? new Date(f.hasta) : null });
+    nuevoPorContacto.set(f.contact_id, lista);
+  }
 
   const opps = await db
     .select()
@@ -204,6 +228,7 @@ export async function calcularResumen(
       etapaEstandar: l.etapaEstandar,
       ventaEn: ventaVigente,
       tareas: tareasPorContacto.get(l.contactId) ?? [],
+      periodosNuevo: nuevoPorContacto.get(l.contactId) ?? [],
     };
   };
 
@@ -242,14 +267,21 @@ export async function calcularResumen(
       efectiva: m.respuestaEfectiva,
       abandono: m.abandono,
     });
+    // Respuestas: cada una cuenta el día en que escribió el cliente.
+    for (const r of m.respuestasAsesor) {
+      const diaR = fechaLocal(r.clienteEn, zona);
+      if (enRango(diaR))
+        acc(diaR, l.asesorId).tiemposRespuesta.push(Math.round(r.minutos * 100) / 100);
+    }
+    for (const f of m.ganadasIa) {
+      const diaR = fechaLocal(f, zona);
+      if (enRango(diaR)) acc(diaR, l.asesorId).respuestasIa++;
+    }
     const dia = fechaLocal(l.ingresoEn!, zona);
     if (!enRango(dia)) continue;
     const a = acc(dia, l.asesorId);
     a.leadsRecibidos++;
-    if (m.minutosRespuesta !== null) {
-      a.tiemposRespuesta.push(Math.round(m.minutosRespuesta * 100) / 100);
-      a.leadsConRespuesta++;
-    }
+    if (m.minutosRespuesta !== null) a.leadsConRespuesta++;
     if (m.respuestaEfectiva) a.respuestasEfectivas++;
     if (m.abandono) a.abandonos++;
     a.intentosTotal += m.intentos;

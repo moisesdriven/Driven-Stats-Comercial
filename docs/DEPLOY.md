@@ -63,13 +63,14 @@ esperar a GHCR.
 
 ### Mantenimiento
 
-| Necesito…                        | Comando (en `/opt/driven-comercial/codigo/scripts/deploy`)                       |
-| -------------------------------- | -------------------------------------------------------------------------------- |
-| Actualizar a lo último de `main` | `bash servidor.sh respaldo && bash servidor.sh actualizar` (git pedirá el token) |
-| Volver a la versión anterior     | `bash servidor.sh revertir`                                                      |
-| Respaldo                         | `bash servidor.sh respaldo` (queda en `/opt/driven-comercial/respaldos`)         |
-| Carga histórica                  | `bash servidor.sh historico 90` o `bash servidor.sh historico 90 LOCATION_ID`    |
-| Estado general                   | `bash servidor.sh verificar`                                                     |
+| Necesito…                                         | Comando (en `/opt/driven-comercial/codigo/scripts/deploy`)                       |
+| ------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Actualizar a lo último de `main`                  | `bash servidor.sh respaldo && bash servidor.sh actualizar` (git pedirá el token) |
+| Volver a la versión anterior                      | `bash servidor.sh revertir`                                                      |
+| Respaldo                                          | `bash servidor.sh respaldo` (queda en `/opt/driven-comercial/respaldos`)         |
+| Carga histórica                                   | `bash servidor.sh historico 90` o `bash servidor.sh historico 90 LOCATION_ID`    |
+| Recalcular indicadores (tras un cambio de reglas) | `bash servidor.sh recalcular 90` (no consulta GHL)                               |
+| Estado general                                    | `bash servidor.sh verificar`                                                     |
 
 Las secciones siguientes describen los scripts de PowerShell (desde una PC con Windows). Ambos
 caminos usan la misma carpeta `/opt/driven-comercial`, el mismo `.env` y los mismos contenedores;

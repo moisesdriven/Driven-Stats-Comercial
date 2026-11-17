@@ -139,6 +139,10 @@ export default async function VistaSubcuenta({
           estado={ev.estados.tiempoRespuesta}
         />
         <KpiChico
+          etiqueta="Ganadas por IA"
+          valor={`${numero(i.respuestasIa)}${i.respuestasIaPct !== null ? ` · ${porcentaje(i.respuestasIaPct, 0)}` : ''}`}
+        />
+        <KpiChico
           etiqueta="Sin responder"
           valor={numero(i.sinResponder)}
           estado={ev.estados.sinResponder}
