@@ -62,7 +62,7 @@ export function describir(clave: ClaveIndicador, i: Indicadores, p: Presentacion
       return {
         clave,
         valor: `${numero(i.sinResponder)} sin responder`,
-        etiqueta: 'Sin respuesta del asesor ni del agente IA',
+        etiqueta: 'Sin respuesta de asesor, agente IA ni workflow',
         meta: `Meta 0 · ${numero(i.enEspera)} en espera`,
         avance: i.sinResponder ? 0 : 100,
       };

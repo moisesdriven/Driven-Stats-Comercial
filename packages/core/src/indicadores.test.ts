@@ -65,12 +65,7 @@ describe('metricasLead: atención (reglas del 16 nov 2026)', () => {
   });
 
   it('si el agente IA responde antes que el asesor, es una respuesta ganada por la IA', () => {
-    const d = lead([
-      ent(L(16, '12:58')),
-      wf(L(16, '12:58')),
-      ia(L(16, '12:59')),
-      hum(L(16, '14:03')),
-    ]);
+    const d = lead([ent(L(16, '12:58')), ia(L(16, '12:59')), hum(L(16, '14:03'))]);
     const m = metricasLead(d, T, U, L(16, '15:00'));
     expect(m.ganadasIa).toEqual([L(16, '12:58')]);
     expect(m.respuestasAsesor).toEqual([]);
@@ -85,15 +80,35 @@ describe('metricasLead: atención (reglas del 16 nov 2026)', () => {
   });
 
   it('el tiempo del asesor corre en minutos laborales', () => {
-    const d = lead([ent(L(16, '12:58')), wf(L(16, '12:58')), hum(L(16, '14:03'))]);
+    const d = lead([ent(L(16, '12:58')), hum(L(16, '14:03'))]);
     expect(metricasLead(d, T, U, L(16, '15:00')).minutosRespuesta).toBe(5); // 2 antes del almuerzo + 3
   });
 
-  it('sin responder: mensaje sin respuesta del asesor ni del agente IA (un workflow no cuenta)', () => {
-    const d = lead([ent(L(16, '10:00')), wf(L(16, '10:01'))]);
+  it('sin responder: mensaje que no respondió nadie (asesor, agente IA ni workflow)', () => {
+    const d = lead([ent(L(16, '10:00')), ent(L(16, '10:05'))]);
     const m = metricasLead(d, T, U, L(16, '11:00'));
     expect(m.sinResponder).toBe(true);
     expect(m.pendienteDesde).toEqual(L(16, '10:00'));
+  });
+
+  it('si un workflow responde antes que el asesor, la respuesta es suya y no se mide al asesor', () => {
+    const d = lead([ent(L(16, '10:00')), wf(L(16, '10:01')), hum(L(16, '10:30'))]);
+    const m = metricasLead(d, T, U, L(16, '11:00'));
+    expect(m.respondidasWorkflow).toEqual([L(16, '10:00')]);
+    expect(m.respuestasAsesor).toEqual([]);
+    expect(m.sinResponder).toBe(false);
+  });
+
+  it('caso real: entra por Headline, el workflow responde en Nuevo y el cliente deja en visto', () => {
+    // Pasa a Contactado tras la bienvenida; el cliente no vuelve a escribir y se marca perdido.
+    const d = lead(
+      [headline(L(16, '22:06')), wf(L(16, '22:06')), ent(L(16, '22:06')), wf(L(16, '22:06'))],
+      { estado: 'perdido', periodosNuevo: [{ desde: L(16, '22:06'), hasta: L(16, '22:07') }] },
+    );
+    const m = metricasLead(d, T, U, L(19, '10:00'));
+    expect(m.sinResponder).toBe(false);
+    expect(m.perdidoPorFaltaSeguimiento).toBe(false);
+    expect(m.respuestasAsesor).toEqual([]);
   });
 
   it('en la etapa Nuevo no se mide nada', () => {
@@ -208,20 +223,23 @@ describe('metricasLead: seguimiento, abandono y pérdidas', () => {
     ).toBe(false);
   });
 
-  it('perdido por falta de seguimiento: el cliente quedó sin respuesta o hubo menos de 2 intentos', () => {
+  it('perdido por falta de seguimiento: solo si se perdió con un mensaje del cliente que nadie respondió', () => {
     const clienteSinRespuesta = lead(
       [ent(L(16, '10:00')), hum(L(16, '10:05')), ent(L(16, '10:30'))],
       { estado: 'perdido' },
     );
-    const unIntento = lead([ent(L(16, '10:00')), hum(L(16, '10:05'))], { estado: 'perdido' });
-    const dosIntentos = lead([ent(L(16, '10:00')), hum(L(16, '10:05')), hum(L(16, '15:00'))], {
+    // El cliente dejó en visto la respuesta (del asesor, la IA o un workflow): no es error del asesor.
+    const dejoEnVisto = lead([ent(L(16, '10:00')), hum(L(16, '10:05'))], { estado: 'perdido' });
+    const vistoTrasWorkflow = lead([ent(L(16, '10:00')), wf(L(16, '10:01'))], {
       estado: 'perdido',
     });
     expect(metricasLead(clienteSinRespuesta, T, U, L(17, '10:00')).perdidoPorFaltaSeguimiento).toBe(
       true,
     );
-    expect(metricasLead(unIntento, T, U, L(17, '10:00')).perdidoPorFaltaSeguimiento).toBe(true);
-    expect(metricasLead(dosIntentos, T, U, L(17, '10:00')).perdidoPorFaltaSeguimiento).toBe(false);
+    expect(metricasLead(dejoEnVisto, T, U, L(17, '10:00')).perdidoPorFaltaSeguimiento).toBe(false);
+    expect(metricasLead(vistoTrasWorkflow, T, U, L(17, '10:00')).perdidoPorFaltaSeguimiento).toBe(
+      false,
+    );
   });
 
   it('interesados de días anteriores y si fueron contactados hoy', () => {

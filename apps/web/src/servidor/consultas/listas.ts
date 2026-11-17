@@ -2,8 +2,9 @@
  * Listas para actuar de una subcuenta (§10.2): sin responder, pendientes de seguimiento e
  * interesados de días anteriores sin contacto hoy. Se calculan en vivo, en tiempo laboral del
  * asesor de cada lead. Los leads perdidos no aparecen (decisión del cliente).
- * Sin responder (regla del 16 nov 2026): el primer mensaje del cliente que no respondió ni el asesor
- * ni el agente IA, sin contar los mensajes de entrada ("Headline") ni la etapa Nuevo.
+ * Sin responder (regla del 16 nov 2026): el primer mensaje del cliente que no respondió nadie (ni el
+ * asesor, ni el agente IA, ni un workflow), sin contar los mensajes de entrada ("Headline") ni la
+ * etapa Nuevo.
  */
 import { sql } from 'drizzle-orm';
 import {
@@ -82,7 +83,7 @@ export async function listasParaActuar(
   }>(sql`
     with ultima_respuesta as (
       select m.contact_id, max(m.fecha) as fecha from comercial.mensajes m
-      where m.location_id = ${locationId} and m.direccion = 'outbound' and m.origen in ('manual', 'agente_ia')
+      where m.location_id = ${locationId} and m.direccion = 'outbound' and m.origen in ('manual', 'agente_ia', 'workflow')
         and m.fecha > ${new Date(ahora.getTime() - 61 * 86_400_000)}
       group by m.contact_id
     ),

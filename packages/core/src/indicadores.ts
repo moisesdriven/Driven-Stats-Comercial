@@ -5,8 +5,10 @@
  * - Reglas del cliente (16 nov 2026): los mensajes de entrada al CRM ("Headline" o "*Headline*") no
  *   cuentan; mientras el lead está en la etapa Nuevo (lo atiende el workflow) sus mensajes no se miden;
  *   se mide cada mensaje del cliente que responde el asesor, desde el primero sin responder; si el
- *   agente IA responde antes, cuenta como respuesta ganada por la IA; "sin responder" es un mensaje
- *   que no respondió ni el asesor ni el agente IA.
+ *   agente IA o un workflow responden antes, esa respuesta es suya y no se mide al asesor; "sin
+ *   responder" es un mensaje que no respondió nadie (ni asesor, ni agente IA, ni workflow). Solo ahí
+ *   la responsabilidad cae en el asesor: un lead que deja en visto una respuesta y se pierde no es
+ *   "perdido por falta de seguimiento".
  * - Un lead perdido sale de las listas operativas (sin responder, en espera, pendientes,
  *   interesados) y se cuenta en leads perdidos; sigue contando como recibido para la conversión.
  * - Seguimiento vencido (requiere acción) frente a programado (tarea futura).
@@ -33,7 +35,7 @@ export interface Umbrales {
   abandonoHoras: number;
   /** Separación mínima (min laborales) entre dos bloques de salientes para contar intentos distintos. */
   separacionIntentoMin: number;
-  /** Perdido por falta de seguimiento: menos de N intentos tras quedar en silencio. */
+  /** Obsoleto desde el 16 nov 2026 (ver perdidoPorFaltaSeguimiento); se conserva por compatibilidad. */
   intentosMinimosTrasSilencio: number;
 }
 
@@ -105,7 +107,9 @@ export interface MetricasLead {
   respuestasAsesor: RespuestaAsesor[];
   /** Mensajes del cliente que el agente IA respondió antes que el asesor (fecha del mensaje del cliente). */
   ganadasIa: Date[];
-  /** Primer mensaje del cliente aún sin respuesta del asesor ni del agente IA. */
+  /** Mensajes del cliente que respondió un workflow antes que el asesor. */
+  respondidasWorkflow: Date[];
+  /** Primer mensaje del cliente aún sin respuesta (ni del asesor, ni del agente IA, ni de un workflow). */
   pendienteDesde: Date | null;
   primeraHumanaEn: Date | null;
   sinResponder: boolean;
@@ -179,7 +183,6 @@ export function metricasLead(
   const entrantes = mensajes.filter((m) => m.direccion === 'inbound');
   const primeraHumana = humanos[0]?.fecha ?? null;
   const ultimoHumano = humanos.at(-1)?.fecha ?? null;
-  const ultimoEntrante = entrantes.at(-1)?.fecha ?? null;
   const ultimo = mensajes.at(-1) ?? null;
   const perdido = d.estado === 'perdido';
   const abierto = d.estado === 'abierto';
@@ -187,7 +190,7 @@ export function metricasLead(
   const minLab = (a: Date, b: Date) => minutosLaborales(a, b, t.horario, t.ausencias, t.zona);
 
   // Respuestas: cada mensaje medible del cliente abre una espera (si no había una) que cierra la
-  // primera respuesta del asesor (se mide) o del agente IA (ganada por la IA). Los workflows y las
+  // primera respuesta del asesor (se mide), del agente IA (ganada por la IA) o de un workflow. Las
   // campañas no cuentan como respuesta. En la etapa Nuevo los mensajes del cliente no se miden.
   const periodos = d.periodosNuevo ?? [];
   const enNuevo = (f: Date) =>
@@ -196,6 +199,7 @@ export function metricasLead(
       : d.etapaEstandar === 'nuevo';
   const respuestasAsesor: RespuestaAsesor[] = [];
   const ganadasIa: Date[] = [];
+  const respondidasWorkflow: Date[] = [];
   let pendienteDesde: Date | null = null;
   let huboRespuesta = false;
   for (const m of desdeIngreso) {
@@ -203,14 +207,15 @@ export function metricasLead(
       if (!pendienteDesde && !enNuevo(m.fecha)) pendienteDesde = m.fecha;
       continue;
     }
-    if (m.origen !== 'manual' && m.origen !== 'agente_ia') continue;
+    if (m.origen !== 'manual' && m.origen !== 'agente_ia' && m.origen !== 'workflow') continue;
     if (pendienteDesde) {
       if (m.origen === 'manual')
         respuestasAsesor.push({
           clienteEn: pendienteDesde,
           minutos: minLab(pendienteDesde, m.fecha),
         });
-      else ganadasIa.push(pendienteDesde);
+      else if (m.origen === 'agente_ia') ganadasIa.push(pendienteDesde);
+      else respondidasWorkflow.push(pendienteDesde);
       pendienteDesde = null;
     }
     huboRespuesta = true;
@@ -229,8 +234,8 @@ export function metricasLead(
     ultimo.direccion === 'outbound' &&
     ahora.getTime() - ultimo.fecha.getTime() >= u.abandonoHoras * 3_600_000;
 
-  // Sin responder: un mensaje del cliente que no respondió ni el asesor ni el agente IA, fuera de la
-  // etapa Nuevo. "En espera" es el subconjunto que ya venía conversando y lleva más de N minutos.
+  // Sin responder: un mensaje del cliente que no respondió nadie (asesor, agente IA ni workflow),
+  // fuera de la etapa Nuevo. "En espera" es el subconjunto que ya venía conversando y lleva más de N minutos.
   const sinResponder = !perdido && pendienteDesde !== null && d.etapaEstandar !== 'nuevo';
   const enEspera = sinResponder && huboRespuesta && minLab(pendienteDesde!, ahora) > u.esperaMin;
 
@@ -245,15 +250,9 @@ export function metricasLead(
   const seguimientoVencido = enSeguimiento && (tareaVencida || sinContactoMucho);
   const seguimientoProgramado = enSeguimiento && !seguimientoVencido && tareaFutura;
 
-  const silencioDesde = ultimoEntrante;
-  const intentosTrasSilencio = silencioDesde
-    ? intentosInicios.filter((x) => x > silencioDesde).length
-    : intentosInicios.length;
-  const ultimoFueCliente = ultimo?.direccion === 'inbound';
-  const perdidoPorFaltaSeguimiento =
-    (perdido || abandono) &&
-    !vendido &&
-    (ultimoFueCliente || intentosTrasSilencio < u.intentosMinimosTrasSilencio);
+  // Perdido por falta de seguimiento: se perdió (o abandonó) con un mensaje del cliente que nadie
+  // respondió. Si el cliente dejó en visto una respuesta, no es responsabilidad del asesor.
+  const perdidoPorFaltaSeguimiento = (perdido || abandono) && !vendido && pendienteDesde !== null;
 
   const hoy = inicioDelDia(ahora, t.zona);
   const contactoAntesDeHoy = mensajes
@@ -267,6 +266,7 @@ export function metricasLead(
     minutosRespuesta,
     respuestasAsesor,
     ganadasIa,
+    respondidasWorkflow,
     pendienteDesde,
     primeraHumanaEn: primeraHumana,
     sinResponder,
@@ -300,6 +300,8 @@ export interface Acumulado {
   tiemposRespuesta: number[];
   /** Mensajes del cliente de ese día que el agente IA respondió antes que el asesor. */
   respuestasIa: number;
+  /** Mensajes del cliente de ese día que respondió un workflow antes que el asesor. */
+  respuestasWorkflow: number;
   leadsConRespuesta: number;
   respuestasEfectivas: number;
   abandonos: number;
@@ -329,6 +331,7 @@ export function acumuladoVacio(): Acumulado {
     leadsRecibidos: 0,
     tiemposRespuesta: [],
     respuestasIa: 0,
+    respuestasWorkflow: 0,
     leadsConRespuesta: 0,
     respuestasEfectivas: 0,
     abandonos: 0,
@@ -368,6 +371,7 @@ export function sumarAcumulados(lista: readonly Acumulado[]): Acumulado {
     r.leadsRecibidos += a.leadsRecibidos;
     r.tiemposRespuesta.push(...a.tiemposRespuesta);
     r.respuestasIa += a.respuestasIa ?? 0;
+    r.respuestasWorkflow += a.respuestasWorkflow ?? 0;
     r.leadsConRespuesta += a.leadsConRespuesta;
     r.respuestasEfectivas += a.respuestasEfectivas;
     r.abandonos += a.abandonos;
@@ -420,6 +424,8 @@ export interface Indicadores {
   respuestasIa: number;
   /** % de las respuestas que ganó el agente IA. */
   respuestasIaPct: number | null;
+  /** Respuestas que dio un workflow antes que el asesor. */
+  respuestasWorkflow: number;
   /** Indicador 2: lo completa el último análisis de calidad (fase 4); null = "Sin análisis". */
   calidad: number | null;
   sinResponder: number;
@@ -460,7 +466,11 @@ export function calcularIndicadores(
     ),
     respuestasAsesor: a.tiemposRespuesta.length,
     respuestasIa: a.respuestasIa ?? 0,
-    respuestasIaPct: pct(a.respuestasIa ?? 0, a.tiemposRespuesta.length + (a.respuestasIa ?? 0)),
+    respuestasIaPct: pct(
+      a.respuestasIa ?? 0,
+      a.tiemposRespuesta.length + (a.respuestasIa ?? 0) + (a.respuestasWorkflow ?? 0),
+    ),
+    respuestasWorkflow: a.respuestasWorkflow ?? 0,
     calidad,
     sinResponder: a.fotoSinResponder,
     enEspera: a.fotoEnEspera,

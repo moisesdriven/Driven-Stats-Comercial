@@ -277,6 +277,10 @@ export async function calcularResumen(
       const diaR = fechaLocal(f, zona);
       if (enRango(diaR)) acc(diaR, l.asesorId).respuestasIa++;
     }
+    for (const f of m.respondidasWorkflow) {
+      const diaR = fechaLocal(f, zona);
+      if (enRango(diaR)) acc(diaR, l.asesorId).respuestasWorkflow++;
+    }
     const dia = fechaLocal(l.ingresoEn!, zona);
     if (!enRango(dia)) continue;
     const a = acc(dia, l.asesorId);
