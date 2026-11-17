@@ -177,14 +177,21 @@ cmd_desplegar() {
   fi
 
   paso 2 'Guardar la versión actual para poder revertir'
+  # Se guarda por nombre (no por el identificador del contenedor, que puede quedar huérfano).
   local actual; actual=$(env_valor ETIQUETA)
-  if docker ps -a --format '{{.Names}}' | grep -qx comercial-web; then
-    docker tag "$(docker inspect -f '{{.Image}}' comercial-web)" "$IMAGEN_WEB_LOCAL:anterior"
-    docker tag "$(docker inspect -f '{{.Image}}' comercial-worker)" "$IMAGEN_WORKER_LOCAL:anterior"
-    [ "$actual" = anterior ] || echo "$actual" > "$RUTA/.etiqueta-anterior"
-    ok "Versión anterior guardada: $(cat "$RUTA/.etiqueta-anterior")"
-  else
+  if ! docker ps -a --format '{{.Names}}' | grep -qx comercial-web; then
     ok 'Primera instalación: no hay versión anterior.'
+  elif [ "$actual" = anterior ]; then
+    ok "Se había revertido: se conserva como anterior $(cat "$RUTA/.etiqueta-anterior" 2>/dev/null || echo 'la versión guardada')."
+  elif [ "$actual" = "$etiqueta" ]; then
+    ok "Es la misma versión ($etiqueta): se vuelve a desplegar y la anterior guardada no cambia."
+  elif docker image inspect "$IMAGEN_WEB_LOCAL:$actual" "$IMAGEN_WORKER_LOCAL:$actual" >/dev/null 2>&1; then
+    docker tag "$IMAGEN_WEB_LOCAL:$actual" "$IMAGEN_WEB_LOCAL:anterior"
+    docker tag "$IMAGEN_WORKER_LOCAL:$actual" "$IMAGEN_WORKER_LOCAL:anterior"
+    echo "$actual" > "$RUTA/.etiqueta-anterior"
+    ok "Versión anterior guardada: $actual"
+  else
+    aviso "No se encontró la imagen de la versión actual ($actual): esta vez no habrá versión para revertir."
   fi
   fijar_env IMAGEN_WEB "$IMAGEN_WEB_LOCAL"
   fijar_env IMAGEN_WORKER "$IMAGEN_WORKER_LOCAL"
@@ -208,8 +215,15 @@ cmd_desplegar() {
 }
 
 cmd_actualizar() {
-  paso 0 'Traer el código nuevo (git pull)'
+  exigir_preparado
+  paso 0 "Traer el código nuevo (git pull de la rama $(git -C "$CODIGO" branch --show-current))"
   git -C "$CODIGO" pull --ff-only
+  local nueva; nueva=$(git -C "$CODIGO" rev-parse --short HEAD)
+  if [ "$nueva" = "$(env_valor ETIQUETA)" ] && [ "${1:-}" != --forzar ]; then
+    listo "Ya está al día: la versión desplegada ($nueva) es la última. Para reconstruirla igual: bash $0 actualizar --forzar"
+    return 0
+  fi
+  [ "${1:-}" = --forzar ] && shift
   cmd_desplegar "$@"
 }
 

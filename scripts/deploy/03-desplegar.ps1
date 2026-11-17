@@ -69,14 +69,21 @@ echo "Desplegando $Etiqueta (origen $Origen)"
     Write-Paso 3 'Guardar la versión actual para poder revertir'
     Invoke-Remoto $cfg @"
 actual=`$(sed -n 's/^ETIQUETA=//p' .env | head -n1)
-if docker ps -a --format '{{.Names}}' | grep -qx comercial-web; then
-  docker tag "`$(docker inspect -f '{{.Image}}' comercial-web)" $(ConvertTo-Bash "$($cfg.ImagenWeb):anterior")
-  docker tag "`$(docker inspect -f '{{.Image}}' comercial-worker)" $(ConvertTo-Bash "$($cfg.ImagenWorker):anterior")
-  # Si se había revertido, la versión en marcha es la de .etiqueta-anterior: se conserva ese nombre.
-  [ "`$actual" = anterior ] || echo "`$actual" > .etiqueta-anterior
-  echo "Versión anterior guardada: `$(cat .etiqueta-anterior)"
-else
+web_ant=`$(sed -n 's/^IMAGEN_WEB=//p' .env | head -n1); wrk_ant=`$(sed -n 's/^IMAGEN_WORKER=//p' .env | head -n1)
+# Se guarda por nombre (no por el identificador del contenedor, que puede quedar huérfano).
+if ! docker ps -a --format '{{.Names}}' | grep -qx comercial-web; then
   echo 'Primera instalación: no hay versión anterior.'
+elif [ "`$actual" = anterior ]; then
+  echo "Se había revertido: se conserva como anterior `$(cat .etiqueta-anterior 2>/dev/null || echo 'la versión guardada')."
+elif [ "`$actual" = '$Etiqueta' ] && [ "`$web_ant" = $(ConvertTo-Bash $cfg.ImagenWeb) ]; then
+  echo 'Es la misma versión: se vuelve a desplegar y la anterior guardada no cambia.'
+elif docker image inspect "`$web_ant:`$actual" "`$wrk_ant:`$actual" >/dev/null 2>&1; then
+  docker tag "`$web_ant:`$actual" $(ConvertTo-Bash "$($cfg.ImagenWeb):anterior")
+  docker tag "`$wrk_ant:`$actual" $(ConvertTo-Bash "$($cfg.ImagenWorker):anterior")
+  echo "`$actual" > .etiqueta-anterior
+  echo "Versión anterior guardada: `$actual"
+else
+  echo "AVISO: no se encontró la imagen de la versión actual (`$actual): esta vez no habrá versión para revertir."
 fi
 if grep -q '^ETIQUETA=' .env; then sed -i 's/^ETIQUETA=.*/ETIQUETA=$Etiqueta/' .env; else echo 'ETIQUETA=$Etiqueta' >> .env; fi
 grep -q '^IMAGEN_WEB=' .env || echo $(ConvertTo-Bash "IMAGEN_WEB=$($cfg.ImagenWeb)") >> .env
