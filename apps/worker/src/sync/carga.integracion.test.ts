@@ -436,4 +436,40 @@ describe.skipIf(!URL)('carga desde GHL (integración con GHL simulado)', () => {
     const k5 = await db.select().from(tablas.mensajes).where(eq(tablas.mensajes.messageId, 'k5-1'));
     expect(k5).toHaveLength(1);
   });
+
+  it('la exportación atrasada de GHL no hace perder mensajes (17 nov 2026)', async () => {
+    const ocultos = new Set(['k1-7', 'k2-9']);
+    d.ocultosEnExportacion = ocultos;
+    // K1: la asesora responde a las 08:00; la exportación todavía no lo trae, la conversación sí.
+    d.mensajes!.push(
+      m('k1-7', 'K1', h('08:00', 11), {
+        source: 'app',
+        userId: 'U1',
+        body: 'Le comparto el precio',
+      }),
+    );
+    d.conversaciones!.find((c) => c.id === 'conv_K1')!.lastMessageDate = Date.parse(h('08:00', 11));
+    // K2: un mensaje de las 05:00 que tampoco sale en la conversación reciente (su fecha de último
+    // mensaje no cambió) y aparece tarde en la exportación.
+    d.mensajes!.push(entrante('k2-9', 'K2', h('05:00', 11)));
+    const buscar = async (id: string) =>
+      db.select().from(tablas.mensajes).where(eq(tablas.mensajes.messageId, id));
+
+    await ejecutarCarga(db, cliente, 'incremental', {
+      modo: 'sombra',
+      ahora: new Date('2026-11-11T08:10:00Z'),
+    });
+    const [k17] = await buscar('k1-7');
+    expect(k17?.origen).toBe('manual');
+    expect(await buscar('k2-9')).toHaveLength(0);
+
+    // La exportación se pone al día con 3 h de atraso: la siguiente pasada revisa las últimas 24 h.
+    ocultos.clear();
+    await ejecutarCarga(db, cliente, 'incremental', {
+      modo: 'sombra',
+      ahora: new Date('2026-11-11T08:25:00Z'),
+    });
+    expect(await buscar('k2-9')).toHaveLength(1);
+    expect(await buscar('k1-7')).toHaveLength(1);
+  });
 });

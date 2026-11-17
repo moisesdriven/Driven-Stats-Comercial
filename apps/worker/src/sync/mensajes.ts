@@ -221,3 +221,43 @@ export async function reverificarSinOrigen(
   });
   return actualizados;
 }
+
+/**
+ * Complemento en tiempo real de la exportación. La exportación de GHL puede ir horas atrasada (el
+ * 17 nov 2026 llevaba unas 3 h: las respuestas de la tarde no salían), pero la consulta por
+ * conversación entrega los mensajes al instante. Para cada conversación con actividad trae sus
+ * mensajes desde `desde` (vienen del más reciente al más antiguo). Se guardan con el mismo upsert
+ * idempotente: si después llegan por la exportación, no se duplican.
+ */
+export async function cargarMensajesRecientes(
+  db: Db,
+  cliente: ClienteGhl,
+  conversaciones: readonly string[],
+  desde: Date,
+  hasta: Date,
+  concurrencia = 4,
+): Promise<ResultadoMensajes> {
+  const r: ResultadoMensajes = {
+    mensajes: 0,
+    totalGhl: 0,
+    verificadosIa: 0,
+    porOrigen: {},
+    contactos: new Set(),
+    conversaciones: new Set(),
+  };
+  if (!conversaciones.length) return r;
+  await asegurarParticiones(db, desde, hasta);
+  const limite = desde.getTime();
+  await enParalelo([...conversaciones], concurrencia, async (id) => {
+    for await (const lote of cliente.mensajesConversacion(id)) {
+      const dentro = lote.filter((m) => {
+        const t = Date.parse(m.dateAdded);
+        return t >= limite && t <= hasta.getTime();
+      });
+      if (dentro.length) await guardarMensajes(db, cliente, dentro, r, 1);
+      // Más antiguo que `desde` en esta página: ya no hay nada nuevo más atrás.
+      if (lote.some((m) => Date.parse(m.dateAdded) < limite)) return;
+    }
+  });
+  return r;
+}

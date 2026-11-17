@@ -15,7 +15,12 @@ import { calcularResumen, hoyEn, sumarDias } from '../calculo/resumen';
 import { sincronizarCatalogos } from './catalogos';
 import { cargarConversaciones } from './conversaciones';
 import { recalcularLeads } from './leads';
-import { cargarMensajes, reverificarSinOrigen, type ResultadoMensajes } from './mensajes';
+import {
+  cargarMensajes,
+  cargarMensajesRecientes,
+  reverificarSinOrigen,
+  type ResultadoMensajes,
+} from './mensajes';
 import { cargarOportunidades, reconstruirHistorial, recalcularVentas } from './oportunidades';
 import { cargarTareas } from './tareas';
 import { log } from './util';
@@ -34,6 +39,12 @@ async function hoySubcuenta(db: Db, locationId: string, ahora: Date): Promise<st
 }
 
 export type TipoCarga = 'incremental' | 'nocturno' | 'historico';
+
+/**
+ * Horas de exportación que la carga incremental vuelve a revisar en cada pasada. La exportación de
+ * GHL puede ir horas atrasada (unas 3 h el 17 nov 2026); 24 h dejan margen de sobra.
+ */
+export const HORAS_REVISION_EXPORTACION = 24;
 
 async function leerMarca(db: Db, locationId: string, recurso: string): Promise<Date | null> {
   const [f] = await db
@@ -116,8 +127,23 @@ export async function ejecutarCarga(
       const desde = new Date(marca.getTime() - 10 * 60_000); // solape de 10 min por mensajes tardíos
       resumen.catalogos = await sincronizarCatalogos(db, cliente);
       const conv = await cargarConversaciones(db, cliente, desde);
-      const men = await cargarMensajes(db, cliente, desde, ahora, 4, conv.ultimosMensajes);
-      const contactos = [...new Set([...men.contactos, ...conv.contactos])];
+      // Primero, directo de cada conversación con actividad (al instante); después, la exportación
+      // de las últimas 24 h como respaldo, porque puede ir horas atrasada y un mensaje que aparece
+      // tarde en ella quedaría fuera de una ventana corta para siempre.
+      const recientes = await cargarMensajesRecientes(db, cliente, conv.ids, desde, ahora);
+      const desdeExportacion = new Date(
+        Math.min(desde.getTime(), ahora.getTime() - HORAS_REVISION_EXPORTACION * 3600_000),
+      );
+      const men = await cargarMensajes(
+        db,
+        cliente,
+        desdeExportacion,
+        ahora,
+        4,
+        conv.ultimosMensajes,
+      );
+      resumen.recientes = recientes.mensajes;
+      const contactos = [...new Set([...men.contactos, ...recientes.contactos, ...conv.contactos])];
       const opp = await cargarOportunidades(db, cliente, { contactIds: contactos });
       resumen.conversaciones = conv.conversaciones;
       resumen.mensajes = resumenMensajes(men);

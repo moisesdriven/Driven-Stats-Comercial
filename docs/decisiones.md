@@ -125,3 +125,19 @@ Detalles que la especificación no fija. Todas se pueden cambiar.
   sin texto no se califica. Los archivos de workflows sin texto no se envían, para no gastar contexto.
 - Los documentos (PDF, Word…) no cuentan para el plus. Un documento con texto al pie se toma como
   "adjunto", porque solo se guarda la cantidad de adjuntos y no su tipo.
+
+## Carga incremental: exportación atrasada de GHL (17 nov 2026)
+
+- **Lo que pasó:** la foto que Nathalia envió a las 08:44 (hora de Lima) se veía como "Sin
+  responder", aunque Ximena le respondió a las 15:40. La exportación de mensajes de GHL
+  (`/conversations/messages/export`) iba unas 3 horas atrasada: a las 18:30 no entregaba casi nada
+  posterior a las 15:30, aunque la consulta por conversación sí mostraba esos mensajes. La carga
+  incremental pedía solo lo nuevo desde la pasada anterior, con 10 minutos de margen, así que un
+  mensaje que aparecía tarde en la exportación quedaba fuera para siempre.
+- **Corrección:**
+  - en cada pasada incremental, los mensajes de cada conversación con actividad se traen
+    directamente de la conversación (`cargarMensajesRecientes`), que GHL entrega al instante;
+  - como respaldo, la exportación se vuelve a revisar en las últimas 24 horas
+    (`HORAS_REVISION_EXPORTACION`).
+  Todo se guarda con el mismo upsert idempotente, así que un mensaje que llega por las dos vías no
+  se duplica.
