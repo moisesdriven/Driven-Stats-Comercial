@@ -25,6 +25,7 @@ describe.skipIf(!hayBaseDePruebas)('lista en vivo "Sin responder" (integración)
     origen: string | null,
     userId: string | null = null,
     texto: string | null = null,
+    contenido: string | null = null,
   ) => ({
     messageId: `l${++n}`,
     locationId: LOC,
@@ -34,6 +35,8 @@ describe.skipIf(!hayBaseDePruebas)('lista en vivo "Sin responder" (integración)
     origen: origen as 'manual' | null,
     userId,
     texto,
+    contenido,
+    adjuntos: contenido && contenido !== 'texto' ? 1 : 0,
     fecha,
   });
 
@@ -66,6 +69,16 @@ describe.skipIf(!hayBaseDePruebas)('lista en vivo "Sin responder" (integración)
       // K5 (U1): el workflow respondió → no es falta.
       msg('K5', hace(45), 'inbound', null),
       msg('K5', hace(44), 'outbound', 'workflow'),
+      // K6 (U1): envió una foto y la asesora la respondió → no es falta (caso Nathalia, 17 nov).
+      msg('K6', hace(80), 'inbound', null, null, 'Quisiera información de los anillos'),
+      msg('K6', hace(79), 'outbound', 'agente_ia'),
+      msg('K6', hace(70), 'inbound', null, null, null, 'imagen'),
+      msg('K6', hace(20), 'outbound', 'manual', 'U1', '¡Hola, buenas tardes! Le saluda Ximena'),
+      // K7 (U1): envió un audio y nadie respondió → falta, y se muestra "(audio)".
+      msg('K7', hace(35), 'inbound', null, null, null, 'audio'),
+      // K8 (U1): respuesta con origen aún sin confirmar por GHL (asesor o IA) → no es falta.
+      msg('K8', hace(50), 'inbound', null, null, null, 'imagen'),
+      msg('K8', hace(48), 'outbound', 'sin_origen', 'U1'),
     ]);
     const lead = (contactId: string, asesorId: string) => ({
       locationId: LOC,
@@ -84,6 +97,9 @@ describe.skipIf(!hayBaseDePruebas)('lista en vivo "Sin responder" (integración)
         lead('K3', 'U1'),
         lead('K4', 'U1'),
         lead('K5', 'U1'),
+        lead('K6', 'U1'),
+        lead('K7', 'U1'),
+        lead('K8', 'U1'),
       ]);
     const admin = await crearUsuarioPrueba(db, { correo: 'admin@listas.pe', rol: 'admin' });
     ctx = (await cargarContexto(db, admin))!;
@@ -91,11 +107,17 @@ describe.skipIf(!hayBaseDePruebas)('lista en vivo "Sin responder" (integración)
 
   it('separa las faltas (asesor en turno, 15 min o más) de los pendientes fuera de turno', async () => {
     const r = await listasParaActuar(db, ctx, LOC, AHORA);
-    expect(r.totales.sinResponder).toBe(1);
+    expect(r.totales.sinResponder).toBe(2);
     expect(r.totales.fueraDeTurno).toBe(1);
-    expect(r.sinResponder.map((f) => f.contacto)).toEqual(['Contacto ···K1', 'Contacto ···K2']);
-    expect(r.sinResponder[0]!.espera).toBe('40 min');
-    expect(r.sinResponder[1]!.espera).toBe('Asesor fuera de turno');
-    expect(r.sinResponder[1]!.urgente).toBe(false);
+    expect(r.sinResponder.map((f) => f.contacto)).toEqual([
+      'Contacto ···K7',
+      'Contacto ···K1',
+      'Contacto ···K2',
+    ]);
+    expect(r.sinResponder[0]!.espera).toBe('35 min');
+    expect(r.sinResponder[0]!.mensaje).toBe('(audio)');
+    expect(r.sinResponder[1]!.espera).toBe('40 min');
+    expect(r.sinResponder[2]!.espera).toBe('Asesor fuera de turno');
+    expect(r.sinResponder[2]!.urgente).toBe(false);
   });
 });

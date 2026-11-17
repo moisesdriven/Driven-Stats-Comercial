@@ -106,14 +106,19 @@ Detalles que la especificación no fija. Todas se pueden cambiar.
   el cliente, abren un pendiente; si los envía el asesor, son su respuesta. Así se medía ya, porque
   ni los tiempos ni "Sin responder" dependen del contenido. En la lista "Sin responder", un archivo
   sin texto se muestra como "(imagen)", "(audio)" o "(video)".
+- **Respuesta con origen sin confirmar:** si GHL todavía no confirma quién escribió un saliente
+  (`sin_origen`: lo escribió el asesor o el agente IA, pero no un workflow ni una campaña), igual
+  cierra el pendiente, porque el cliente sí recibió una respuesta. No se mide como tiempo del asesor
+  hasta que la reverificación confirme su origen. Antes, ese mensaje dejaba al cliente en "Sin
+  responder" aunque ya le hubieran contestado.
 - **Calidad: plus a favor.** Un mensaje calificado del asesor gana +1 punto, con tope de 5, si:
   - lleva una imagen, un audio o un video (por ejemplo, una foto con su precio al pie); o
   - el asesor envía uno de esos archivos en el mismo turno (sin que el cliente escriba en medio) y a
     no más de 30 minutos (`MINUTOS_PLUS_MULTIMEDIA`).
-  Nunca resta. Los archivos de workflows o campañas no cuentan. Se guarda en
-  `clasificaciones.plus_multimedia` y se aplica al cerrar el análisis, recalculando el puntaje desde
-  los criterios (`aplicarPlusMultimedia`). En el motivo se muestra "+1 por enviar imagen, audio o
-  video".
+    Nunca resta. Los archivos de workflows o campañas no cuentan. Se guarda en
+    `clasificaciones.plus_multimedia` y se aplica al cerrar el análisis, recalculando el puntaje desde
+    los criterios (`aplicarPlusMultimedia`). En el motivo se muestra "+1 por enviar imagen, audio o
+    video".
 - **Contexto para la IA (rúbrica v3):** los archivos del cliente y del asesor aparecen como
   "(imagen)", "(audio)", "(video)" o "(adjunto)" (archivo con texto al pie, de tipo desconocido). Un
   archivo del cliente es un pedido: un saludo suelto después no lo responde. Un archivo del asesor
