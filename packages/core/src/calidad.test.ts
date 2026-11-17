@@ -27,6 +27,8 @@ import {
   esSaludoSuelto,
   calificarSaludoPorRegla,
   separarSaludos,
+  plusMultimedia,
+  tipoAdjunto,
   instruccionesCalidad,
   esquemaRespuestaCalidad,
   type MensajeCalidad,
@@ -582,5 +584,115 @@ describe('precios por modelo', () => {
       6,
     );
     expect(preciosDe('otro')).toBe(PRECIOS_POR_DEFECTO);
+  });
+});
+
+describe('imágenes, audios y videos (regla del 17 nov 2026)', () => {
+  const t0 = Date.parse('2026-11-16T15:00:00Z');
+  const m = (
+    id: string,
+    min: number,
+    direccion: 'inbound' | 'outbound',
+    texto: string,
+    extra: Partial<MensajeCalidad> = {},
+  ): MensajeCalidad => ({
+    id,
+    fecha: new Date(t0 + min * 60_000),
+    direccion,
+    calificable: direccion === 'outbound' && !extra.automatico,
+    texto,
+    ...extra,
+  });
+  const todos: Criterios = {
+    responde: true,
+    personalizado: true,
+    siguiente_paso: true,
+    tono: true,
+    extension: true,
+  };
+  const tres: Criterios = { ...todos, personalizado: false, siguiente_paso: false };
+
+  it('el plus suma un punto con tope 5 y nunca resta', () => {
+    expect(puntajeDeCriterios(tres)).toBe(3);
+    expect(puntajeDeCriterios(tres, true)).toBe(4);
+    expect(puntajeDeCriterios(todos, true)).toBe(5);
+    expect(
+      puntajeDeCriterios({ ...tres, responde: false, tono: false, extension: false }, true),
+    ).toBe(2);
+  });
+
+  it('tipo de archivo: imagen, audio y video; con texto al pie es "adjunto"; documentos no', () => {
+    expect(tipoAdjunto('imagen', 1)).toBe('imagen');
+    expect(tipoAdjunto('audio', 1)).toBe('audio');
+    expect(tipoAdjunto('video', 1)).toBe('video');
+    expect(tipoAdjunto('texto', 1)).toBe('adjunto');
+    expect(tipoAdjunto('texto', 0)).toBeNull();
+    expect(tipoAdjunto('documento', 1)).toBeNull();
+    expect(tipoAdjunto('plantilla', 0)).toBeNull();
+  });
+
+  it('una imagen sin texto del asesor no se califica ni cuenta como trivial', () => {
+    const sel = seleccionarMensajes([
+      m('c1', 0, 'inbound', '¿Precio del anillo de compromiso?'),
+      m('f1', 1, 'outbound', '', { adjunto: 'imagen' }),
+      m('a1', 2, 'outbound', 'El anillo de 3.5 gramos cuesta S/ 2,730 aproximado'),
+    ]);
+    expect([...sel.ids]).toEqual(['a1']);
+    expect(sel.descartes.triviales).toBe(0);
+  });
+
+  it('plus: el mensaje con foto al pie y los del mismo turno en que el asesor envió un archivo', () => {
+    const msgs = [
+      m('c1', 0, 'inbound', '¿Qué modelos tienen?'),
+      m('a1', 1, 'outbound', 'Le comparto nuestros modelos de anillos de compromiso'),
+      m('f1', 2, 'outbound', '', { adjunto: 'imagen' }),
+      m('c2', 10, 'inbound', '¿Y el precio del segundo?'),
+      m('a2', 11, 'outbound', 'El segundo cuesta S/ 3,900 aproximado, ¿qué talla usa?'),
+      m('w1', 12, 'outbound', '', { adjunto: 'video', automatico: true }),
+      m('c3', 20, 'inbound', 'Talla 12'),
+      m('a3', 21, 'outbound', 'El par de aros de 12 gramos cuesta S/ 8,160', {
+        adjunto: 'adjunto',
+      }),
+      m('c4', 30, 'inbound', ''),
+      m('a4', 31, 'outbound', 'Perfecto, se lo separo con un adelanto'),
+      m('au', 32, 'outbound', '', { adjunto: 'audio' }),
+      m('a5', 82, 'outbound', '¿Pudo revisar la cuenta para el adelanto?'),
+    ];
+    // a2 no: el video lo envió un workflow, no el asesor. a5 no: el audio fue 50 min antes.
+    expect([...plusMultimedia(msgs, new Set(['a1', 'a2', 'a3', 'a4', 'a5']))].sort()).toEqual([
+      'a1',
+      'a3',
+      'a4',
+    ]);
+  });
+
+  it('una imagen o audio del cliente es un pedido: un saludo después no lo responde', () => {
+    const { porRegla } = separarSaludos(
+      [
+        m('a0', 0, 'outbound', 'Hola, buenos días'),
+        m('c1', 1, 'inbound', 'Hola'),
+        m('c2', 2, 'inbound', '', { adjunto: 'imagen' }),
+        m('a1', 3, 'outbound', 'Hola, buenos días'),
+      ],
+      new Set(['a1']),
+    );
+    expect(porRegla.get('a1')?.criterios.responde).toBe(false);
+  });
+
+  it('la IA ve las marcas de archivo del cliente y del asesor', () => {
+    const { texto } = textoConversacion(
+      [
+        m('c1', 0, 'inbound', '', { adjunto: 'imagen' }),
+        m('c2', 1, 'inbound', '¿Cuánto cuesta este?', { adjunto: 'adjunto' }),
+        m('a1', 2, 'outbound', 'Ese modelo cuesta S/ 2,730 aproximado'),
+        m('f1', 3, 'outbound', '', { adjunto: 'audio' }),
+      ],
+      new Set(['a1']),
+    );
+    expect(texto).toContain('[CLIENTE] (imagen)\n');
+    expect(texto).toContain('[CLIENTE] (adjunto) ¿Cuánto cuesta este?');
+    expect(texto).toContain('[ASESOR #1] Ese modelo cuesta');
+    expect(texto).toContain('[ASESOR] (audio)');
+    expect(INSTRUCCIONES_CALIDAD).toContain('(imagen), (audio), (video) y (adjunto)');
   });
 });

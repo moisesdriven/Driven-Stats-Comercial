@@ -1,0 +1,1 @@
+ALTER TABLE "comercial"."clasificaciones" ADD COLUMN "plus_multimedia" boolean DEFAULT false NOT NULL;

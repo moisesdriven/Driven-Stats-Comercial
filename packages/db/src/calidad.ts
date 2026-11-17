@@ -17,6 +17,7 @@ import {
   separarSaludos,
   seleccionarMensajes,
   textoConversacion,
+  tipoAdjunto,
   tokensAproximados,
   type EstimacionCosto,
   type EtiquetaCalidad,
@@ -285,15 +286,20 @@ export async function prepararSolicitudes(
       direccion: 'inbound' | 'outbound';
       origen: string | null;
       texto: string | null;
+      contenido: string | null;
+      adjuntos: number;
     }>(sql`
-      select distinct m.message_id, m.conversation_id, m.fecha, m.direccion, m.origen, m.texto
+      select distinct m.message_id, m.conversation_id, m.fecha, m.direccion, m.origen, m.texto,
+        m.contenido, m.adjuntos
       from comercial.mensajes m
       join comercial.historial_etapas h
         on h.location_id = m.location_id and h.contact_id = m.contact_id and h.stage_id in (${etapasSql})
        and m.fecha >= h.desde and (h.hasta is null or m.fecha < h.hasta)
       where m.location_id = ${p.locationId} and m.conversation_id in (${ids})
         and m.fecha >= ${p.desde} and m.fecha < ${p.hasta}
-        and coalesce(m.texto, '') <> ''`);
+        and (coalesce(m.texto, '') <> ''
+          -- Imágenes, audios y videos sin texto del cliente o del asesor (no de workflows).
+          or (m.contenido in ('imagen', 'audio', 'video') and (m.direccion = 'inbound' or m.origen = 'manual')))`);
     const porConversacion = new Map<string, MensajeCalidad[]>();
     for (const f of filas.rows) {
       const lista = porConversacion.get(f.conversation_id) ?? [];
@@ -304,6 +310,7 @@ export async function prepararSolicitudes(
         calificable: f.origen === 'manual',
         automatico: f.direccion === 'outbound' && f.origen !== 'manual',
         texto: f.texto ?? '',
+        adjunto: tipoAdjunto(f.contenido, Number(f.adjuntos)),
       });
       porConversacion.set(f.conversation_id, lista);
     }

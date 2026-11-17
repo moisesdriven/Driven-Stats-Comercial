@@ -106,7 +106,9 @@ export async function listasParaActuar(
     select l.contact_id, l.conversation_id, l.canal, l.asesor_id, a.nombre as asesor, l.ingreso_en,
       l.primera_resp_humana_en, l.ultimo_humano_en, l.ultimo_inbound_en, l.estado, l.etapa_estandar,
       p.desde as pendiente_desde,
-      (select m.texto from comercial.mensajes m
+      -- Una imagen, audio o video sin texto se muestra con su tipo: también es un mensaje que responder.
+      (select coalesce(nullif(m.texto, ''), case when m.contenido in ('imagen', 'audio', 'video')
+          then '(' || m.contenido || ')' end) from comercial.mensajes m
         where m.location_id = l.location_id and m.contact_id = l.contact_id and m.direccion = 'inbound'
           and coalesce(m.texto, '') !~* ${PATRON_MENSAJE_ENTRADA_SQL}
         order by m.fecha desc limit 1) as ultimo_texto,
