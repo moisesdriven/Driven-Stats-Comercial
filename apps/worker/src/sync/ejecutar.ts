@@ -145,7 +145,7 @@ export async function ejecutarCarga(
       };
       resumen.ventas = await recalcularVentas(db, loc);
       resumen.tareas = await cargarTareas(db, cliente);
-      resumen.reverificados = await reverificarSinOrigen(db, cliente);
+      resumen.reverificados = await reverificarSinOrigen(db, cliente, 7, ahora);
       resumen.leads = await recalcularLeads(db, loc);
       await guardarMarca(db, loc, 'nocturno', ahora);
       const hoy = await hoySubcuenta(db, loc, ahora);
