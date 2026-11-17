@@ -5,7 +5,7 @@ import {
   acumuladoVacio,
   agregarPeriodo,
   calcularIndicadores,
-  crearInicioJornada,
+  crearJornadas,
   mediana,
   metricasLead,
   sumarAcumulados,
@@ -147,54 +147,70 @@ describe('metricasLead: atención (reglas del 16 nov 2026)', () => {
   });
 });
 
-describe('tiempo de respuesta desde que el asesor está en jornada (17 nov 2026)', () => {
-  // Stephanie: el lunes escribe a clientes de 9:30 a 18:40; el martes empieza a las 9:10.
+describe('turno automático del asesor (17 nov 2026)', () => {
+  // Stephanie escribe a clientes 9:30–13:00, vuelve 16:30 (pausa de 3,5 h) y al día siguiente 9:10.
   const actividad = new Map([
-    ['S', [L(16, '09:30'), L(16, '12:00'), L(16, '18:40'), L(17, '09:10')]],
+    [
+      'S',
+      [
+        L(16, '09:30'),
+        L(16, '11:00'),
+        L(16, '13:00'),
+        L(16, '16:30'),
+        L(16, '18:40'),
+        L(17, '09:10'),
+      ],
+    ],
   ]);
-  const inicio = crearInicioJornada(actividad, LIMA);
-
-  it('antes de empezar su jornada: corre desde su primera actividad del día', () => {
-    expect(inicio('S', L(16, '07:42'))).toEqual(L(16, '09:30'));
+  const j = crearJornadas(actividad);
+  const manual = (f: Date): MensajeLead => ({
+    fecha: f,
+    direccion: 'outbound',
+    origen: 'manual',
+    userId: 'S',
   });
 
-  it('dentro de su jornada: corre desde el mensaje del cliente', () => {
-    expect(inicio('S', L(16, '10:15'))).toEqual(L(16, '10:15'));
+  it('antes de empezar: el reloj corre desde su primera actividad', () => {
+    expect(j.inicio('S', L(16, '07:42'))).toEqual(L(16, '09:30'));
   });
 
-  it('después de que terminó: corre desde su primera actividad del día siguiente', () => {
-    expect(inicio('S', L(16, '21:00'))).toEqual(L(17, '09:10'));
+  it('en turno (menos de 3 h sin actividad): desde el mensaje del cliente', () => {
+    expect(j.inicio('S', L(16, '10:15'))).toEqual(L(16, '10:15'));
+    expect(j.enTurno('S', L(16, '12:00'))).toBe(true);
   });
 
-  it('sin actividad conocida del asesor: desde el mensaje del cliente', () => {
-    expect(inicio('X', L(16, '07:42'))).toEqual(L(16, '07:42'));
-    expect(inicio(null, L(16, '07:42'))).toEqual(L(16, '07:42'));
+  it('más de 3 h sin escribir a ningún cliente: fuera de turno hasta que vuelve', () => {
+    expect(j.inicio('S', L(16, '13:30'))).toEqual(L(16, '16:30')); // pausa 13:00 → 16:30
+    expect(j.enTurno('S', L(16, '16:10'))).toBe(false);
+    expect(j.inicio('S', L(16, '21:00'))).toEqual(L(17, '09:10')); // noche
+  });
+
+  it('última actividad hasta un instante (cierre del turno)', () => {
+    expect(j.ultimaActividad('S', L(16, '23:59'))).toEqual(L(16, '18:40'));
+    expect(j.ultimaActividad('S', L(16, '08:00'))).toBeNull();
+  });
+
+  it('sin actividad conocida: desde el mensaje del cliente y en turno', () => {
+    expect(j.inicio('X', L(16, '07:42'))).toEqual(L(16, '07:42'));
+    expect(j.enTurno(null, L(16, '07:42'))).toBe(true);
   });
 
   it('caso real: "Ok gracias" a las 7:42, la asesora empezó 9:30 y respondió 9:43 → 13 min', () => {
-    const conActividad = new Map([['S', [L(16, '09:30'), L(16, '09:43')]]]);
-    const d = lead(
-      [
-        ia(L(16, '07:41')),
-        ent(L(16, '07:42')),
-        { fecha: L(16, '09:43'), direccion: 'outbound', origen: 'manual', userId: 'S' },
-      ],
-      { inicioJornada: crearInicioJornada(conActividad, LIMA) },
-    );
+    const d = lead([ia(L(16, '07:41')), ent(L(16, '07:42')), manual(L(16, '09:43'))], {
+      jornadas: crearJornadas(new Map([['S', [L(16, '09:30'), L(16, '09:43')]]])),
+    });
     expect(metricasLead(d, T, U, L(16, '10:00')).respuestasAsesor.map((r) => r.minutos)).toEqual([
       13,
     ]);
   });
 
-  it('una respuesta durante la jornada se mide en minutos de reloj', () => {
-    const d = lead(
-      [
-        ent(L(16, '12:55')),
-        { fecha: L(16, '14:05'), direccion: 'outbound', origen: 'manual', userId: 'S' },
-      ],
-      { inicioJornada: inicio },
-    );
-    expect(metricasLead(d, T, U, L(16, '15:00')).minutosRespuesta).toBe(70);
+  it('sin responder es falta desde 15 min si el asesor está en turno; fuera de turno no es falta', () => {
+    const d = lead([ent(L(16, '12:40'))], { asesorId: 'S', jornadas: j });
+    expect(metricasLead(d, T, U, L(16, '12:50')).sinResponder).toBe(false); // 10 min
+    expect(metricasLead(d, T, U, L(16, '12:56')).sinResponder).toBe(true); // 16 min, en turno
+    const tarde = metricasLead(d, T, U, L(16, '16:20')); // 3 h 20 sin actividad
+    expect(tarde.sinResponder).toBe(false);
+    expect(tarde.pendienteFueraDeTurno).toBe(true);
   });
 });
 

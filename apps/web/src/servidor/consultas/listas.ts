@@ -2,15 +2,16 @@
  * Listas para actuar de una subcuenta (§10.2): sin responder, pendientes de seguimiento e
  * interesados de días anteriores sin contacto hoy. Se calculan en vivo, en tiempo laboral del
  * asesor de cada lead. Los leads perdidos no aparecen (decisión del cliente).
- * Sin responder (regla del 16 nov 2026): el primer mensaje del cliente que no respondió nadie (ni el
+ * Sin responder (reglas del 16 y 17 nov 2026): un mensaje del cliente que no respondió nadie (ni el
  * asesor, ni el agente IA, ni un workflow), sin contar los mensajes de entrada ("Headline") ni la
- * etapa Nuevo.
+ * etapa Nuevo, que lleva 15 min o más con el asesor en turno. Si el asesor lleva más de 3 h sin
+ * escribir a ningún cliente está fuera de turno: el pendiente se muestra aparte y no es falta.
  */
 import { sql } from 'drizzle-orm';
 import {
+  crearJornadas,
   diasLaborales,
   inicioDelDia,
-  minutosLaborales,
   PATRON_MENSAJE_ENTRADA_SQL,
 } from '@driven/core';
 import type { Db } from '@driven/db';
@@ -45,8 +46,8 @@ const contacto = (id: string) => `Contacto ···${id.slice(-4)}`;
 
 function esperaTexto(min: number): string {
   if (min < 60) return `${Math.max(0, Math.round(min))} min`;
-  if (min < 8 * 60) return `${Math.round(min / 60)} h lab.`;
-  return `${Math.max(1, Math.round(min / 480))} días lab.`;
+  if (min < 24 * 60) return `${Math.round(min / 60)} h`;
+  return `${Math.max(1, Math.round(min / 1440))} días`;
 }
 
 export async function listasParaActuar(
@@ -124,8 +125,19 @@ export async function listasParaActuar(
       and ((p.desde is not null and coalesce(l.etapa_estandar, '') <> 'nuevo')
         or l.etapa_estandar in ('interesado', 'por_cerrar'))`);
 
+  // Turno real de cada asesor: sus salientes manuales de los últimos 60 días a cualquier cliente.
+  const actividad = await db.execute<{ user_id: string; fechas: (Date | string)[] }>(sql`
+    select user_id, array_agg(fecha order by fecha) as fechas from comercial.mensajes
+    where location_id = ${locationId} and direccion = 'outbound' and origen = 'manual'
+      and user_id is not null and fecha > ${new Date(ahora.getTime() - 61 * 86_400_000)} and fecha <= ${ahora}
+    group by user_id`);
+  const jornadas = crearJornadas(
+    new Map(actividad.rows.map((f) => [f.user_id, f.fechas.map((x) => new Date(x))])),
+  );
+
   const hoy = inicioDelDia(ahora, zona);
   const sinResponder: FilaAccion[] = [];
+  const fueraDeTurno: FilaAccion[] = [];
   const pendientes: FilaAccion[] = [];
   const interesados: FilaAccion[] = [];
   for (const f of r.rows) {
@@ -139,21 +151,26 @@ export async function listasParaActuar(
     };
     const textoCliente = verTextos ? (f.ultimo_texto?.slice(0, 140) ?? '(sin texto)') : null;
     if (f.pendiente_desde && f.etapa_estandar !== 'nuevo') {
-      const min = minutosLaborales(
-        new Date(f.pendiente_desde),
-        ahora,
-        t.horario,
-        t.ausencias,
-        t.zona,
-      );
-      sinResponder.push({
-        ...base,
-        mensaje: textoCliente,
-        espera: esperaTexto(min),
-        minutos: min,
-        urgente: min > 15,
-      });
-      continue;
+      const inicio = jornadas.inicio(f.asesor_id, new Date(f.pendiente_desde));
+      const min = Math.max(0, (ahora.getTime() - inicio.getTime()) / 60_000);
+      if (!jornadas.enTurno(f.asesor_id, ahora)) {
+        fueraDeTurno.push({
+          ...base,
+          mensaje: textoCliente,
+          espera: 'Asesor fuera de turno',
+          minutos: min,
+          urgente: false,
+        });
+      } else if (min >= 15) {
+        sinResponder.push({
+          ...base,
+          mensaje: textoCliente,
+          espera: esperaTexto(min),
+          minutos: min,
+          urgente: min >= 60,
+        });
+      }
+      if (f.etapa_estandar !== 'interesado' && f.etapa_estandar !== 'por_cerrar') continue;
     }
     if (f.estado !== 'abierto' && f.estado !== null) continue;
     const etapa = ETIQUETA_ETAPA[f.etapa_estandar ?? ''] ?? '';
@@ -185,11 +202,16 @@ export async function listasParaActuar(
   const orden = (a: FilaAccion, b: FilaAccion) => b.minutos - a.minutos;
   return {
     // Sin responder: los más recientes primero (son los que aún se pueden recuperar).
-    sinResponder: sinResponder.sort((a, b) => a.minutos - b.minutos).slice(0, 100),
+    // Las faltas primero (más recientes arriba); al final, los pendientes con el asesor fuera de turno.
+    sinResponder: [
+      ...sinResponder.sort((a, b) => a.minutos - b.minutos),
+      ...fueraDeTurno.sort((a, b) => a.minutos - b.minutos),
+    ].slice(0, 100),
     pendientes: pendientes.sort(orden).slice(0, 100),
     interesados: interesados.sort(orden).slice(0, 100),
     totales: {
       sinResponder: sinResponder.length,
+      fueraDeTurno: fueraDeTurno.length,
       pendientes: pendientes.length,
       interesados: interesados.length,
     },

@@ -18,7 +18,7 @@ import {
   acumuladoVacio,
   calcularIndicadores,
   configuracionTiempo,
-  crearInicioJornada,
+  crearJornadas,
   diasLaborales,
   evaluar,
   fechaLocal,
@@ -189,8 +189,8 @@ export async function calcularResumen(
   for (const lista of mensajesPorContacto.values())
     lista.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
 
-  // Jornada real de cada asesor (sus salientes manuales a cualquier cliente): el tiempo de respuesta
-  // corre desde que está en jornada, no desde un mensaje que llegó fuera de su turno.
+  // Turno real de cada asesor (sus salientes manuales a cualquier cliente): fuera de turno si lleva
+  // más de 3 h sin escribir a nadie. El tiempo de respuesta corre desde que está en turno.
   const actividad = await db.execute<{ user_id: string; fecha: Date }>(sql`
     select user_id, fecha from comercial.mensajes
     where location_id = ${locationId} and direccion = 'outbound' and origen = 'manual'
@@ -201,7 +201,7 @@ export async function calcularResumen(
     lista.push(new Date(f.fecha));
     actividadPorAsesor.set(f.user_id, lista);
   }
-  const inicioJornada = crearInicioJornada(actividadPorAsesor, zona);
+  const jornadas = crearJornadas(actividadPorAsesor);
 
   // Periodos en la etapa Nuevo: mientras el lead está ahí (lo atiende el workflow) no se mide.
   // La etapa estándar sale del mapa actual (las filas que vienen de actividades no la guardan).
@@ -246,7 +246,8 @@ export async function calcularResumen(
       ventaEn: ventaVigente,
       tareas: tareasPorContacto.get(l.contactId) ?? [],
       periodosNuevo: nuevoPorContacto.get(l.contactId) ?? [],
-      inicioJornada,
+      asesorId: l.asesorId,
+      jornadas,
     };
   };
 
@@ -346,16 +347,35 @@ export async function calcularResumen(
     }
   }
 
-  // Fotos al cierre de cada día.
+  // Fotos al cierre de cada día. "Sin responder" se toma al cierre del turno del asesor (su última
+  // actividad del día): a medianoche todos están fuera de turno y la foto no diría nada.
   for (const dia of dias) {
     const corte = new Date(Math.min(finDelDia(dia, zona).getTime(), ahora.getTime()));
     if (corte < desdeInstante && dia !== p.desde) continue;
+    const inicioDia = instanteLocal(
+      ...(dia.split('-').map(Number) as [number, number, number]),
+      0,
+      0,
+      zona,
+    );
     const limiteIngreso = corte.getTime() - VENTANA_FOTO_DIAS * 86_400_000;
     for (const l of leads) {
       if (l.ingresoEn! > corte || l.ingresoEn!.getTime() < limiteIngreso) continue;
       const m = metricasLead(datosLead(l), tiempoDe(l.asesorId), umbrales, corte);
+      if (m.pendienteFueraDeTurno) {
+        const cierreTurno = jornadas.ultimaActividad(l.asesorId, corte);
+        if (cierreTurno && cierreTurno >= inicioDia) {
+          const alCierre = metricasLead(datosLead(l), tiempoDe(l.asesorId), umbrales, cierreTurno);
+          if (alCierre.sinResponder) {
+            m.sinResponder = true;
+            m.enEspera = alCierre.enEspera;
+            m.pendienteFueraDeTurno = false;
+          }
+        }
+      }
       if (!(
         m.sinResponder ||
+        m.pendienteFueraDeTurno ||
         m.enEspera ||
         m.seguimientoVencido ||
         m.seguimientoProgramado ||
@@ -364,6 +384,7 @@ export async function calcularResumen(
         continue;
       const a = acc(dia, l.asesorId);
       if (m.sinResponder) a.fotoSinResponder++;
+      if (m.pendienteFueraDeTurno) a.fotoFueraDeTurno = (a.fotoFueraDeTurno ?? 0) + 1;
       if (m.enEspera) a.fotoEnEspera++;
       if (m.seguimientoVencido) a.fotoSeguimientoVencido++;
       if (m.seguimientoProgramado) a.fotoSeguimientoProgramado++;
