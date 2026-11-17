@@ -126,8 +126,9 @@ export async function listasParaActuar(
         or l.etapa_estandar in ('interesado', 'por_cerrar'))`);
 
   // Turno real de cada asesor: sus salientes manuales de los últimos 60 días a cualquier cliente.
-  const actividad = await db.execute<{ user_id: string; fechas: (Date | string)[] }>(sql`
-    select user_id, array_agg(fecha order by fecha) as fechas from comercial.mensajes
+  // json_agg (no array_agg): el driver entrega los arreglos de fechas como texto, no como lista.
+  const actividad = await db.execute<{ user_id: string; fechas: string[] }>(sql`
+    select user_id, json_agg(fecha order by fecha) as fechas from comercial.mensajes
     where location_id = ${locationId} and direccion = 'outbound' and origen = 'manual'
       and user_id is not null and fecha > ${new Date(ahora.getTime() - 61 * 86_400_000)} and fecha <= ${ahora}
     group by user_id`);

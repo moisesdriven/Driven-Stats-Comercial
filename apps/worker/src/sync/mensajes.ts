@@ -185,7 +185,14 @@ export async function cargarMensajes(
 }
 
 /** Reintenta la verificación de salientes que quedaron `sin_origen` por un error (últimos N días). */
-export async function reverificarSinOrigen(db: Db, cliente: ClienteGhl, dias = 7): Promise<number> {
+export async function reverificarSinOrigen(
+  db: Db,
+  cliente: ClienteGhl,
+  dias = 7,
+  ahora = new Date(),
+): Promise<number> {
+  // La ventana se calcula con `ahora` (no con el reloj de la base) para que sea reproducible.
+  const desde = new Date(ahora.getTime() - dias * 86_400_000);
   const pendientes = await db.execute<{
     message_id: string;
     fecha: Date;
@@ -194,7 +201,7 @@ export async function reverificarSinOrigen(db: Db, cliente: ClienteGhl, dias = 7
   }>(sql`
     select message_id, fecha, user_id, source from comercial.mensajes
     where location_id = ${cliente.locationId} and direccion = 'outbound' and origen = 'sin_origen'
-      and origen_verificado_en is null and fecha > now() - make_interval(days => ${dias})
+      and origen_verificado_en is null and fecha > ${desde}
     limit 5000`);
   let actualizados = 0;
   await enParalelo(pendientes.rows, 4, async (m) => {
