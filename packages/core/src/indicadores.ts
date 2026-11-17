@@ -9,6 +9,8 @@
  *   responder" es un mensaje que no respondió nadie (ni asesor, ni agente IA, ni workflow). Solo ahí
  *   la responsabilidad cae en el asesor: un lead que deja en visto una respuesta y se pierde no es
  *   "perdido por falta de seguimiento".
+ * - (17 nov 2026) El tiempo de respuesta del asesor corre desde que está en jornada (su actividad
+ *   real del día), no desde que el cliente escribió fuera de turno: ver `crearInicioJornada`.
  * - Un lead perdido sale de las listas operativas (sin responder, en espera, pendientes,
  *   interesados) y se cuenta en leads perdidos; sigue contando como recibido para la conversión.
  * - Seguimiento vencido (requiere acción) frente a programado (tarea futura).
@@ -54,6 +56,51 @@ export interface MensajeLead {
   origen: Origen | null;
   /** Mensaje de entrada al CRM ("Headline: …"): no es un mensaje del cliente y no se cuenta. */
   entrada?: boolean;
+  /** Usuario de GHL que envió un saliente `manual` (para saber desde cuándo estaba en jornada). */
+  userId?: string | null;
+}
+
+/**
+ * Desde cuándo corre el tiempo de respuesta de un asesor a un mensaje del cliente escrito en `desde`.
+ * Regla del cliente (17 nov 2026): si el asesor ya estaba en jornada (entre su primer y su último
+ * mensaje de ese día a cualquier cliente), desde el mensaje del cliente; si no (escribió antes de que
+ * empezara o después de que terminó), desde su primera actividad siguiente. No depende de horarios.
+ */
+export type InicioJornada = (userId: string | null | undefined, desde: Date) => Date;
+
+/** Arma la función de inicio de jornada con la actividad real (salientes `manual`) de cada asesor. */
+export function crearInicioJornada(
+  actividad: ReadonlyMap<string, readonly Date[]>,
+  zona: string,
+): InicioJornada {
+  const ordenada = new Map<string, number[]>();
+  for (const [u, fechas] of actividad)
+    ordenada.set(
+      u,
+      fechas.map((f) => f.getTime()).sort((a, b) => a - b),
+    );
+  // Primer índice con valor >= x (búsqueda binaria).
+  const desdeIndice = (v: number[], x: number) => {
+    let lo = 0;
+    let hi = v.length;
+    while (lo < hi) {
+      const m = (lo + hi) >> 1;
+      if (v[m]! < x) lo = m + 1;
+      else hi = m;
+    }
+    return lo;
+  };
+  return (userId, desde) => {
+    const v = userId ? ordenada.get(userId) : undefined;
+    if (!v?.length) return desde;
+    const t = desde.getTime();
+    const dia = fechaLocal(desde, zona);
+    const i = desdeIndice(v, t);
+    const antes = i > 0 && fechaLocal(new Date(v[i - 1]!), zona) === dia;
+    const despues = i < v.length && fechaLocal(new Date(v[i]!), zona) === dia;
+    if (antes && despues) return desde; // ya estaba en jornada
+    return i < v.length ? new Date(v[i]!) : desde;
+  };
 }
 
 /** Patrón de los mensajes de entrada al CRM: empiezan con "Headline" o "*Headline*". */
@@ -92,6 +139,11 @@ export interface DatosLead {
   tareas?: readonly TareaLead[];
   /** Periodos en la etapa Nuevo (historial de etapas). Sin historial, cuenta la etapa actual. */
   periodosNuevo?: readonly PeriodoEtapa[];
+  /**
+   * Inicio de jornada de quien responde. Con ella, el tiempo de respuesta del asesor son minutos de
+   * reloj desde que estaba en jornada; sin ella, minutos laborales desde el mensaje del cliente.
+   */
+  inicioJornada?: InicioJornada;
 }
 
 export interface TiempoAsesor {
@@ -212,7 +264,12 @@ export function metricasLead(
       if (m.origen === 'manual')
         respuestasAsesor.push({
           clienteEn: pendienteDesde,
-          minutos: minLab(pendienteDesde, m.fecha),
+          minutos: d.inicioJornada
+            ? Math.max(
+                0,
+                (m.fecha.getTime() - d.inicioJornada(m.userId, pendienteDesde).getTime()) / 60_000,
+              )
+            : minLab(pendienteDesde, m.fecha),
         });
       else if (m.origen === 'agente_ia') ganadasIa.push(pendienteDesde);
       else respondidasWorkflow.push(pendienteDesde);

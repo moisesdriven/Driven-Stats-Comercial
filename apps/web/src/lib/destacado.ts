@@ -55,7 +55,7 @@ export function describir(clave: ClaveIndicador, i: Indicadores, p: Presentacion
         clave,
         valor: minutos(i.tiempoRespuestaMediana),
         etiqueta: 'Mediana de respuesta del asesor',
-        meta: `Meta ${num(m.tiempoRespuestaMin)} min${lab}`,
+        meta: `Meta ${num(m.tiempoRespuestaMin)} min`,
         avance: pctInverso(i.tiempoRespuestaMediana, m.tiempoRespuestaMin),
       };
     case 'sinResponder':
@@ -170,7 +170,7 @@ export function fraseCuello(d: Destacado, i: Indicadores, p: Presentacion): stri
   const lab = sufijoTiempo(p.corrido);
   switch (d.clave) {
     case 'tiempoRespuesta':
-      return `Tarda ${minutos(i.tiempoRespuestaMediana)}${lab} en responder a sus clientes`;
+      return `Tarda ${minutos(i.tiempoRespuestaMediana)} en responder a sus clientes`;
     case 'sinResponder':
       return `Deja ${numero(i.sinResponder)} leads sin respuesta`;
     case 'cumplimientoSeguimiento':

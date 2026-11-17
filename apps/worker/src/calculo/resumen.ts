@@ -18,6 +18,7 @@ import {
   acumuladoVacio,
   calcularIndicadores,
   configuracionTiempo,
+  crearInicioJornada,
   diasLaborales,
   evaluar,
   fechaLocal,
@@ -161,6 +162,7 @@ export async function calcularResumen(
         fecha: tablas.mensajes.fecha,
         direccion: tablas.mensajes.direccion,
         origen: tablas.mensajes.origen,
+        userId: tablas.mensajes.userId,
         // Mensaje de entrada al CRM ("Headline"): no se cuenta como mensaje del cliente.
         entrada: sql<boolean>`coalesce(${tablas.mensajes.texto}, '') ~* ${PATRON_MENSAJE_ENTRADA_SQL}`,
       })
@@ -179,12 +181,27 @@ export async function calcularResumen(
         direccion: f.direccion,
         origen: f.origen as Origen | null,
         entrada: f.direccion === 'inbound' && f.entrada,
+        userId: f.userId,
       });
       mensajesPorContacto.set(f.contactId!, lista);
     }
   }
   for (const lista of mensajesPorContacto.values())
     lista.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+
+  // Jornada real de cada asesor (sus salientes manuales a cualquier cliente): el tiempo de respuesta
+  // corre desde que está en jornada, no desde un mensaje que llegó fuera de su turno.
+  const actividad = await db.execute<{ user_id: string; fecha: Date }>(sql`
+    select user_id, fecha from comercial.mensajes
+    where location_id = ${locationId} and direccion = 'outbound' and origen = 'manual'
+      and user_id is not null and fecha >= ${inicioDatos} and fecha <= ${new Date(hastaInstante.getTime() + 2 * 86_400_000)}`);
+  const actividadPorAsesor = new Map<string, Date[]>();
+  for (const f of actividad.rows) {
+    const lista = actividadPorAsesor.get(f.user_id) ?? [];
+    lista.push(new Date(f.fecha));
+    actividadPorAsesor.set(f.user_id, lista);
+  }
+  const inicioJornada = crearInicioJornada(actividadPorAsesor, zona);
 
   // Periodos en la etapa Nuevo: mientras el lead está ahí (lo atiende el workflow) no se mide.
   // La etapa estándar sale del mapa actual (las filas que vienen de actividades no la guardan).
@@ -229,6 +246,7 @@ export async function calcularResumen(
       ventaEn: ventaVigente,
       tareas: tareasPorContacto.get(l.contactId) ?? [],
       periodosNuevo: nuevoPorContacto.get(l.contactId) ?? [],
+      inicioJornada,
     };
   };
 

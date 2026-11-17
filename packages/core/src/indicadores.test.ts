@@ -5,6 +5,7 @@ import {
   acumuladoVacio,
   agregarPeriodo,
   calcularIndicadores,
+  crearInicioJornada,
   mediana,
   metricasLead,
   sumarAcumulados,
@@ -143,6 +144,57 @@ describe('metricasLead: atención (reglas del 16 nov 2026)', () => {
     // Fuera de horario no corre el reloj: 12:55 → 14:05 = 5 + 5 min.
     const almuerzo = [ent(L(16, '10:00')), hum(L(16, '10:05')), ent(L(16, '12:55'))];
     expect(metricasLead(lead(almuerzo), T, U, L(16, '14:05')).enEspera).toBe(false);
+  });
+});
+
+describe('tiempo de respuesta desde que el asesor está en jornada (17 nov 2026)', () => {
+  // Stephanie: el lunes escribe a clientes de 9:30 a 18:40; el martes empieza a las 9:10.
+  const actividad = new Map([
+    ['S', [L(16, '09:30'), L(16, '12:00'), L(16, '18:40'), L(17, '09:10')]],
+  ]);
+  const inicio = crearInicioJornada(actividad, LIMA);
+
+  it('antes de empezar su jornada: corre desde su primera actividad del día', () => {
+    expect(inicio('S', L(16, '07:42'))).toEqual(L(16, '09:30'));
+  });
+
+  it('dentro de su jornada: corre desde el mensaje del cliente', () => {
+    expect(inicio('S', L(16, '10:15'))).toEqual(L(16, '10:15'));
+  });
+
+  it('después de que terminó: corre desde su primera actividad del día siguiente', () => {
+    expect(inicio('S', L(16, '21:00'))).toEqual(L(17, '09:10'));
+  });
+
+  it('sin actividad conocida del asesor: desde el mensaje del cliente', () => {
+    expect(inicio('X', L(16, '07:42'))).toEqual(L(16, '07:42'));
+    expect(inicio(null, L(16, '07:42'))).toEqual(L(16, '07:42'));
+  });
+
+  it('caso real: "Ok gracias" a las 7:42, la asesora empezó 9:30 y respondió 9:43 → 13 min', () => {
+    const conActividad = new Map([['S', [L(16, '09:30'), L(16, '09:43')]]]);
+    const d = lead(
+      [
+        ia(L(16, '07:41')),
+        ent(L(16, '07:42')),
+        { fecha: L(16, '09:43'), direccion: 'outbound', origen: 'manual', userId: 'S' },
+      ],
+      { inicioJornada: crearInicioJornada(conActividad, LIMA) },
+    );
+    expect(metricasLead(d, T, U, L(16, '10:00')).respuestasAsesor.map((r) => r.minutos)).toEqual([
+      13,
+    ]);
+  });
+
+  it('una respuesta durante la jornada se mide en minutos de reloj', () => {
+    const d = lead(
+      [
+        ent(L(16, '12:55')),
+        { fecha: L(16, '14:05'), direccion: 'outbound', origen: 'manual', userId: 'S' },
+      ],
+      { inicioJornada: inicio },
+    );
+    expect(metricasLead(d, T, U, L(16, '15:00')).minutosRespuesta).toBe(70);
   });
 });
 
