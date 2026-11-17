@@ -183,12 +183,14 @@ describe.skipIf(!URL_PRUEBAS)('calcular:resumen (integración)', () => {
     return f?.indicadores as Acumulado | undefined;
   };
 
-  it('tiempos de respuesta del asesor por mensaje, sin Headline ni etapa Nuevo; ganadas por la IA', async () => {
+  it('tiempos de respuesta del asesor por mensaje, sin Headline ni etapa Nuevo; respuestas automáticas aparte', async () => {
     const total = await fila('2026-11-16', null);
     expect(total?.leadsRecibidos).toBe(5);
-    // K1: la IA ganó el primer mensaje y el asesor respondió el segundo en 2 min; K3 30; K4 20; K5 10.
+    // K1: un workflow respondió el primer mensaje y el asesor el segundo en 2 min; K3 30; K4 20; K5 10.
     expect([...(total?.tiemposRespuesta ?? [])].sort((a, b) => a - b)).toEqual([2, 10, 20, 30]);
-    expect(total?.respuestasIa).toBe(1); // K1 (K2 sigue en Nuevo: no se mide)
+    // K1: el workflow respondió al instante, antes que la IA (K2 sigue en Nuevo: no se mide).
+    expect(total?.respuestasWorkflow).toBe(1);
+    expect(total?.respuestasIa).toBe(0);
     expect(total?.respuestasEfectivas).toBe(1); // K1: 2 min y el cliente volvió a escribir
     const u1 = await fila('2026-11-16', 'U1');
     expect(u1?.leadsRecibidos).toBe(2);
@@ -196,7 +198,7 @@ describe.skipIf(!URL_PRUEBAS)('calcular:resumen (integración)', () => {
     expect((await fila('2026-11-16', 'U3'))?.tiemposRespuesta).toEqual([10]);
   });
 
-  it('fotos al cierre: el lead respondido por la IA no queda sin responder; el perdido no cuenta', async () => {
+  it('fotos al cierre: lo respondido por la IA o un workflow no queda sin responder; el perdido no cuenta', async () => {
     const martes = await fila('2026-11-17', null);
     expect(martes?.fotoSinResponder).toBe(0);
   });
