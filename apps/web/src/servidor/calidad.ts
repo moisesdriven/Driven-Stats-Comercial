@@ -310,8 +310,9 @@ export async function ejemplosAsesor(
       puntaje: number | null;
       criterios: unknown;
       motivo: string | null;
+      plus_multimedia: boolean;
     }>(sql`
-      select m.texto, m.fecha, m.conversation_id, m.contact_id, c.categoria, c.puntaje, c.criterios, c.motivo
+      select m.texto, m.fecha, m.conversation_id, m.contact_id, c.categoria, c.puntaje, c.criterios, c.motivo, c.plus_multimedia
       from comercial.clasificaciones c join comercial.mensajes m on m.message_id = c.message_id
       where c.analisis_id = ${resumen.analisisId} and c.message_id = ${messageId} and m.location_id = ${locationId} limit 1`);
     const f = r.rows[0];
@@ -334,7 +335,7 @@ export async function ejemplosAsesor(
       categoria: f.categoria,
       puntaje: f.puntaje,
       criterios: f.criterios,
-      motivo: f.motivo,
+      motivo: conPlus(f.motivo, f.plus_multimedia),
       clienteRespondio: (respondio.rows[0]?.n ?? 0) > 0,
       huboVenta: (venta.rows[0]?.n ?? 0) > 0,
       conversationId: f.conversation_id,
@@ -365,14 +366,28 @@ export async function peoresMensajes(db: Db, ctx: ContextoAcceso, locationId: st
     puntaje: number;
     criterios: Record<string, boolean> | null;
     motivo: string | null;
+    plus_multimedia: boolean;
     texto: string | null;
   }>(sql`
-    select a.nombre as asesor, c.categoria, c.puntaje, c.criterios, c.motivo, m.texto
+    select a.nombre as asesor, c.categoria, c.puntaje, c.criterios, c.motivo, c.plus_multimedia, m.texto
     from comercial.clasificaciones c
     join comercial.mensajes m on m.message_id = c.message_id and m.location_id = ${locationId}
     left join comercial.asesores a on a.user_id = c.asesor_id
     where c.analisis_id = ${resumen.analisisId} and c.puntaje is not null and m.texto is not null
     order by c.puntaje asc, length(m.texto) desc
     limit ${limite}`);
-  return { analisis: resumen, mensajes: r.rows };
+  return {
+    analisis: resumen,
+    mensajes: r.rows.map(({ plus_multimedia, ...m }) => ({
+      ...m,
+      motivo: conPlus(m.motivo, plus_multimedia),
+    })),
+  };
+}
+
+/** Agrega al motivo el punto a favor por enviar imagen, audio o video. */
+function conPlus(motivo: string | null, plus: boolean): string | null {
+  if (!plus) return motivo;
+  const nota = '+1 por enviar imagen, audio o video';
+  return motivo ? `${motivo} · ${nota}` : nota;
 }

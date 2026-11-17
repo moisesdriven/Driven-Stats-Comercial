@@ -99,3 +99,24 @@ Detalles que la especificación no fija. Todas se pueden cambiar.
 | Perdido por falta de seguimiento | Solo si el lead se perdió (o abandonó) con un mensaje del cliente que nadie respondió. Si el cliente dejó en visto una respuesta del asesor, de la IA o de un workflow, no es error del asesor aunque se marque perdido. Reemplaza la regla anterior de "menos de 2 intentos tras el silencio".                                                                                                                                                      |
 | Turno automático (17 nov 2026)   | Sin depender de horarios cargados: el asesor está en turno mientras no pasen más de 3 h sin que escriba a ningún cliente. Si el cliente escribe con el asesor en turno, su tiempo corre desde el mensaje; si está fuera de turno (antes de empezar, en una pausa de más de 3 h o de noche), desde su primera actividad siguiente.                                                                                                                    |
 | Efecto en Jade18K (10–16 nov)    | Mediana del asesor 12,5 min (promedio 78 min) sobre 509 respuestas; 1.073 respuestas del agente IA y 374 del workflow; el 16 nov, 33 faltas sin responder y 68 pendientes con la asesora fuera de turno; 2 de 178 perdidos por falta de seguimiento. Antes de estas reglas: 34,4 min y 1.377 sin responder.                                                                                                                                          |
+
+## Imágenes, audios y videos (17 nov 2026, decisión del cliente)
+
+- **Métricas:** una imagen, un audio o un video cuentan como mensaje igual que un texto. Si los envía
+  el cliente, abren un pendiente; si los envía el asesor, son su respuesta. Así se medía ya, porque
+  ni los tiempos ni "Sin responder" dependen del contenido. En la lista "Sin responder", un archivo
+  sin texto se muestra como "(imagen)", "(audio)" o "(video)".
+- **Calidad: plus a favor.** Un mensaje calificado del asesor gana +1 punto, con tope de 5, si:
+  - lleva una imagen, un audio o un video (por ejemplo, una foto con su precio al pie); o
+  - el asesor envía uno de esos archivos en el mismo turno (sin que el cliente escriba en medio) y a
+    no más de 30 minutos (`MINUTOS_PLUS_MULTIMEDIA`).
+  Nunca resta. Los archivos de workflows o campañas no cuentan. Se guarda en
+  `clasificaciones.plus_multimedia` y se aplica al cerrar el análisis, recalculando el puntaje desde
+  los criterios (`aplicarPlusMultimedia`). En el motivo se muestra "+1 por enviar imagen, audio o
+  video".
+- **Contexto para la IA (rúbrica v3):** los archivos del cliente y del asesor aparecen como
+  "(imagen)", "(audio)", "(video)" o "(adjunto)" (archivo con texto al pie, de tipo desconocido). Un
+  archivo del cliente es un pedido: un saludo suelto después no lo responde. Un archivo del asesor
+  sin texto no se califica. Los archivos de workflows sin texto no se envían, para no gastar contexto.
+- Los documentos (PDF, Word…) no cuentan para el plus. Un documento con texto al pie se toma como
+  "adjunto", porque solo se guarda la cantidad de adjuntos y no su tipo.

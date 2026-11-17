@@ -1,9 +1,14 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { configuracionCalidad, prepararSolicitudes, tablas, type Db } from '@driven/db';
 import { baseWorker, URL_PRUEBAS } from '../pruebas/base';
 import { calibrar } from './calibracion';
-import { prepararAnalisis, revisarAnalisis, solicitarAnalisis } from './proceso';
+import {
+  aplicarPlusMultimedia,
+  prepararAnalisis,
+  revisarAnalisis,
+  solicitarAnalisis,
+} from './proceso';
 import { crearProveedorSimulado } from './simulado';
 
 const LOC = 'LOC_CAL';
@@ -363,5 +368,49 @@ describe.skipIf(!URL_PRUEBAS)('análisis de calidad (integración con Anthropic 
     expect(a3?.estado).toBe('terminado');
     expect(a3?.mensajesCalificados).toBe(10);
     expect(a3?.costoEstimado).toBe(0);
+  });
+
+  it('plus de multimedia: +1 al mensaje del turno en que el asesor envió una imagen o audio', async () => {
+    const [ultimo] = await db
+      .select()
+      .from(tablas.analisisCalidad)
+      .where(eq(tablas.analisisCalidad.estado, 'terminado'))
+      .orderBy(desc(tablas.analisisCalidad.id))
+      .limit(1);
+    const id = ultimo!.id;
+    const precioDe = async (conv: string) =>
+      (
+        await db
+          .select()
+          .from(tablas.clasificaciones)
+          .where(eq(tablas.clasificaciones.analisisId, id))
+      ).find((c) => c.conversationId === conv && c.categoria === 'info_producto_precio');
+    expect((await precioDe('conv_A1'))?.puntaje).toBe(4);
+
+    await db.insert(tablas.mensajes).values([
+      // A1: la asesora envía la foto del anillo justo después del precio (mismo turno).
+      {
+        ...msg('A1', d(10, 15, 5), 'outbound', 'manual', ''),
+        texto: null,
+        contenido: 'imagen',
+        adjuntos: 1,
+      },
+      // B1: la foto la envía un workflow: no cuenta.
+      {
+        ...msg('B1', d(10, 15, 5), 'outbound', 'workflow', ''),
+        texto: null,
+        contenido: 'imagen',
+        adjuntos: 1,
+      },
+    ]);
+    expect(await aplicarPlusMultimedia(db, id)).toBe(1);
+    const a1 = await precioDe('conv_A1');
+    expect(a1?.plusMultimedia).toBe(true);
+    expect(a1?.puntaje).toBe(5);
+    expect((await precioDe('conv_B1'))?.plusMultimedia).toBe(false);
+    expect((await precioDe('conv_B1'))?.puntaje).toBe(4);
+    // Volver a aplicarlo no suma dos veces.
+    await aplicarPlusMultimedia(db, id);
+    expect((await precioDe('conv_A1'))?.puntaje).toBe(5);
   });
 });

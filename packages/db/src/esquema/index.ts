@@ -464,6 +464,8 @@ export const clasificaciones = comercial.table(
     categoria: text('categoria').notNull(),
     puntaje: smallint('puntaje'),
     criterios: jsonb('criterios'),
+    /** El asesor acompañó el mensaje con una imagen, audio o video: +1 al puntaje (tope 5). */
+    plusMultimedia: boolean('plus_multimedia').notNull().default(false),
     motivo: text('motivo'),
     modelo: text('modelo').notNull(),
     versionRubrica: text('version_rubrica').notNull(),

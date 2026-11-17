@@ -20,11 +20,14 @@ import {
   cacheLeidaPct,
   desvioCostoPct,
   mejorYPeor,
+  plusMultimedia,
   puntajeDeCriterios,
+  tipoAdjunto,
   unificarPorTexto,
   type Calificacion,
   type CategoriaCalidad,
   type Criterios,
+  type MensajeCalidad,
 } from '@driven/core';
 import {
   gastoDelMes,
@@ -507,9 +510,93 @@ export async function unificarAnalisis(db: Db, analisisId: number): Promise<numb
   return cambios.size;
 }
 
-/** Cierra el análisis: unificación por texto, mejor y peor mensaje por asesor y totales. */
+/**
+ * Plus de multimedia (regla del 17 nov 2026): +1 al puntaje (tope 5) de cada mensaje calificado que
+ * lleva una imagen, audio o video, o que está en un turno del asesor en el que envió uno. Recalcula
+ * el puntaje desde los criterios, así que se aplica una sola vez aunque el análisis se cierre de
+ * nuevo. Devuelve cuántos mensajes ganaron el plus.
+ */
+export async function aplicarPlusMultimedia(db: Db, analisisId: number): Promise<number> {
+  const cal = await db.execute<{
+    message_id: string;
+    conversation_id: string;
+    categoria: string;
+    criterios: Criterios | null;
+    plus_multimedia: boolean;
+  }>(sql`
+    select message_id, conversation_id, categoria, criterios, plus_multimedia
+    from comercial.clasificaciones where analisis_id = ${analisisId}`);
+  if (!cal.rows.length) return 0;
+  const [a] = await db
+    .select()
+    .from(tablas.analisisCalidad)
+    .where(eq(tablas.analisisCalidad.id, analisisId));
+  if (!a) return 0;
+  const [desde, hasta] = rango(a.periodoDesde, a.periodoHasta);
+  const conversaciones = [...new Set(cal.rows.map((c) => c.conversation_id))];
+  const porConversacion = new Map<string, MensajeCalidad[]>();
+  for (const parte of enLotes(conversaciones, 300)) {
+    const filas = await db.execute<{
+      message_id: string;
+      conversation_id: string;
+      fecha: string;
+      direccion: 'inbound' | 'outbound';
+      origen: string | null;
+      contenido: string | null;
+      adjuntos: number;
+    }>(sql`
+      select message_id, conversation_id, fecha, direccion, origen, contenido, adjuntos
+      from comercial.mensajes
+      where location_id = ${a.locationId} and fecha >= ${desde} and fecha < ${hasta}
+        and conversation_id in (${sql.join(
+          parte.map((c) => sql`${c}`),
+          sql`, `,
+        )})`);
+    for (const f of filas.rows) {
+      const lista = porConversacion.get(f.conversation_id) ?? [];
+      lista.push({
+        id: f.message_id,
+        fecha: new Date(f.fecha),
+        direccion: f.direccion,
+        calificable: f.origen === 'manual',
+        automatico: f.direccion === 'outbound' && f.origen !== 'manual',
+        texto: '',
+        adjunto: tipoAdjunto(f.contenido, Number(f.adjuntos)),
+      });
+      porConversacion.set(f.conversation_id, lista);
+    }
+  }
+  const calificados = new Set(cal.rows.map((c) => c.message_id));
+  const conPlus = new Set<string>();
+  for (const msgs of porConversacion.values())
+    for (const id of plusMultimedia(msgs, calificados)) conPlus.add(id);
+  for (const c of cal.rows) {
+    const plus = conPlus.has(c.message_id);
+    if (!c.criterios) continue;
+    await db
+      .update(tablas.clasificaciones)
+      .set({
+        plusMultimedia: plus,
+        puntaje: c.categoria === 'multimedia' ? null : puntajeDeCriterios(c.criterios, plus),
+      })
+      .where(
+        and(
+          eq(tablas.clasificaciones.analisisId, analisisId),
+          eq(tablas.clasificaciones.messageId, c.message_id),
+        ),
+      );
+  }
+  if (conPlus.size) log('calidad_plus_multimedia', { analisisId, mensajes: conPlus.size });
+  return conPlus.size;
+}
+
+/**
+ * Cierra el análisis: unificación por texto, plus de multimedia, mejor y peor mensaje por asesor y
+ * totales.
+ */
 export async function cerrarAnalisis(db: Db, analisisId: number): Promise<void> {
   await unificarAnalisis(db, analisisId);
+  await aplicarPlusMultimedia(db, analisisId);
   const cal = await db.execute<{
     message_id: string;
     asesor_id: string | null;
