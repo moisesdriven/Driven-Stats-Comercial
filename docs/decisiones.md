@@ -106,17 +106,38 @@ Detalles que la especificación no fija. Todas se pueden cambiar.
   el cliente, abren un pendiente; si los envía el asesor, son su respuesta. Así se medía ya, porque
   ni los tiempos ni "Sin responder" dependen del contenido. En la lista "Sin responder", un archivo
   sin texto se muestra como "(imagen)", "(audio)" o "(video)".
+- **Respuesta con origen sin confirmar:** si GHL todavía no confirma quién escribió un saliente
+  (`sin_origen`: lo escribió el asesor o el agente IA, pero no un workflow ni una campaña), igual
+  cierra el pendiente, porque el cliente sí recibió una respuesta. No se mide como tiempo del asesor
+  hasta que la reverificación confirme su origen. Antes, ese mensaje dejaba al cliente en "Sin
+  responder" aunque ya le hubieran contestado.
 - **Calidad: plus a favor.** Un mensaje calificado del asesor gana +1 punto, con tope de 5, si:
   - lleva una imagen, un audio o un video (por ejemplo, una foto con su precio al pie); o
   - el asesor envía uno de esos archivos en el mismo turno (sin que el cliente escriba en medio) y a
     no más de 30 minutos (`MINUTOS_PLUS_MULTIMEDIA`).
-  Nunca resta. Los archivos de workflows o campañas no cuentan. Se guarda en
-  `clasificaciones.plus_multimedia` y se aplica al cerrar el análisis, recalculando el puntaje desde
-  los criterios (`aplicarPlusMultimedia`). En el motivo se muestra "+1 por enviar imagen, audio o
-  video".
+    Nunca resta. Los archivos de workflows o campañas no cuentan. Se guarda en
+    `clasificaciones.plus_multimedia` y se aplica al cerrar el análisis, recalculando el puntaje desde
+    los criterios (`aplicarPlusMultimedia`). En el motivo se muestra "+1 por enviar imagen, audio o
+    video".
 - **Contexto para la IA (rúbrica v3):** los archivos del cliente y del asesor aparecen como
   "(imagen)", "(audio)", "(video)" o "(adjunto)" (archivo con texto al pie, de tipo desconocido). Un
   archivo del cliente es un pedido: un saludo suelto después no lo responde. Un archivo del asesor
   sin texto no se califica. Los archivos de workflows sin texto no se envían, para no gastar contexto.
 - Los documentos (PDF, Word…) no cuentan para el plus. Un documento con texto al pie se toma como
   "adjunto", porque solo se guarda la cantidad de adjuntos y no su tipo.
+
+## Carga incremental: exportación atrasada de GHL (17 nov 2026)
+
+- **Lo que pasó:** la foto que Nathalia envió a las 08:44 (hora de Lima) se veía como "Sin
+  responder", aunque Ximena le respondió a las 15:40. La exportación de mensajes de GHL
+  (`/conversations/messages/export`) iba unas 3 horas atrasada: a las 18:30 no entregaba casi nada
+  posterior a las 15:30, aunque la consulta por conversación sí mostraba esos mensajes. La carga
+  incremental pedía solo lo nuevo desde la pasada anterior, con 10 minutos de margen, así que un
+  mensaje que aparecía tarde en la exportación quedaba fuera para siempre.
+- **Corrección:**
+  - en cada pasada incremental, los mensajes de cada conversación con actividad se traen
+    directamente de la conversación (`cargarMensajesRecientes`), que GHL entrega al instante;
+  - como respaldo, la exportación se vuelve a revisar en las últimas 24 horas
+    (`HORAS_REVISION_EXPORTACION`).
+  Todo se guarda con el mismo upsert idempotente, así que un mensaje que llega por las dos vías no
+  se duplica.

@@ -275,6 +275,9 @@ export function metricasLead(
   // Respuestas: cada mensaje medible del cliente abre una espera (si no había una) que cierra la
   // primera respuesta del asesor (se mide), del agente IA (ganada por la IA) o de un workflow. Las
   // campañas no cuentan como respuesta. En la etapa Nuevo los mensajes del cliente no se miden.
+  // Un saliente `sin_origen` (GHL aún no confirmó si lo escribió el asesor o el agente IA) también
+  // cierra la espera, porque alguien respondió, pero no se mide hasta que se confirme su origen.
+  // Imágenes, audios y videos cuentan igual que un texto, de ambos lados.
   const periodos = d.periodosNuevo ?? [];
   const enNuevo = (f: Date) =>
     periodos.length
@@ -288,6 +291,11 @@ export function metricasLead(
   for (const m of desdeIngreso) {
     if (m.direccion === 'inbound') {
       if (!pendienteDesde && !enNuevo(m.fecha)) pendienteDesde = m.fecha;
+      continue;
+    }
+    if (m.origen === 'sin_origen') {
+      pendienteDesde = null;
+      huboRespuesta = true;
       continue;
     }
     if (m.origen !== 'manual' && m.origen !== 'agente_ia' && m.origen !== 'workflow') continue;

@@ -33,6 +33,11 @@ export interface DatosSimulados {
   exportacionesVacias?: number;
   /** Cuántas veces la exportación responde vacía y con `total: 0` aunque haya mensajes (falla real de GHL). */
   exportacionesEnCero?: number;
+  /**
+   * Mensajes que la exportación aún no entrega (atraso real de GHL, 17 nov 2026), aunque la consulta
+   * por conversación sí los muestra.
+   */
+  ocultosEnExportacion?: Set<string>;
   /** Token esperado; cualquier otro responde 401. */
   token?: string;
 }
@@ -112,6 +117,7 @@ export function crearGhlSimulado(d: DatosSimulados) {
       const hasta = q.endDate ? new Date(q.endDate).getTime() : Infinity;
       const todos = (d.mensajes ?? [])
         .filter((m) => !m.messageType?.startsWith('TYPE_ACTIVITY_'))
+        .filter((m) => !d.ocultosEnExportacion?.has(m.id))
         .filter((m) => {
           const t = new Date(m.dateAdded).getTime();
           return t >= desde && t <= hasta;

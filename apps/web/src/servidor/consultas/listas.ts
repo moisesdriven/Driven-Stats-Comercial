@@ -82,9 +82,11 @@ export async function listasParaActuar(
     tarea_vencida: boolean;
     pendiente_desde: Date | null;
   }>(sql`
+    -- Respuesta = saliente del asesor, del agente IA, de un workflow o sin origen confirmado (lo
+    -- escribió el asesor o el agente IA: GHL aún no lo confirma). Las campañas no responden.
     with ultima_respuesta as (
       select m.contact_id, max(m.fecha) as fecha from comercial.mensajes m
-      where m.location_id = ${locationId} and m.direccion = 'outbound' and m.origen in ('manual', 'agente_ia', 'workflow')
+      where m.location_id = ${locationId} and m.direccion = 'outbound' and m.origen in ('manual', 'agente_ia', 'workflow', 'sin_origen')
         and m.fecha > ${new Date(ahora.getTime() - 61 * 86_400_000)}
       group by m.contact_id
     ),

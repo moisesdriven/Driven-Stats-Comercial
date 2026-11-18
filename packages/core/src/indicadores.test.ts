@@ -92,6 +92,20 @@ describe('metricasLead: atención (reglas del 16 nov 2026)', () => {
     expect(m.pendienteDesde).toEqual(L(16, '10:00'));
   });
 
+  it('una respuesta con origen sin confirmar cierra el pendiente, pero no se mide', () => {
+    const sinOrigen: MensajeLead = {
+      fecha: L(16, '10:20'),
+      direccion: 'outbound',
+      origen: 'sin_origen',
+    };
+    const d = lead([ent(L(16, '10:00')), sinOrigen, ent(L(16, '10:40'))]);
+    const m = metricasLead(d, T, U, L(16, '11:30'));
+    expect(m.respuestasAsesor).toEqual([]);
+    expect(m.ganadasIa).toEqual([]);
+    // El pendiente vuelve a abrirse con el siguiente mensaje del cliente (10:40), no el de 10:00.
+    expect(m.pendienteDesde).toEqual(L(16, '10:40'));
+  });
+
   it('si un workflow responde antes que el asesor, la respuesta es suya y no se mide al asesor', () => {
     const d = lead([ent(L(16, '10:00')), wf(L(16, '10:01')), hum(L(16, '10:30'))]);
     const m = metricasLead(d, T, U, L(16, '11:00'));
