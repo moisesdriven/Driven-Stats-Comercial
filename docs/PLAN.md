@@ -99,8 +99,13 @@ Detalle en [`decisiones.md`](decisiones.md).
 - Zona horaria editable por subcuenta en Configuración (la de GHL puede no ser la del país donde
   opera el negocio; Jade18K queda en America/Lima). La carga de GHL no la sobrescribe.
 - Las tarjetas y tablas muestran las metas reales de cada subcuenta (antes había valores fijos).
-- Pendiente: el filtro por canal de la vista general (§10.2). `resumen_diario` no guarda la
-  dimensión canal; agregarla requiere cambiar el resumen del worker y regenerarlo.
+- Filtro por canal de la vista general (§10.2, 18 nov 2026): `resumen_diario.canal` (migración
+  0002). El worker guarda, además del total de la subcuenta y las filas por asesor, el total de la
+  subcuenta en cada canal; el resto de las consultas usa solo las filas con `canal` nulo. El
+  selector muestra los canales con datos en las subcuentas del usuario; con un canal elegido, la
+  calidad queda sin dato (no se mide por canal) y la exportación incluye el canal. Al desplegar hay
+  que recalcular el resumen (`servidor.sh recalcular 90`) para que existan las filas por canal.
+- Rediseño visual aprobado el 18 nov 2026 (ver `decisiones.md`).
 
 ## Fase 6 · resultado
 

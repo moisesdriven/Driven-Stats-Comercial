@@ -40,6 +40,8 @@ import { tablas, type Db } from '@driven/db';
 import { enLotes, log } from '../sync/util';
 
 const SIN_ASESOR = '';
+/** Leads sin canal conocido: cuentan en el total, pero no tienen fila propia por canal. */
+const SIN_CANAL = '∅';
 const VENTANA_FOTO_DIAS = 60;
 
 function sumarDias(fecha: string, n: number): string {
@@ -251,10 +253,10 @@ export async function calcularResumen(
     };
   };
 
-  // ---------------------------------------------------------------- Acumulados por día y asesor
-  const acumulados = new Map<string, Acumulado>(); // `${fecha}|${asesor}`
-  const acc = (fecha: string, asesor: string | null) => {
-    const k = `${fecha}|${asesor ?? SIN_ASESOR}`;
+  // ---------------------------------------------------------------- Acumulados por día, asesor y canal
+  const acumulados = new Map<string, Acumulado>(); // `${fecha}|${asesor}|${canal}`
+  const acc = (fecha: string, asesor: string | null, canal: string | null) => {
+    const k = `${fecha}|${asesor ?? SIN_ASESOR}|${canal ?? SIN_CANAL}`;
     let a = acumulados.get(k);
     if (!a) {
       a = acumuladoVacio();
@@ -290,19 +292,19 @@ export async function calcularResumen(
     for (const r of m.respuestasAsesor) {
       const diaR = fechaLocal(r.clienteEn, zona);
       if (enRango(diaR))
-        acc(diaR, l.asesorId).tiemposRespuesta.push(Math.round(r.minutos * 100) / 100);
+        acc(diaR, l.asesorId, l.canal).tiemposRespuesta.push(Math.round(r.minutos * 100) / 100);
     }
     for (const f of m.ganadasIa) {
       const diaR = fechaLocal(f, zona);
-      if (enRango(diaR)) acc(diaR, l.asesorId).respuestasIa++;
+      if (enRango(diaR)) acc(diaR, l.asesorId, l.canal).respuestasIa++;
     }
     for (const f of m.respondidasWorkflow) {
       const diaR = fechaLocal(f, zona);
-      if (enRango(diaR)) acc(diaR, l.asesorId).respuestasWorkflow++;
+      if (enRango(diaR)) acc(diaR, l.asesorId, l.canal).respuestasWorkflow++;
     }
     const dia = fechaLocal(l.ingresoEn!, zona);
     if (!enRango(dia)) continue;
-    const a = acc(dia, l.asesorId);
+    const a = acc(dia, l.asesorId, l.canal);
     a.leadsRecibidos++;
     if (m.minutosRespuesta !== null) a.leadsConRespuesta++;
     if (m.respuestaEfectiva) a.respuestasEfectivas++;
@@ -313,13 +315,14 @@ export async function calcularResumen(
     if (opp?.ventaEn && !opp.ventaCanceladaEn) a.ventasCohorte++;
   }
 
-  // Ventas, cancelaciones y pérdidas (por día del evento, asesor de la oportunidad).
+  // Ventas, cancelaciones y pérdidas (por día del evento, asesor de la oportunidad y canal del lead).
   const leadPorContacto = new Map(leads.map((l) => [l.contactId, l]));
   for (const o of opps) {
+    const canalOpp = (o.contactId ? leadPorContacto.get(o.contactId)?.canal : null) ?? null;
     if (o.ventaEn && !o.ventaCanceladaEn) {
       const dia = fechaLocal(o.ventaEn, zona);
       if (enRango(dia)) {
-        const a = acc(dia, o.asesorId);
+        const a = acc(dia, o.asesorId, canalOpp);
         a.ventas++;
         a.montoVentas += o.monto ?? 0;
         const l = o.contactId ? leadPorContacto.get(o.contactId) : undefined;
@@ -332,12 +335,12 @@ export async function calcularResumen(
     }
     if (o.ventaCanceladaEn) {
       const dia = fechaLocal(o.ventaCanceladaEn, zona);
-      if (enRango(dia)) acc(dia, o.asesorId).ventasCanceladas++;
+      if (enRango(dia)) acc(dia, o.asesorId, canalOpp).ventasCanceladas++;
     }
     if (o.perdidaEn && (o.status === 'lost' || o.status === 'abandoned')) {
       const dia = fechaLocal(o.perdidaEn, zona);
       if (enRango(dia)) {
-        const a = acc(dia, o.asesorId);
+        const a = acc(dia, o.asesorId, canalOpp);
         a.perdidos++;
         const motivo = o.motivoPerdida ?? (o.status === 'abandoned' ? 'abandonada' : 'sin_motivo');
         a.perdidosPorMotivo[motivo] = (a.perdidosPorMotivo[motivo] ?? 0) + 1;
@@ -382,7 +385,7 @@ export async function calcularResumen(
         m.interesadoDiasAnteriores
       ))
         continue;
-      const a = acc(dia, l.asesorId);
+      const a = acc(dia, l.asesorId, l.canal);
       if (m.sinResponder) a.fotoSinResponder++;
       if (m.pendienteFueraDeTurno) a.fotoFueraDeTurno = (a.fotoFueraDeTurno ?? 0) + 1;
       if (m.enEspera) a.fotoEnEspera++;
@@ -398,25 +401,36 @@ export async function calcularResumen(
   // ---------------------------------------------------------------- Guardar
   const filas: (typeof tablas.resumenDiario.$inferInsert)[] = [];
   for (const dia of dias) {
-    const delDia = [...acumulados.entries()].filter(([k]) => k.startsWith(`${dia}|`));
-    const total = sumarAcumulados(delDia.map(([, a]) => a));
-    const fila = (asesorId: string | null, a: Acumulado) => {
+    const delDia = [...acumulados.entries()]
+      .filter(([k]) => k.startsWith(`${dia}|`))
+      .map(([k, a]) => {
+        const [, asesor, canal] = k.split('|') as [string, string, string];
+        return { asesor, canal, a };
+      });
+    const fila = (asesorId: string | null, canal: string | null, a: Acumulado) => {
       const ev = evaluar(calcularIndicadores(a, 1), metas, 1);
       return {
         fecha: dia,
         locationId,
         asesorId,
+        canal,
         indicadores: a,
         estadosEtapa: ev.etapas,
         cuelloBotella: ev.cuello,
         alertas: ev.alertas,
       };
     };
-    filas.push(fila(null, total));
-    for (const [k, a] of delDia) {
-      const asesor = k.slice(dia.length + 1);
-      if (asesor !== SIN_ASESOR) filas.push(fila(asesor, a));
-    }
+    // Toda la subcuenta, cada asesor (todos los canales) y cada canal (toda la subcuenta).
+    filas.push(fila(null, null, sumarAcumulados(delDia.map((x) => x.a))));
+    const agrupar = (clave: (x: (typeof delDia)[number]) => string) => {
+      const grupos = new Map<string, Acumulado[]>();
+      for (const x of delDia) grupos.set(clave(x), [...(grupos.get(clave(x)) ?? []), x.a]);
+      return grupos;
+    };
+    for (const [asesor, lista] of agrupar((x) => x.asesor))
+      if (asesor !== SIN_ASESOR) filas.push(fila(asesor, null, sumarAcumulados(lista)));
+    for (const [canal, lista] of agrupar((x) => x.canal))
+      if (canal !== SIN_CANAL) filas.push(fila(null, canal, sumarAcumulados(lista)));
   }
 
   await db.transaction(async (tx) => {

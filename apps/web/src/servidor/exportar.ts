@@ -93,14 +93,20 @@ function valores(
 export async function exportar(
   db: Db,
   ctx: ContextoAcceso,
-  p: { tipo: string; subcuenta: string | null; desde: string; hasta: string },
+  p: {
+    tipo: string;
+    subcuenta: string | null;
+    desde: string;
+    hasta: string;
+    canal?: string | null;
+  },
 ) {
   exigirModulo(ctx, 'exportar', 'ver');
   let filas: Celda[][];
   let nombre: string;
   let subcuentas: string[];
   if (p.tipo === 'vista-general') {
-    const v = await vistaGeneral(db, ctx, p.desde, p.hasta);
+    const v = await vistaGeneral(db, ctx, p.desde, p.hasta, p.canal ?? null);
     subcuentas = v.subcuentas.map((s) => s.locationId);
     filas = [
       ['Subcuenta', ...CABECERA],
@@ -108,7 +114,7 @@ export async function exportar(
     ];
     if ('indicadores' in v && v.indicadores && 'evaluacion' in v && v.evaluacion)
       filas.push(['Total', ...valores(v.indicadores, v.evaluacion)]);
-    nombre = `vista-general_${p.desde}_${p.hasta}.csv`;
+    nombre = `vista-general${p.canal ? `_${p.canal}` : ''}_${p.desde}_${p.hasta}.csv`;
   } else if (p.tipo === 'subcuenta' && p.subcuenta) {
     const s = await indicadoresSubcuenta(db, ctx, p.subcuenta, p.desde, p.hasta);
     subcuentas = [p.subcuenta];
@@ -125,6 +131,7 @@ export async function exportar(
   }
   await auditar(db, ctx.usuarioId, 'exportacion', {
     tipo: p.tipo,
+    ...(p.canal ? { canal: p.canal } : {}),
     subcuentas,
     desde: p.desde,
     hasta: p.hasta,

@@ -26,7 +26,8 @@ export async function subcuentasMenu(db: Db, ctx: ContextoAcceso): Promise<Subcu
     from comercial.subcuentas s
     left join lateral (
       select estados_etapa from comercial.resumen_diario
-      where location_id = s.location_id and asesor_id is null order by fecha desc limit 1
+      where location_id = s.location_id and asesor_id is null and canal is null
+      order by fecha desc limit 1
     ) r on true
     where s.location_id in (${ids}) and s.activa
     order by s.nombre`);

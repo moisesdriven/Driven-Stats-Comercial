@@ -39,6 +39,7 @@ export async function resumenSubcuenta(
         inArray(tablas.resumenDiario.locationId, ctx.subcuentas),
         isNull(tablas.resumenDiario.asesorId),
         between(tablas.resumenDiario.fecha, desde, hasta),
+        isNull(tablas.resumenDiario.canal),
       ),
     )
     .orderBy(asc(tablas.resumenDiario.fecha));
@@ -66,6 +67,7 @@ export async function resumenAsesor(
         inArray(tablas.resumenDiario.locationId, ctx.subcuentas),
         eq(tablas.resumenDiario.asesorId, filtroAsesor),
         between(tablas.resumenDiario.fecha, desde, hasta),
+        isNull(tablas.resumenDiario.canal),
       ),
     )
     .orderBy(asc(tablas.resumenDiario.fecha));

@@ -502,6 +502,11 @@ export const resumenDiario = comercial.table(
     locationId: text('location_id').notNull(),
     /** Nulo = toda la subcuenta. */
     asesorId: text('asesor_id'),
+    /**
+     * Nulo = todos los canales. Con valor (whatsapp, instagram…) es el total de la subcuenta en ese
+     * canal (solo con asesor nulo): lo usa el filtro por canal de la vista general.
+     */
+    canal: text('canal'),
     indicadores: jsonb('indicadores').notNull(),
     estadosEtapa: jsonb('estados_etapa'),
     cuelloBotella: text('cuello_botella'),
@@ -509,8 +514,8 @@ export const resumenDiario = comercial.table(
     ...auditoriaFilas,
   },
   (t) => [
-    unique('resumen_diario_fecha_location_asesor')
-      .on(t.fecha, t.locationId, t.asesorId)
+    unique('resumen_diario_fecha_location_asesor_canal')
+      .on(t.fecha, t.locationId, t.asesorId, t.canal)
       .nullsNotDistinct(),
     index('resumen_diario_fecha_location').on(t.fecha, t.locationId),
   ],

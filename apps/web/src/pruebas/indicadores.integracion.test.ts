@@ -33,47 +33,51 @@ describe.skipIf(!hayBaseDePruebas)('indicadores y horarios (integración)', () =
       { userId: 'U1', nombre: 'Asesora Uno' },
       { userId: 'U2', nombre: 'Asesora Dos' },
     ]);
-    const r = (fecha: string, locationId: string, asesorId: string | null, a: Acumulado) => ({
+    const r = (
+      fecha: string,
+      locationId: string,
+      asesorId: string | null,
+      a: Acumulado,
+      canal: string | null = null,
+    ) => ({
       fecha,
       locationId,
       asesorId,
+      canal,
       indicadores: a,
     });
-    await db
-      .insert(tablas.resumenDiario)
-      .values([
-        r(
-          '2026-11-16',
-          'LA',
-          null,
-          acum({ leadsRecibidos: 10, tiemposRespuesta: [1, 2, 3], ventas: 1, fotoSinResponder: 4 }),
-        ),
-        r(
-          '2026-11-17',
-          'LA',
-          null,
-          acum({ leadsRecibidos: 10, tiemposRespuesta: [4], ventas: 1, fotoSinResponder: 2 }),
-        ),
-        r(
-          '2026-11-16',
-          'LA',
-          'U1',
-          acum({ leadsRecibidos: 6, tiemposRespuesta: [1, 2], fotoSinResponder: 3 }),
-        ),
-        r(
-          '2026-11-16',
-          'LA',
-          'U2',
-          acum({ leadsRecibidos: 4, tiemposRespuesta: [3], ventas: 1, fotoSinResponder: 1 }),
-        ),
-        r(
-          '2026-11-16',
-          'LB',
-          null,
-          acum({ leadsRecibidos: 5, tiemposRespuesta: [100], ventas: 3 }),
-        ),
-        r('2026-11-16', 'LC', null, acum({ leadsRecibidos: 1000, ventas: 500 })),
-      ]);
+    await db.insert(tablas.resumenDiario).values([
+      r(
+        '2026-11-16',
+        'LA',
+        null,
+        acum({ leadsRecibidos: 10, tiemposRespuesta: [1, 2, 3], ventas: 1, fotoSinResponder: 4 }),
+      ),
+      r(
+        '2026-11-17',
+        'LA',
+        null,
+        acum({ leadsRecibidos: 10, tiemposRespuesta: [4], ventas: 1, fotoSinResponder: 2 }),
+      ),
+      r(
+        '2026-11-16',
+        'LA',
+        'U1',
+        acum({ leadsRecibidos: 6, tiemposRespuesta: [1, 2], fotoSinResponder: 3 }),
+      ),
+      r(
+        '2026-11-16',
+        'LA',
+        'U2',
+        acum({ leadsRecibidos: 4, tiemposRespuesta: [3], ventas: 1, fotoSinResponder: 1 }),
+      ),
+      r('2026-11-16', 'LB', null, acum({ leadsRecibidos: 5, tiemposRespuesta: [100], ventas: 3 })),
+      r('2026-11-16', 'LC', null, acum({ leadsRecibidos: 1000, ventas: 500 })),
+      // Totales por canal (no deben sumarse al total de todos los canales).
+      r('2026-11-16', 'LA', null, acum({ leadsRecibidos: 7, ventas: 1 }), 'whatsapp'),
+      r('2026-11-16', 'LA', null, acum({ leadsRecibidos: 3 }), 'instagram'),
+      r('2026-11-16', 'LC', null, acum({ leadsRecibidos: 1000, ventas: 500 }), 'whatsapp'),
+    ]);
     await crearUsuarioPrueba(db, { correo: 'admin@ind.pe', rol: 'admin' });
     await crearUsuarioPrueba(db, {
       correo: 'dueno@ind.pe',
@@ -111,6 +115,26 @@ describe.skipIf(!hayBaseDePruebas)('indicadores y horarios (integración)', () =
     expect(
       (r.cuerpo.subcuentas as { locationId: string }[]).map((s) => s.locationId).sort(),
     ).toEqual(['LA', 'LB']);
+  });
+
+  it('filtro por canal: solo las filas de ese canal, de las subcuentas del usuario', async () => {
+    const r = await llamar(vistaRuta, `/api/vista-general${RANGO}&canal=instagram`, {
+      cookie: cookies.dueno,
+    });
+    expect(r.estado).toBe(200);
+    expect((r.cuerpo.indicadores as { leadsRecibidos: number }).leadsRecibidos).toBe(3);
+    expect(r.cuerpo.canal).toBe('instagram');
+    // Opciones: los canales con datos en sus subcuentas (LA); C es ajena, pero también es whatsapp.
+    expect(r.cuerpo.canales).toEqual(['instagram', 'whatsapp']);
+    const w = await llamar(vistaRuta, `/api/vista-general${RANGO}&canal=whatsapp`, {
+      cookie: cookies.dueno,
+    });
+    expect((w.cuerpo.indicadores as { leadsRecibidos: number }).leadsRecibidos).toBe(7); // nunca C
+    // Un valor raro se ignora y vuelve al total.
+    const x = await llamar(vistaRuta, `/api/vista-general${RANGO}&canal=';drop`, {
+      cookie: cookies.dueno,
+    });
+    expect((x.cuerpo.indicadores as { leadsRecibidos: number }).leadsRecibidos).toBe(25);
   });
 
   it('el administrador ve todas; el supervisor no tiene vista general', async () => {
