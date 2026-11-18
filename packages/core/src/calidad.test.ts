@@ -208,6 +208,11 @@ describe('costo', () => {
    */
   const REAL_V1 = { entrada: 1_183_607, salida: 137_772, costo: 0.0523 };
   const REAL_V2 = { entrada: 1_630_635, salida: 137_432, costo: 0.0556 };
+  /** Parte fija con la rúbrica v2 (5.751 caracteres de instrucciones), la del análisis 2. */
+  const FIJOS_V2 =
+    tokensFijosSolicitud() -
+    tokensAproximados(INSTRUCCIONES_CALIDAD) +
+    Math.ceil(5751 / CALIBRACION_CALIDAD.caracteresPorToken);
   /** Parte fija con la rúbrica v1 (3.404 caracteres de instrucciones). */
   const FIJOS_V1 =
     Math.ceil(3404 / CALIBRACION_CALIDAD.caracteresPorToken) +
@@ -238,8 +243,8 @@ describe('costo', () => {
     expect(dentroDe(e.costoUsd, REAL_V1.costo, 0.15)).toBe(true);
   });
 
-  it('con la rúbrica vigente (v2) la estimación queda dentro de ±15 % del uso y costo reales', () => {
-    const e = estimarCosto(casoPiloto());
+  it('con la rúbrica v2 la estimación queda dentro de ±15 % del uso y costo reales', () => {
+    const e = estimarCosto(casoPiloto(), PRECIOS_POR_DEFECTO, { tokensFijos: FIJOS_V2 });
     expect(dentroDe(e.tokensEntrada, REAL_V2.entrada, 0.15)).toBe(true);
     expect(dentroDe(e.tokensSalida, REAL_V2.salida, 0.15)).toBe(true);
     expect(dentroDe(e.costoUsd, REAL_V2.costo, 0.15)).toBe(true);
@@ -268,10 +273,10 @@ describe('costo', () => {
     const e = estimarCosto(caso);
     const todasEscriben = estimarCosto(caso, { ...PRECIOS_POR_DEFECTO, lecturaCache: 1.25 });
     expect(e.costoMaximoUsd).toBeGreaterThanOrEqual(todasEscriben.costoUsd);
-    expect(e.costoMaximoUsd).toBeLessThanOrEqual(todasEscriben.costoUsd + 0.0001);
-    // Con la v2, ~US$ 0,055 esperado y ~US$ 0,14 en el peor caso.
+    expect(e.costoMaximoUsd).toBeLessThanOrEqual(todasEscriben.costoUsd + 0.00015); // redondeo a 4 decimales
+    // Con la v4, ~US$ 0,06 esperado y ~US$ 0,16 en el peor caso (instrucciones más largas).
     expect(e.costoMaximoUsd).toBeGreaterThan(2 * e.costoUsd);
-    expect(e.costoMaximoUsd).toBeLessThan(0.15);
+    expect(e.costoMaximoUsd).toBeLessThan(0.17);
   });
 
   it('el costo máximo cubre el costo real de los dos análisis del piloto', () => {

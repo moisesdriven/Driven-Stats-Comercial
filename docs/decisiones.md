@@ -165,3 +165,13 @@ una maqueta con datos reales de Jade18K.
 - **Gráfico de tipos de mensaje:** serie categórica de 8 colores validada para daltonismo en ambos
   temas (variables `--serie-1…8`); la leyenda muestra nombre y porcentaje.
 - **Tipografía:** Sora (títulos y cifras) e Inter (texto), servidas desde el propio dominio.
+
+## Calidad: rúbrica v4 (18 nov 2026, decisiones del cliente)
+
+- Tono: se tolera una sola tilde faltante; dos o más faltas, una palabra mal escrita o una frase
+  confusa lo hacen falso.
+- Responde: si el asesor ya respondió el pedido antes, un seguimiento o una pregunta nueva responde.
+- Extensión: un mensaje corto que completa al anterior del mismo asesor se evalúa junto con él.
+- Categoría: un saludo o presentación que solo hace preguntas generales es saludo_plantilla; con
+  precio o enlaces del catálogo se clasifica por ese contenido.
+- Resultados de calibración y pendiente en `validacion.md`.

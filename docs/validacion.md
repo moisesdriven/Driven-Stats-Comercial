@@ -439,3 +439,66 @@ el puntaje a ±1, 12 de 13.
 No se implementó. Requiere rangos de largo que el cliente no ha definido, y la calibración muestra que
 las diferencias de extensión no son de largo sino de mensajes cortos que completan a otro (punto 3 de
 arriba): es una aclaración de la rúbrica, no una regla de largo.
+
+## Calidad · rúbrica v3 (multimedia) y v4 (decisiones del cliente) (18 de noviembre de 2026)
+
+Base local con 18 días de Jade18K (31 oct–18 nov), recargada desde GHL. Gasto total en pruebas:
+~US$ 0,19 (análisis real US$ 0,10 y 12 calibraciones con Haiku 5.5, de ~US$ 0,008 cada una).
+
+### Análisis real con la rúbrica v3 (semana del 9 al 15 de noviembre)
+
+| Solicitudes | Mensajes calificados | Por regla | Estimado   | Real       | Desvío | Fallidos | Con plus multimedia |
+| ----------- | -------------------- | --------- | ---------- | ---------- | ------ | -------- | ------------------- |
+| 909         | 2.480                | 497       | US$ 0,0995 | US$ 0,1003 | 0,8 %  | 0        | 510 (21 %)          |
+
+La estimación de costo sigue a ±1 % del real con las instrucciones más largas, y el plus de
+multimedia se aplicó al cerrar el análisis (510 mensajes ganaron +1).
+
+### Rúbrica v4
+
+Decisiones del cliente del 18 nov 2026 sobre los tres desacuerdos que dejó la v2 y la categoría de
+los saludos con pregunta:
+
+1. **Tono:** una sola tilde faltante en el mensaje se tolera; dos o más faltas, una palabra mal
+   escrita o una frase confusa lo hacen falso.
+2. **Responde:** si el asesor ya respondió el pedido en un mensaje anterior, un seguimiento o una
+   pregunta nueva cuenta como que responde.
+3. **Extensión:** un mensaje corto que completa al anterior del mismo asesor (sin que el cliente
+   escriba en medio) se evalúa junto con ese anterior.
+4. **Categoría:** un saludo o presentación que solo hace preguntas generales (talla, fecha, modelo,
+   presupuesto) es saludo_plantilla. Si además da precio o enlaces del catálogo, se clasifica por ese
+   contenido (la rúbrica ya decía que los enlaces del catálogo son información de producto).
+
+Los dos conjuntos de referencia se re-etiquetaron con esas reglas **antes** de calibrar la versión
+final y sin mirar sus respuestas, leyendo cada mensaje con su contexto: 25 valores en el conjunto
+del 9–15 nov y 27 en el del 2–8 nov (detalle en la descripción de cada archivo de
+`docs/calibracion/`).
+
+Corrección durante la calibración: una primera redacción de la regla 4 agregaba "si pregunta un dato
+concreto (talla, fecha), es pregunta de calificación". Eso contradecía la decisión del cliente (que
+eligió "saludo aunque termine en pregunta" frente a "manda la pregunta aunque empiece con saludo") y
+se quitó.
+
+### Resultados de calibración de la v4 (Haiku 5.5, dos corridas por conjunto)
+
+| Conjunto                     | Puntaje ±1  | Categoría   | Exacto      | v2 en el mismo conjunto |
+| ---------------------------- | ----------- | ----------- | ----------- | ----------------------- |
+| 9–15 nov (100)               | 94 % / 94 % | 87 % / 84 % | 54 % / 53 % | 91–93 % · 85–87 %       |
+| 2–8 nov, independiente (100) | 79 % / 82 % | 71 % / 73 % | 54 % / 52 % | 86–87 % · 72 %          |
+
+- En el primer conjunto la v4 cumple el puntaje a ±1 con margen y la categoría queda en el mínimo
+  (una corrida 87 %, otra 84 %).
+- **En el conjunto independiente no aprueba, igual que la v2.** La diferencia principal es
+  "responde": en ~30 de 100 mensajes la IA dice que el asesor no respondió y la referencia dice que
+  sí; le siguen extensión (~18) y tono (~14), siempre con la IA más estricta que la referencia.
+- La referencia del conjunto independiente la etiquetó Claude (no una persona) el 16 nov y se
+  ajustó hoy a las reglas nuevas. Para saber quién tiene razón en esos ~30 casos hace falta la
+  revisión de una persona del equipo comercial.
+- Sonnet 5.5 mejoró la categoría en este conjunto con la v2 (85 %), a ~20 veces el costo
+  (~US$ 2 por análisis semanal frente a ~US$ 0,10).
+
+### Pendiente (decisión del cliente)
+
+- Cómo cerrar la calibración: (a) que una persona del equipo revise los mensajes en desacuerdo del
+  conjunto independiente y se ajuste la referencia o la rúbrica; (b) usar Sonnet 5.5; o (c) aceptar
+  el nivel actual, sabiendo que la IA es más estricta que la referencia en "responde".
