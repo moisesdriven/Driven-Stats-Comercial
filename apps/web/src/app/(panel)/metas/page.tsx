@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { metasDeSubcuenta } from '@driven/core';
 import { SelectorSubcuenta } from '@/componentes/panel/Filtros';
 import { FormularioMetas } from '@/componentes/panel/FormularioMetas';
 import { NOMBRE_ESTANDAR } from '@/lib/semaforo';
@@ -19,8 +20,8 @@ export default async function MetasPagina({
   const db = obtenerDb();
   const subs = ctx.subcuentas.length
     ? (
-        await db.execute<{ location_id: string; nombre: string }>(
-          sql`select location_id, nombre from comercial.subcuentas where activa and location_id in ${ctx.subcuentas} order by nombre`,
+        await db.execute<{ location_id: string; nombre: string; metas: unknown }>(
+          sql`select location_id, nombre, metas from comercial.subcuentas where activa and location_id in ${ctx.subcuentas} order by nombre`,
         )
       ).rows
     : [];
@@ -34,7 +35,14 @@ export default async function MetasPagina({
   }
   const id = typeof sp.subcuenta === 'string' ? sp.subcuenta : subs[0]!.location_id;
   exigirSubcuentaPagina(ctx, id);
-  const nombre = subs.find((s) => s.location_id === id)?.nombre ?? id;
+  const actual = subs.find((s) => s.location_id === id);
+  const nombre = actual?.nombre ?? id;
+  // Una subcuenta recién agregada no tiene metas propias: usa las de Driven por defecto hasta que
+  // alguien las guarde. Para ajustarla rápido se pueden copiar las de otra subcuenta del usuario.
+  const porDefecto = actual?.metas == null;
+  const otras = subs
+    .filter((s) => s.location_id !== id && s.metas != null)
+    .map((s) => ({ id: s.location_id, nombre: s.nombre, metas: metasDeSubcuenta(s.metas) }));
   const [metas, { etapas, etapasCalidad }] = await enPagina(
     Promise.all([obtenerMetas(db, ctx, id), etapasDeSubcuenta(db, ctx, id)]),
   );
@@ -70,6 +78,8 @@ export default async function MetasPagina({
         key={id}
         locationId={id}
         nombreSubcuenta={nombre}
+        porDefecto={porDefecto}
+        otras={otras}
         metas={metas}
         etapasCalidad={etapasCalidad}
         puedeEditar={ctx.modulos.metas === 'editar'}
