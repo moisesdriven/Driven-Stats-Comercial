@@ -122,13 +122,16 @@ export async function prepararAnalisis(
   db: Db,
   proveedor: ProveedorLotes,
   analisisId: number,
-  cfg: ConfiguracionCalidad,
+  cfgVigente: ConfiguracionCalidad,
 ): Promise<void> {
   const [a] = await db
     .select()
     .from(tablas.analisisCalidad)
     .where(eq(tablas.analisisCalidad.id, analisisId));
   if (!a || a.estado !== 'solicitado') return;
+  // El modelo queda fijado al lanzar (el que eligió el administrador en ese momento, con el que se
+  // estimó el costo); los automáticos toman el vigente al prepararse.
+  const cfg = a.modelo ? { ...cfgVigente, modelo: a.modelo } : cfgVigente;
   await actualizar(db, analisisId, { estado: 'preparando', modelo: cfg.modelo });
   try {
     const [sub] = await db

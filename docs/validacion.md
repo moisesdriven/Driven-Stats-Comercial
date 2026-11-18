@@ -530,16 +530,9 @@ puntaje a ±1 ≥ 90 % y categoría ≥ 85 %.
   solicitudes, 2.480 mensajes) costó US$ 0,10 con Haiku y costaría ~US$ 1,8 con Sonnet, unos
   US$ 8 al mes por subcuenta con un análisis por semana. El tope `IA_TOPE_MENSUAL_USD` (10 por
   omisión) suma todos los análisis del mes. Con Sonnet alcanza para una subcuenta: hay que subirlo
-  antes de agregar más. La estimación previa al envío ya usa el precio de Sonnet, así que el tope
-  lo detiene antes de gastar.
-- **Cambio de modelo:** solo configuración, `IA_MODELO=claude-sonnet-5-5` en el `.env` del
-  servidor. No hay código que cambiar. Para comparar, cada análisis guarda su modelo y su versión
-  de la rúbrica.
-
-### Decisión pendiente del cliente
-
-- Qué modelo usar en producción:
-  - **Sonnet 5.5:** cumple la calibración; unos US$ 8 al mes por subcuenta y hay que subir el tope.
-  - **Haiku 5.5:** unos US$ 0,40 al mes por subcuenta; no cumple la calibración en el conjunto
-    independiente.
-- Mientras el cliente no decida, el valor por omisión sigue siendo Haiku.
+  antes de agregar más.
+- **Cambio de modelo:** lo hace el administrador global en Configuración › Calidad (decisión del
+  cliente del 18 nov 2026), junto con el tope mensual; sin reiniciar. `IA_MODELO` queda como valor
+  por omisión. Para comparar, cada análisis guarda su modelo y su versión de la rúbrica.
+- La estimación previa al envío usaba siempre el precio de Haiku; se corrigió para usar el del
+  modelo elegido (si no, el tope habría subestimado ~18 veces el costo con Sonnet).

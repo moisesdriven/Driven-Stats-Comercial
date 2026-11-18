@@ -7,6 +7,8 @@ import { POST as ausenciaRuta } from '@/app/api/subcuentas/[id]/ausencias/route'
 import { GET as horariosGet, PUT as horariosPut } from '@/app/api/subcuentas/[id]/horarios/route';
 import { GET as subIndRuta } from '@/app/api/subcuentas/[id]/indicadores/route';
 import { GET as vistaRuta } from '@/app/api/vista-general/route';
+import { cargarContexto } from '@/servidor/acceso';
+import { asesoresSubcuenta } from '@/servidor/consultas/indicadores';
 import {
   CLAVE_PRUEBA,
   crearUsuarioPrueba,
@@ -21,6 +23,7 @@ const acum = (c: Partial<Acumulado>): Acumulado => ({ ...acumuladoVacio(), ...c 
 describe.skipIf(!hayBaseDePruebas)('indicadores y horarios (integración)', () => {
   let db: Db;
   const cookies: Record<string, string> = {};
+  const ids: Record<string, string> = {};
 
   beforeAll(async () => {
     db = await prepararBase();
@@ -79,13 +82,17 @@ describe.skipIf(!hayBaseDePruebas)('indicadores y horarios (integración)', () =
       r('2026-11-16', 'LC', null, acum({ leadsRecibidos: 1000, ventas: 500 }), 'whatsapp'),
     ]);
     await crearUsuarioPrueba(db, { correo: 'admin@ind.pe', rol: 'admin' });
-    await crearUsuarioPrueba(db, {
+    ids.dueno = await crearUsuarioPrueba(db, {
       correo: 'dueno@ind.pe',
       rol: 'dueno',
       subcuentas: ['LA', 'LB'],
     });
-    await crearUsuarioPrueba(db, { correo: 'super@ind.pe', rol: 'supervisor', subcuentas: ['LA'] });
-    await crearUsuarioPrueba(db, {
+    ids.super = await crearUsuarioPrueba(db, {
+      correo: 'super@ind.pe',
+      rol: 'supervisor',
+      subcuentas: ['LA'],
+    });
+    ids.asesor = await crearUsuarioPrueba(db, {
       correo: 'asesor@ind.pe',
       rol: 'asesor',
       subcuentas: ['LA'],
@@ -164,6 +171,32 @@ describe.skipIf(!hayBaseDePruebas)('indicadores y horarios (integración)', () =
       'Asesora Uno',
     ]);
     expect(r.cuerpo.evaluacion).toHaveProperty('cuello');
+  });
+
+  it('módulo Asesores: asesores de la subcuenta con su permiso, nunca de una ajena', async () => {
+    const ctx = async (k: string) => (await cargarContexto(db, ids[k]!))!;
+    const r = await asesoresSubcuenta(db, await ctx('super'), 'LA', '2026-11-16', '2026-11-17');
+    expect(r.asesores.map((a) => a.nombre).sort()).toEqual(['Asesora Dos', 'Asesora Uno']);
+    await expect(
+      asesoresSubcuenta(db, await ctx('super'), 'LB', '2026-11-16', '2026-11-17'),
+    ).rejects.toMatchObject({ estado: 403 });
+    // El asesor solo ve su propia fila.
+    const propio = await asesoresSubcuenta(
+      db,
+      await ctx('asesor'),
+      'LA',
+      '2026-11-16',
+      '2026-11-17',
+    );
+    expect(propio.asesores.map((a) => a.asesorId)).toEqual(['U1']);
+    // Sin el permiso de detalle de asesores, nada.
+    await db
+      .insert(tablas.permisosUsuario)
+      .values({ usuarioId: ids.dueno!, modulo: 'detalle_asesores', nivel: 'ninguno' });
+    await expect(
+      asesoresSubcuenta(db, await ctx('dueno'), 'LA', '2026-11-16', '2026-11-17'),
+    ).rejects.toMatchObject({ estado: 403 });
+    await db.delete(tablas.permisosUsuario);
   });
 
   it('nadie lee indicadores de una subcuenta ajena', async () => {

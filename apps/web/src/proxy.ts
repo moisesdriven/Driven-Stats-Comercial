@@ -24,6 +24,16 @@ export function proxy(request: NextRequest) {
 
   const cabeceras = new Headers(request.headers);
   cabeceras.set('x-nonce', nonce);
+  // Ruta pedida, para que el layout del panel revise el acceso antes de empezar a responder. Solo
+  // en cargas completas de página (las de navegación interna, con cabecera RSC, las revisa cada
+  // página): es donde importa responder 403 y no interfiere con el enrutador del navegador.
+  cabeceras.delete('x-ruta');
+  const navegacionInterna =
+    request.headers.has('rsc') ||
+    request.headers.has('next-router-state-tree') ||
+    request.nextUrl.searchParams.has('_rsc');
+  if (!navegacionInterna)
+    cabeceras.set('x-ruta', request.nextUrl.pathname + request.nextUrl.search);
   cabeceras.set('Content-Security-Policy', csp);
   const respuesta = NextResponse.next({ request: { headers: cabeceras } });
   respuesta.headers.set('Content-Security-Policy', csp);

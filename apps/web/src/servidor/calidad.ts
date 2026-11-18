@@ -4,7 +4,11 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { VERSION_RUBRICA } from '@driven/core';
 import {
+  CLAVE_AJUSTES_CALIDAD,
   configuracionCalidad,
+  configuracionCalidadVigente,
+  leerAjustesCalidad,
+  MODELOS_CALIDAD,
   gastoDelMes,
   limitesManuales,
   prepararSolicitudes,
@@ -41,7 +45,7 @@ export async function estimarAnalisis(
 ) {
   exigirAdmin(ctx);
   if (e.desde > e.hasta) throw solicitudInvalida('Rango de fechas inválido.');
-  const cfg = configuracionCalidad();
+  const cfg = await configuracionCalidadVigente(db);
   const [desde, hasta] = rango(e.desde, e.hasta);
   const subs = await db
     .select()
@@ -99,6 +103,7 @@ export async function estimarAnalisis(
     topeMensualUsd: cfg.topeMensualUsd,
     maxManualesMes: cfg.maxManualesMes,
     modelo: cfg.modelo,
+    modeloNombre: MODELOS_CALIDAD.find((m) => m.id === cfg.modelo)?.nombre ?? cfg.modelo,
   };
 }
 
@@ -144,6 +149,7 @@ export async function lanzarAnalisis(
         semilla: randomBytes(8).toString('hex'),
         estado: 'solicitado',
         costoEstimado: 'costoEstimadoUsd' in s ? (s.costoEstimadoUsd ?? null) : null,
+        modelo: est.modelo,
         versionRubrica: VERSION_RUBRICA,
       })
       .returning({ id: tablas.analisisCalidad.id });
@@ -163,7 +169,7 @@ export async function lanzarAnalisis(
 /** Historial de análisis y gasto del mes frente al tope (Configuración › Calidad). */
 export async function historialCalidad(db: Db, ctx: ContextoAcceso) {
   exigirModulo(ctx, 'configuracion', 'ver');
-  const cfg = configuracionCalidad();
+  const cfg = await configuracionCalidadVigente(db);
   const filas = await db
     .select()
     .from(tablas.analisisCalidad)
@@ -176,7 +182,77 @@ export async function historialCalidad(db: Db, ctx: ContextoAcceso) {
     analisis: filas.map(({ semilla: _s, batchIds: _b, ...a }) => a),
     gastoDelMesUsd: await gastoDelMes(db),
     topeMensualUsd: cfg.topeMensualUsd,
+    modelo: cfg.modelo,
   };
+}
+
+/**
+ * Modelo de IA y tope mensual que eligió el administrador global, con los valores del servidor
+ * como referencia y el costo real del último análisis terminado para comparar modelos.
+ */
+export async function ajustesCalidad(db: Db, ctx: ContextoAcceso) {
+  exigirAdmin(ctx);
+  const servidor = configuracionCalidad();
+  const guardados = await leerAjustesCalidad(db);
+  const [ultimo] = await db
+    .select({
+      modelo: tablas.analisisCalidad.modelo,
+      costoReal: tablas.analisisCalidad.costoReal,
+      periodoDesde: tablas.analisisCalidad.periodoDesde,
+      periodoHasta: tablas.analisisCalidad.periodoHasta,
+    })
+    .from(tablas.analisisCalidad)
+    .where(
+      and(
+        eq(tablas.analisisCalidad.estado, 'terminado'),
+        sql`${tablas.analisisCalidad.costoReal} is not null`,
+      ),
+    )
+    .orderBy(desc(tablas.analisisCalidad.creadoEn))
+    .limit(1);
+  return {
+    modelos: MODELOS_CALIDAD,
+    modelo: guardados.modelo ?? servidor.modelo,
+    topeMensualUsd: guardados.topeMensualUsd ?? servidor.topeMensualUsd,
+    servidor: { modelo: servidor.modelo, topeMensualUsd: servidor.topeMensualUsd },
+    actualizadoEn: guardados.actualizadoEn ?? null,
+    ultimoAnalisis: ultimo ?? null,
+  };
+}
+
+export const esquemaAjustesCalidad = z
+  .object({
+    modelo: z.enum(MODELOS_CALIDAD.map((m) => m.id) as [string, ...string[]], {
+      error: 'Modelo no permitido.',
+    }),
+    topeMensualUsd: z
+      .number({ error: 'El tope debe ser un número.' })
+      .min(1, { error: 'El tope mínimo es US$ 1.' })
+      .max(1000, { error: 'El tope máximo es US$ 1.000.' }),
+  })
+  .strict();
+
+/** Solo el administrador global elige el modelo y el tope; el cambio queda en auditoría. */
+export async function guardarAjustesCalidad(
+  db: Db,
+  ctx: ContextoAcceso,
+  datos: z.infer<typeof esquemaAjustesCalidad>,
+) {
+  exigirAdmin(ctx);
+  const antes = await configuracionCalidadVigente(db);
+  const valor = { modelo: datos.modelo, topeMensualUsd: datos.topeMensualUsd };
+  await db
+    .insert(tablas.ajustes)
+    .values({ clave: CLAVE_AJUSTES_CALIDAD, valor, actualizadoPor: ctx.usuarioId })
+    .onConflictDoUpdate({
+      target: tablas.ajustes.clave,
+      set: { valor, actualizadoPor: ctx.usuarioId, actualizadoEn: new Date() },
+    });
+  await auditar(db, ctx.usuarioId, 'ajustes_calidad_guardados', {
+    antes: { modelo: antes.modelo, topeMensualUsd: antes.topeMensualUsd },
+    despues: valor,
+  });
+  return { ok: true };
 }
 
 export interface ResumenCalidad {

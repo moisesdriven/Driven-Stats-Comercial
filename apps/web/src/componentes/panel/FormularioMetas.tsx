@@ -167,13 +167,22 @@ interface Etapa {
 
 interface Props {
   locationId: string;
+  /** Nombre de la subcuenta: metas y etapas de calidad son propias de cada una. */
+  nombreSubcuenta: string;
   metas: Metas;
   etapas: Etapa[];
   etapasCalidad: string[];
   puedeEditar: boolean;
 }
 
-export function FormularioMetas({ locationId, metas, etapas, etapasCalidad, puedeEditar }: Props) {
+export function FormularioMetas({
+  locationId,
+  nombreSubcuenta,
+  metas,
+  etapas,
+  etapasCalidad,
+  puedeEditar,
+}: Props) {
   const router = useRouter();
   const inicial = Object.fromEntries(
     GRUPOS.flatMap((g) => g.campos).map((c) => [c.clave, leer(metas, c.clave)?.toString() ?? '']),
@@ -214,7 +223,10 @@ export function FormularioMetas({ locationId, metas, etapas, etapasCalidad, pued
     const d = (await r.json().catch(() => ({}))) as { error?: string };
     setMsgMetas(
       r.ok
-        ? { tipo: 'ok', texto: 'Metas guardadas. El semáforo ya usa los valores nuevos.' }
+        ? {
+            tipo: 'ok',
+            texto: `Metas de ${nombreSubcuenta} guardadas. Su semáforo ya usa los valores nuevos.`,
+          }
         : { tipo: 'error', texto: d.error ?? 'No se pudieron guardar las metas.' },
     );
     if (r.ok) router.refresh();
@@ -230,7 +242,10 @@ export function FormularioMetas({ locationId, metas, etapas, etapasCalidad, pued
     const d = (await r.json().catch(() => ({}))) as { error?: string };
     setMsgCalidad(
       r.ok
-        ? { tipo: 'ok', texto: 'Etapas guardadas. Se usan desde el siguiente análisis de calidad.' }
+        ? {
+            tipo: 'ok',
+            texto: `Etapas de ${nombreSubcuenta} guardadas. Se usan desde su siguiente análisis de calidad.`,
+          }
         : { tipo: 'error', texto: d.error ?? 'No se pudieron guardar las etapas.' },
     );
     if (r.ok) router.refresh();
@@ -356,8 +371,8 @@ export function FormularioMetas({ locationId, metas, etapas, etapasCalidad, pued
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <h2 className="seccion__titulo">Etapas de calidad</h2>
             <span className="seccion__nota">
-              Elige las 3 etapas del pipeline cuyos mensajes se califican. {calidad.length} de 3
-              elegidas.
+              Elige las 3 etapas del pipeline de {nombreSubcuenta} cuyos mensajes se califican.{' '}
+              {calidad.length} de 3 elegidas.
             </span>
           </div>
           {puedeEditar && (

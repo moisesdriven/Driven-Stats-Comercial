@@ -14,6 +14,7 @@ import { desc } from 'drizzle-orm';
 import { PgBoss } from 'pg-boss';
 import {
   configuracionCalidad,
+  configuracionCalidadVigente,
   crearConexion,
   ESQUEMA_COLA,
   gastoDelMes,
@@ -69,7 +70,7 @@ async function principal() {
       return;
     }
     if (comando === 'calidad-estimar') {
-      const cfgC = configuracionCalidad();
+      const cfgC = await configuracionCalidadVigente(db);
       const id = arg('subcuenta');
       const [sub] = (await db.select().from(tablas.subcuentas)).filter((x) => x.locationId === id);
       if (!sub || (sub.etapasCalidad ?? []).length !== 3)
@@ -110,8 +111,9 @@ async function principal() {
       return;
     }
     if (comando === 'calidad-revisar') {
-      await procesarPendientes(db, new ProveedorAnthropic(), configuracionCalidad(), 'solicitudes');
-      await procesarPendientes(db, new ProveedorAnthropic(), configuracionCalidad(), 'revisar');
+      const cfgC = await configuracionCalidadVigente(db);
+      await procesarPendientes(db, new ProveedorAnthropic(), cfgC, 'solicitudes');
+      await procesarPendientes(db, new ProveedorAnthropic(), cfgC, 'revisar');
       return;
     }
     if (comando === 'calidad-calibrar') {
@@ -122,7 +124,7 @@ async function principal() {
       const minimo = Number(arg('minimo') ?? 0.9);
       const minimoCategoria = Number(arg('minimo-categoria') ?? 0.85);
       const informe = await calibrar(db, new ProveedorAnthropic(), await leerConjunto(archivo), {
-        modelo: arg('modelo') ?? configuracionCalidad().modelo,
+        modelo: arg('modelo') ?? (await configuracionCalidadVigente(db)).modelo,
         ajustes: leerAjustesIa(
           arg('esfuerzo') ?? process.env.IA_ESFUERZO,
           arg('pensamiento') ?? process.env.IA_PENSAMIENTO,

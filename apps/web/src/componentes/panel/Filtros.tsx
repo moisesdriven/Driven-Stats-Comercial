@@ -111,10 +111,12 @@ export function SelectorSubcuenta({
         className="control"
         value={actual}
         onChange={(e) => {
-          const qs = conservarPeriodo ? params.toString() : '';
-          router.push(
-            `${plantilla.replace('{id}', encodeURIComponent(e.target.value))}${qs ? `?${qs}` : ''}`,
-          );
+          // La subcuenta va en la plantilla (ruta o `?subcuenta=`); el resto de la consulta se conserva.
+          const resto = new URLSearchParams(conservarPeriodo ? params.toString() : '');
+          resto.delete('subcuenta');
+          const base = plantilla.replace('{id}', encodeURIComponent(e.target.value));
+          const qs = resto.toString();
+          router.push(qs ? `${base}${base.includes('?') ? '&' : '?'}${qs}` : base);
         }}
       >
         {opciones.map((o) => (

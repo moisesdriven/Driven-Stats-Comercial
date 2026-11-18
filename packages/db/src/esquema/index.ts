@@ -655,3 +655,14 @@ export const syncEstado = comercial.table(
   },
   (t) => [primaryKey({ columns: [t.locationId, t.recurso] })],
 );
+
+/**
+ * Ajustes globales que el administrador global elige desde la web (Configuración › Calidad): el
+ * modelo de IA y el tope mensual de gasto. Sin fila, rigen las variables de entorno.
+ */
+export const ajustes = comercial.table('ajustes', {
+  clave: text('clave').primaryKey(),
+  valor: jsonb('valor').notNull(),
+  actualizadoEn: ts('actualizado_en').notNull().defaultNow(),
+  actualizadoPor: uuid('actualizado_por').references(() => usuarios.id, { onDelete: 'set null' }),
+});

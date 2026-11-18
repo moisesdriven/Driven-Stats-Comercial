@@ -25,7 +25,7 @@ export function Menu({ ctx, subcuentas }: { ctx: ContextoAcceso; subcuentas: Sub
   const enlaceAsesores =
     ctx.rol === 'asesor' && ctx.userIdGhl
       ? `/subcuentas/${primera}/asesores/${ctx.userIdGhl}`
-      : `/subcuentas/${primera}#asesores`;
+      : '/asesores';
   const admin = m.usuarios !== 'ninguno' || m.configuracion !== 'ninguno';
   const nombreSubcuenta =
     ctx.rol === 'admin'
@@ -52,22 +52,27 @@ export function Menu({ ctx, subcuentas }: { ctx: ContextoAcceso; subcuentas: Sub
           </EnlaceMenu>
         )}
         {m.vista_subcuenta !== 'ninguno' && primera && (
-          <EnlaceMenu href="/subcuentas" clase="menu__enlace">
+          <EnlaceMenu href="/subcuentas" clase="menu__enlace" salvo="/asesores/">
             <IconoSubcuenta /> Subcuentas
           </EnlaceMenu>
         )}
         {verAsesores && (
-          <EnlaceMenu href={enlaceAsesores} clase="menu__enlace">
+          <EnlaceMenu
+            href={enlaceAsesores}
+            clase="menu__enlace"
+            conSubcuenta={enlaceAsesores === '/asesores'}
+            tambien="/asesores/"
+          >
             <IconoAsesor /> {ctx.rol === 'asesor' ? 'Mi detalle' : 'Asesores'}
           </EnlaceMenu>
         )}
         {m.horarios !== 'ninguno' && primera && (
-          <EnlaceMenu href="/horarios" clase="menu__enlace">
+          <EnlaceMenu href="/horarios" clase="menu__enlace" conSubcuenta>
             <IconoReloj /> Horarios
           </EnlaceMenu>
         )}
         {m.metas !== 'ninguno' && primera && (
-          <EnlaceMenu href="/metas" clase="menu__enlace">
+          <EnlaceMenu href="/metas" clase="menu__enlace" conSubcuenta>
             <IconoMetas /> Metas y etapas
           </EnlaceMenu>
         )}

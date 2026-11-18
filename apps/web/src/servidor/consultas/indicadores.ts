@@ -75,6 +75,39 @@ export async function indicadoresSubcuenta(
 ) {
   exigirModulo(ctx, 'vista_subcuenta');
   exigirSubcuenta(ctx, locationId);
+  return calcularSubcuenta(db, ctx, locationId, desde, hasta);
+}
+
+/**
+ * Módulo Asesores: los asesores de una subcuenta con sus indicadores. Exige el permiso de detalle
+ * de asesores (no el de la vista de subcuenta); un asesor solo ve su propia fila.
+ */
+export async function asesoresSubcuenta(
+  db: Db,
+  ctx: ContextoAcceso,
+  locationId: string,
+  desde: string,
+  hasta: string,
+) {
+  exigirModulo(ctx, 'detalle_asesores');
+  exigirSubcuenta(ctx, locationId);
+  const d = await calcularSubcuenta(db, ctx, locationId, desde, hasta);
+  return {
+    subcuenta: d.subcuenta,
+    corrido: d.corrido,
+    asesores:
+      ctx.rol === 'asesor' ? d.asesores.filter((a) => a.asesorId === ctx.userIdGhl) : d.asesores,
+  };
+}
+
+/** Sin revisar permisos: solo para las funciones exportadas de arriba, que ya los revisaron. */
+async function calcularSubcuenta(
+  db: Db,
+  ctx: ContextoAcceso,
+  locationId: string,
+  desde: string,
+  hasta: string,
+) {
   const [sub] = await db
     .select()
     .from(tablas.subcuentas)

@@ -3,6 +3,7 @@ import { Pildora } from '@/componentes/panel/Bloques';
 import {
   AltaSubcuenta,
   LanzarAnalisis,
+  ModeloCalidad,
   MapaEtapas,
   ZonaSubcuenta,
 } from '@/componentes/panel/Configuracion';
@@ -10,7 +11,8 @@ import { nombreZona, ZONAS } from '@/lib/zonas';
 import { SelectorSubcuenta } from '@/componentes/panel/Filtros';
 import { fechaLarga, haceCuanto, numero } from '@/lib/formato';
 import { NOMBRE_ESTANDAR } from '@/lib/semaforo';
-import { historialCalidad } from '@/servidor/calidad';
+import { MODELOS_CALIDAD } from '@driven/db';
+import { ajustesCalidad, historialCalidad } from '@/servidor/calidad';
 import { cargasRecientes, estadoSubcuentas, etapasDeSubcuenta } from '@/servidor/configuracion';
 import { obtenerDb } from '@/servidor/db';
 import { enPagina, exigirSubcuentaPagina, requerirModuloPagina } from '@/servidor/pagina';
@@ -308,7 +310,12 @@ export default async function Configuracion({
       </>
     );
   } else if (seccion === 'calidad') {
-    const h = await enPagina(historialCalidad(db, ctx));
+    const [h, aj] = await enPagina(
+      Promise.all([
+        historialCalidad(db, ctx),
+        ctx.rol === 'admin' ? ajustesCalidad(db, ctx) : Promise.resolve(null),
+      ]),
+    );
     const nombres = new Map(subs.map((s) => [s.locationId, s.nombre]));
     const pct = h.topeMensualUsd ? Math.min(100, (h.gastoDelMesUsd / h.topeMensualUsd) * 100) : 0;
     const hoy = new Date();
@@ -335,10 +342,18 @@ export default async function Configuracion({
             />
           </div>
           <span className="seccion__nota">
-            Si un análisis va a superar el tope, se detiene antes de enviarse. El tope se cambia en
-            la configuración del servidor.
+            Si un análisis va a superar el tope, se detiene antes de enviarse. Modelo actual:{' '}
+            {MODELOS_CALIDAD.find((m) => m.id === h.modelo)?.nombre ?? h.modelo}.
           </span>
         </section>
+        {aj && (
+          <ModeloCalidad
+            modelos={aj.modelos}
+            modelo={aj.modelo}
+            topeMensualUsd={aj.topeMensualUsd}
+            ultimoAnalisis={aj.ultimoAnalisis}
+          />
+        )}
         {ctx.rol === 'admin' && (
           <LanzarAnalisis
             subcuentas={opciones}

@@ -17,9 +17,9 @@ siguiente.
 
 (\*) Construida y validada en costo con análisis reales (estimado a ±1 % del real). La rúbrica v4
 aprueba la calibración en los dos conjuntos con Sonnet 5.5 (±1 93–94 %, categoría 85–87 %); con
-Haiku 5.5 (valor por omisión) solo al límite en el primero. Falta que el cliente elija el modelo
-(`IA_MODELO`), una decisión de costo: ~US$ 8 frente a ~US$ 0,40 al mes por subcuenta (ver
-`validacion.md`, 18 nov 2026).
+Haiku 5.5 (valor por omisión) solo al límite en el primero. El modelo lo elige el administrador
+global en Configuración › Calidad: ~US$ 8 (Sonnet) frente a ~US$ 0,40 (Haiku) al mes por subcuenta
+(ver `validacion.md` y `decisiones.md`, 18 nov 2026).
 
 ## Decisiones tomadas al inicio
 
@@ -112,6 +112,8 @@ Detalle en [`decisiones.md`](decisiones.md).
   calidad queda sin dato (no se mide por canal) y la exportación incluye el canal. Al desplegar hay
   que recalcular el resumen (`servidor.sh recalcular 90`) para que existan las filas por canal.
 - Rediseño visual aprobado el 18 nov 2026 (ver `decisiones.md`).
+- Módulo Asesores propio, metas y etapas explícitamente por subcuenta, elección del modelo de IA
+  por el administrador global y navegación más rápida (18 nov 2026, ver `decisiones.md`).
 
 ## Fase 6 · resultado
 

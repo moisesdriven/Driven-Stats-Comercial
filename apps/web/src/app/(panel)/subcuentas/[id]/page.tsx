@@ -1,20 +1,14 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { NOMBRES_CATEGORIA, CRITERIOS, type CategoriaCalidad } from '@driven/core';
-import {
-  BarrasEtapa,
-  KpiChico,
-  Leyenda,
-  Pildora,
-  PildoraCuello,
-  Vacio,
-} from '@/componentes/panel/Bloques';
+import { KpiChico, Pildora, Vacio } from '@/componentes/panel/Bloques';
 import { FiltroPeriodo, SelectorSubcuenta } from '@/componentes/panel/Filtros';
 import { IconoDescarga } from '@/componentes/panel/Iconos';
 import { ListasAccion } from '@/componentes/panel/ListasAccion';
+import { TablaAsesores } from '@/componentes/panel/TablaAsesores';
 import {
   calidad,
   dias,
-  iniciales,
   mesAnio,
   minutos,
   nombreCorto,
@@ -29,6 +23,7 @@ import { peoresMensajes } from '@/servidor/calidad';
 import { indicadoresSubcuenta } from '@/servidor/consultas/indicadores';
 import { ESPERA_FUERA_DE_TURNO, listasParaActuar } from '@/servidor/consultas/listas';
 import { subcuentasMenu } from '@/servidor/consultas/menu';
+import type { ContextoAcceso } from '@/servidor/acceso';
 import { obtenerDb } from '@/servidor/db';
 import { enPagina, exigirSubcuentaPagina, requerirModuloPagina } from '@/servidor/pagina';
 
@@ -54,10 +49,9 @@ export default async function VistaSubcuenta({
   exigirSubcuentaPagina(ctx, id);
   const periodo = leerPeriodo(await searchParams);
   const db = obtenerDb();
-  const [d, listas, peores, opciones] = await enPagina(
+  const [d, peores, opciones] = await enPagina(
     Promise.all([
       indicadoresSubcuenta(db, ctx, id, periodo.desde, periodo.hasta),
-      listasParaActuar(db, ctx, id),
       peoresMensajes(db, ctx, id),
       subcuentasMenu(db, ctx),
     ]),
@@ -177,139 +171,15 @@ export default async function VistaSubcuenta({
         <KpiChico etiqueta="Perdidos" valor={numero(i.perdidos)} referencia />
       </section>
 
-      <section id="asesores" aria-label="Asesores" className="seccion">
-        <div className="seccion__cabecera">
-          <h2 className="seccion__titulo">Asesores</h2>
-          <span className="seccion__nota">
-            {d.corrido
-              ? 'Tiempos medidos en tiempo corrido (24 horas, todos los días)'
-              : 'Tiempos medidos en el horario laboral de cada asesor'}
-          </span>
-        </div>
-        {!asesores.length ? (
-          <div style={{ padding: '0 20px 20px' }}>
-            <Vacio>Sin actividad de asesores en el periodo.</Vacio>
-          </div>
-        ) : (
-          <div
-            className="tabla-caja tabla-caja--apilable"
-            tabIndex={0}
-            role="region"
-            aria-label="Tabla de asesores"
-          >
-            <table className="tabla" style={{ minWidth: 960 }}>
-              <thead>
-                <tr>
-                  <th scope="col">Asesor</th>
-                  <th scope="col" className="n">
-                    Leads
-                  </th>
-                  <th scope="col" className="n">
-                    T. respuesta
-                  </th>
-                  <th scope="col" className="n">
-                    Sin responder
-                  </th>
-                  <th scope="col" className="n">
-                    Pendientes
-                  </th>
-                  <th scope="col" className="n">
-                    Calidad
-                  </th>
-                  <th scope="col" className="n">
-                    Conversión
-                  </th>
-                  <th scope="col" className="n">
-                    Ventas
-                  </th>
-                  <th scope="col">Etapas A · S · N · C</th>
-                  <th scope="col">Cuello de botella</th>
-                </tr>
-              </thead>
-              <tbody>
-                {asesores.map((a) => (
-                  <tr key={a.asesorId}>
-                    <td>
-                      {verAsesores ? (
-                        <Link
-                          href={`/subcuentas/${id}/asesores/${a.asesorId}${qs}`}
-                          className="con-avatar"
-                        >
-                          <span className="avatar-chico" aria-hidden="true">
-                            {iniciales(a.nombre)}
-                          </span>
-                          {nombreCorto(a.nombre)}
-                        </Link>
-                      ) : (
-                        <span className="con-avatar">{nombreCorto(a.nombre)}</span>
-                      )}
-                    </td>
-                    <td className="n" data-etiqueta="Leads">
-                      {numero(a.indicadores.leadsRecibidos)}
-                    </td>
-                    <td className="n" data-etiqueta="T. respuesta">
-                      {minutos(a.indicadores.tiempoRespuestaMediana)}
-                    </td>
-                    <td className="n" data-etiqueta="Sin responder">
-                      {numero(a.indicadores.sinResponder)}
-                    </td>
-                    <td className="n" data-etiqueta="Pendientes">
-                      {numero(a.indicadores.seguimientoVencido)}
-                    </td>
-                    <td className="n" data-etiqueta="Calidad">
-                      {a.indicadores.calidad === null ? '—' : numero(a.indicadores.calidad, 1)}
-                    </td>
-                    <td className="n" data-etiqueta="Conversión">
-                      {porcentaje(a.indicadores.conversion)}
-                    </td>
-                    <td className="n" data-etiqueta="Ventas" style={{ fontWeight: 600 }}>
-                      {numero(a.indicadores.ventas)}
-                    </td>
-                    <td data-etiqueta="Etapas">
-                      <BarrasEtapa etapas={a.evaluacion.etapas} />
-                    </td>
-                    <td data-etiqueta="Cuello de botella">
-                      <PildoraCuello cuello={a.evaluacion.cuello} etapas={a.evaluacion.etapas} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <div style={{ padding: '4px 20px 18px' }}>
-          <Leyenda />
-        </div>
-      </section>
-
-      <ListasAccion
-        listas={[
-          {
-            id: 'sin',
-            etiqueta: 'Sin responder',
-            total: listas.totales.sinResponder,
-            filas: listas.sinResponder.filter((f) => f.espera !== ESPERA_FUERA_DE_TURNO),
-          },
-          {
-            id: 'fuera',
-            etiqueta: 'Asesor fuera de turno',
-            total: listas.totales.fueraDeTurno,
-            filas: listas.sinResponder.filter((f) => f.espera === ESPERA_FUERA_DE_TURNO),
-          },
-          {
-            id: 'pend',
-            etiqueta: 'Pendientes de seguimiento',
-            total: listas.totales.pendientes,
-            filas: listas.pendientes,
-          },
-          {
-            id: 'ayer',
-            etiqueta: 'Interesados de ayer',
-            total: listas.totales.interesados,
-            filas: listas.interesados,
-          },
-        ]}
+      <TablaAsesores
+        asesores={asesores}
+        corrido={d.corrido}
+        enlace={verAsesores ? (a) => `/subcuentas/${id}/asesores/${a}${qs}` : null}
       />
+
+      <Suspense fallback={<ListasCargando />}>
+        <Listas ctx={ctx} id={id} />
+      </Suspense>
 
       <div className="rejilla rejilla--dos">
         <section aria-label="Motivos de pérdida" className="seccion seccion--relleno">
@@ -375,5 +245,55 @@ export default async function VistaSubcuenta({
         </section>
       </div>
     </>
+  );
+}
+
+/**
+ * Listas para actuar: se calculan en vivo sobre los mensajes (la consulta más pesada de la
+ * página), así que llegan por streaming sin retrasar los indicadores.
+ */
+async function Listas({ ctx, id }: { ctx: ContextoAcceso; id: string }) {
+  const listas = await enPagina(listasParaActuar(obtenerDb(), ctx, id));
+  return (
+    <ListasAccion
+      listas={[
+        {
+          id: 'sin',
+          etiqueta: 'Sin responder',
+          total: listas.totales.sinResponder,
+          filas: listas.sinResponder.filter((f) => f.espera !== ESPERA_FUERA_DE_TURNO),
+        },
+        {
+          id: 'fuera',
+          etiqueta: 'Asesor fuera de turno',
+          total: listas.totales.fueraDeTurno,
+          filas: listas.sinResponder.filter((f) => f.espera === ESPERA_FUERA_DE_TURNO),
+        },
+        {
+          id: 'pend',
+          etiqueta: 'Pendientes de seguimiento',
+          total: listas.totales.pendientes,
+          filas: listas.pendientes,
+        },
+        {
+          id: 'ayer',
+          etiqueta: 'Interesados de ayer',
+          total: listas.totales.interesados,
+          filas: listas.interesados,
+        },
+      ]}
+    />
+  );
+}
+
+function ListasCargando() {
+  return (
+    <section aria-label="Listas para actuar" className="seccion" aria-busy="true">
+      <div className="esqueleto" style={{ padding: 20 }}>
+        <span className="oculto">Cargando listas…</span>
+        <div className="esqueleto__linea" />
+        <div className="esqueleto__bloque" />
+      </div>
+    </section>
   );
 }

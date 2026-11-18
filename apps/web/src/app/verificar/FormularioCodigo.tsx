@@ -1,11 +1,9 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { enviar } from '@/componentes/enviar';
 
 export function FormularioCodigo() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -21,8 +19,7 @@ export function FormularioCodigo() {
       setError(String(r.datos.error ?? 'Código incorrecto.'));
       return;
     }
-    router.replace(r.datos.debeCambiarClave ? '/cambiar-clave' : '/');
-    router.refresh();
+    window.location.assign(r.datos.debeCambiarClave ? '/cambiar-clave' : '/');
   }
 
   return (
