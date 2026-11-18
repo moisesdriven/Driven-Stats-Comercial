@@ -9,6 +9,7 @@ import {
   Vacio,
 } from '@/componentes/panel/Bloques';
 import { FiltroPeriodo, SelectorSubcuenta } from '@/componentes/panel/Filtros';
+import { IconoDescarga } from '@/componentes/panel/Iconos';
 import { ListasAccion } from '@/componentes/panel/ListasAccion';
 import {
   calidad,
@@ -26,7 +27,7 @@ import { leerPeriodo, qsPeriodo } from '@/lib/periodo';
 import { NOMBRE_ETAPA, tonoDe } from '@/lib/semaforo';
 import { peoresMensajes } from '@/servidor/calidad';
 import { indicadoresSubcuenta } from '@/servidor/consultas/indicadores';
-import { listasParaActuar } from '@/servidor/consultas/listas';
+import { ESPERA_FUERA_DE_TURNO, listasParaActuar } from '@/servidor/consultas/listas';
 import { subcuentasMenu } from '@/servidor/consultas/menu';
 import { obtenerDb } from '@/servidor/db';
 import { enPagina, exigirSubcuentaPagina, requerirModuloPagina } from '@/servidor/pagina';
@@ -98,11 +99,13 @@ export default async function VistaSubcuenta({
             <div className="encabezado__fila">
               <h1 className="titulo">{d.subcuenta.nombre}</h1>
               {ev.cuello ? (
-                <Pildora tono={tonoDe(ev.etapas[ev.cuello])}>
+                <Pildora tono={tonoDe(ev.etapas[ev.cuello])} icono>
                   Cuello de botella: {NOMBRE_ETAPA[ev.cuello].toLowerCase()}
                 </Pildora>
               ) : (
-                <Pildora tono="verde">Sin cuello de botella</Pildora>
+                <Pildora tono="verde" icono>
+                  Sin cuello de botella
+                </Pildora>
               )}
             </div>
             <p className="subtitulo">
@@ -121,10 +124,11 @@ export default async function VistaSubcuenta({
             <FiltroPeriodo clave={periodo.clave} desde={periodo.desde} hasta={periodo.hasta} />
             {ctx.modulos.exportar !== 'ninguno' && (
               <a
-                className="boton"
+                className="boton-sec"
                 href={`/api/exportar?tipo=subcuenta&subcuenta=${encodeURIComponent(id)}&desde=${periodo.desde}&hasta=${periodo.hasta}`}
                 download
               >
+                <IconoDescarga />
                 Exportar
               </a>
             )}
@@ -183,22 +187,41 @@ export default async function VistaSubcuenta({
           </span>
         </div>
         {!asesores.length ? (
-          <div style={{ padding: '0 24px 20px' }}>
+          <div style={{ padding: '0 20px 20px' }}>
             <Vacio>Sin actividad de asesores en el periodo.</Vacio>
           </div>
         ) : (
-          <div className="tabla-caja">
+          <div
+            className="tabla-caja tabla-caja--apilable"
+            tabIndex={0}
+            role="region"
+            aria-label="Tabla de asesores"
+          >
             <table className="tabla" style={{ minWidth: 960 }}>
               <thead>
                 <tr>
                   <th scope="col">Asesor</th>
-                  <th scope="col">Leads</th>
-                  <th scope="col">T. respuesta</th>
-                  <th scope="col">Sin responder</th>
-                  <th scope="col">Pendientes</th>
-                  <th scope="col">Calidad</th>
-                  <th scope="col">Conversión</th>
-                  <th scope="col">Ventas</th>
+                  <th scope="col" className="n">
+                    Leads
+                  </th>
+                  <th scope="col" className="n">
+                    T. respuesta
+                  </th>
+                  <th scope="col" className="n">
+                    Sin responder
+                  </th>
+                  <th scope="col" className="n">
+                    Pendientes
+                  </th>
+                  <th scope="col" className="n">
+                    Calidad
+                  </th>
+                  <th scope="col" className="n">
+                    Conversión
+                  </th>
+                  <th scope="col" className="n">
+                    Ventas
+                  </th>
                   <th scope="col">Etapas A · S · N · C</th>
                   <th scope="col">Cuello de botella</th>
                 </tr>
@@ -221,19 +244,31 @@ export default async function VistaSubcuenta({
                         <span className="con-avatar">{nombreCorto(a.nombre)}</span>
                       )}
                     </td>
-                    <td>{numero(a.indicadores.leadsRecibidos)}</td>
-                    <td>{minutos(a.indicadores.tiempoRespuestaMediana)}</td>
-                    <td>{numero(a.indicadores.sinResponder)}</td>
-                    <td>{numero(a.indicadores.seguimientoVencido)}</td>
-                    <td>
+                    <td className="n" data-etiqueta="Leads">
+                      {numero(a.indicadores.leadsRecibidos)}
+                    </td>
+                    <td className="n" data-etiqueta="T. respuesta">
+                      {minutos(a.indicadores.tiempoRespuestaMediana)}
+                    </td>
+                    <td className="n" data-etiqueta="Sin responder">
+                      {numero(a.indicadores.sinResponder)}
+                    </td>
+                    <td className="n" data-etiqueta="Pendientes">
+                      {numero(a.indicadores.seguimientoVencido)}
+                    </td>
+                    <td className="n" data-etiqueta="Calidad">
                       {a.indicadores.calidad === null ? '—' : numero(a.indicadores.calidad, 1)}
                     </td>
-                    <td>{porcentaje(a.indicadores.conversion)}</td>
-                    <td style={{ fontWeight: 600 }}>{numero(a.indicadores.ventas)}</td>
-                    <td>
+                    <td className="n" data-etiqueta="Conversión">
+                      {porcentaje(a.indicadores.conversion)}
+                    </td>
+                    <td className="n" data-etiqueta="Ventas" style={{ fontWeight: 600 }}>
+                      {numero(a.indicadores.ventas)}
+                    </td>
+                    <td data-etiqueta="Etapas">
                       <BarrasEtapa etapas={a.evaluacion.etapas} />
                     </td>
-                    <td>
+                    <td data-etiqueta="Cuello de botella">
                       <PildoraCuello cuello={a.evaluacion.cuello} etapas={a.evaluacion.etapas} />
                     </td>
                   </tr>
@@ -242,7 +277,7 @@ export default async function VistaSubcuenta({
             </table>
           </div>
         )}
-        <div style={{ padding: '0 24px 16px' }}>
+        <div style={{ padding: '4px 20px 18px' }}>
           <Leyenda />
         </div>
       </section>
@@ -253,7 +288,13 @@ export default async function VistaSubcuenta({
             id: 'sin',
             etiqueta: 'Sin responder',
             total: listas.totales.sinResponder,
-            filas: listas.sinResponder,
+            filas: listas.sinResponder.filter((f) => f.espera !== ESPERA_FUERA_DE_TURNO),
+          },
+          {
+            id: 'fuera',
+            etiqueta: 'Asesor fuera de turno',
+            total: listas.totales.fueraDeTurno,
+            filas: listas.sinResponder.filter((f) => f.espera === ESPERA_FUERA_DE_TURNO),
           },
           {
             id: 'pend',
@@ -263,7 +304,7 @@ export default async function VistaSubcuenta({
           },
           {
             id: 'ayer',
-            etiqueta: 'Interesados de ayer sin contacto hoy',
+            etiqueta: 'Interesados de ayer',
             total: listas.totales.interesados,
             filas: listas.interesados,
           },
@@ -312,14 +353,14 @@ export default async function VistaSubcuenta({
           {peores.mensajes.map((m, n) => (
             <div key={n} className="mensaje-mejorar">
               <div className="fila-cabecera" style={{ flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#5B6475' }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--gris)' }}>
                   {nombreCorto(m.asesor) || 'Asesor'} ·{' '}
                   {NOMBRES_CATEGORIA[m.categoria as CategoriaCalidad] ?? m.categoria}
                 </span>
                 <Pildora tono="rojo">{m.puntaje} / 5</Pildora>
               </div>
               <span style={{ fontSize: 14 }}>“{m.texto}”</span>
-              <span style={{ fontSize: 12, color: '#5B6475' }}>
+              <span style={{ fontSize: 12, color: 'var(--gris)' }}>
                 {m.motivo}
                 {m.criterios
                   ? ` · Falta: ${

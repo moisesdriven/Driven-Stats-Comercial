@@ -6,7 +6,7 @@ import {
   type CategoriaCalidad,
   type ClaveIndicador,
 } from '@driven/core';
-import { GraficoBarras, Pildora } from '@/componentes/panel/Bloques';
+import { GraficoBarras, IconoTono, Pildora } from '@/componentes/panel/Bloques';
 import {
   BotonEjemplos,
   ProveedorEjemplos,
@@ -28,7 +28,7 @@ import {
   soles,
 } from '@/lib/formato';
 import { diasDelPeriodo, leerPeriodo, qsPeriodo } from '@/lib/periodo';
-import { COLORES, ETAPAS_ORDEN, NOMBRE_ETAPA, textoEstado, tonoDe } from '@/lib/semaforo';
+import { ETAPAS_ORDEN, NOMBRE_ETAPA, textoEstado, tonoDe } from '@/lib/semaforo';
 import { indicadoresAsesor } from '@/servidor/consultas/indicadores';
 import { tiemposSubcuenta } from '@/servidor/consultas/tiempo';
 import { obtenerDb } from '@/servidor/db';
@@ -37,16 +37,8 @@ import { sql } from 'drizzle-orm';
 
 export const metadata = { title: 'Detalle del asesor · Driven Comercial' };
 
-const COLORES_TIPO = [
-  '#1F5BFF',
-  '#6E93FF',
-  '#0B0D12',
-  '#5B6475',
-  '#B9C6E4',
-  '#12B76A',
-  '#F79009',
-  '#D5DBE7',
-];
+/** Serie categórica validada (variables --serie-1…8 del tema), en orden fijo. */
+const COLORES_TIPO = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `var(--serie-${n})`);
 
 export default async function DetalleAsesor({
   params,
@@ -190,7 +182,7 @@ export default async function DetalleAsesor({
             <h1 className="titulo" style={{ fontSize: 30 }}>
               {nombre}
             </h1>
-            <span style={{ fontSize: 14, color: '#B4BCCC' }}>
+            <span style={{ fontSize: 14, color: 'var(--gris)' }}>
               {sub?.nombre} · {numero(i.leadsRecibidos)} leads ·{' '}
               {rangoFechas(periodo.desde, periodo.hasta)}
             </span>
@@ -200,10 +192,10 @@ export default async function DetalleAsesor({
                 alignItems: 'center',
                 gap: 8,
                 fontSize: 13,
-                color: '#B4BCCC',
+                color: 'var(--gris)',
               }}
             >
-              <IconoReloj tam={16} color="#8FB0FF" />
+              <IconoReloj tam={16} color="var(--azul)" />
               {d.corrido
                 ? 'Tiempo corrido: se mide las 24 horas, todos los días'
                 : tramosHoy.length
@@ -217,7 +209,7 @@ export default async function DetalleAsesor({
         >
           <span
             className="cuello-tarjeta__etiqueta"
-            style={tonoCuello === 'verde' ? { color: '#75E0A7' } : undefined}
+            style={tonoCuello === 'verde' ? { color: 'var(--verde-texto)' } : undefined}
           >
             {cuello ? `Cuello de botella · ${NOMBRE_ETAPA[cuello]}` : 'Sin cuello de botella'}
           </span>
@@ -227,7 +219,7 @@ export default async function DetalleAsesor({
               : 'Cumple las metas de las cuatro etapas en el periodo'}
           </span>
           {dCuello && (
-            <span style={{ fontSize: 13, color: '#B4BCCC' }}>
+            <span style={{ fontSize: 13, color: 'var(--gris)' }}>
               {dCuello.etiqueta}: {dCuello.valor} ({dCuello.meta.toLowerCase()}) · subcuenta{' '}
               {describir(dCuello.clave, s, pres).valor}
             </span>
@@ -247,21 +239,29 @@ export default async function DetalleAsesor({
             <div key={e} className={`etapa-clara${estado === 'rojo' ? ' etapa-clara--rojo' : ''}`}>
               <div className="fila-cabecera">
                 <span className="etapa-clara__nombre">{NOMBRE_ETAPA[e]}</span>
-                <Pildora tono={tonoDe(estado)}>{textoEstado(estado)}</Pildora>
+                <Pildora tono={tonoDe(estado)} icono>
+                  {textoEstado(estado)}
+                </Pildora>
               </div>
               <span className="etapa-clara__valor">{x.valor}</span>
-              <span style={{ fontSize: 13, color: '#5B6475' }}>{x.etiqueta}</span>
+              <span style={{ fontSize: 13, color: 'var(--gris)' }}>{x.etiqueta}</span>
               <div
                 className="progreso progreso--fino"
                 role="img"
                 aria-label={x.avance === null ? 'Sin dato' : `${Math.round(x.avance)} % de la meta`}
               >
                 <div
-                  className={estado === 'rojo' ? 'progreso--rojo' : undefined}
+                  className={
+                    estado === 'rojo'
+                      ? 'progreso--rojo'
+                      : estado === 'amarillo'
+                        ? 'progreso--naranja'
+                        : undefined
+                  }
                   style={{ width: `${x.avance ?? 0}%` }}
                 />
               </div>
-              <span style={{ fontSize: 12, color: '#5B6475' }}>
+              <span style={{ fontSize: 12, color: 'var(--gris)' }}>
                 {x.meta} · subcuenta {describir(x.clave, s, pres).valor}
               </span>
               {e === 'negociacion' && <BotonEjemplos />}
@@ -296,10 +296,12 @@ export default async function DetalleAsesor({
               <tbody>
                 {tabla.map((r) => {
                   const estado = r.clave ? ev.estados[r.clave] : null;
-                  const color = r.clave && estado ? COLORES[tonoDe(estado)] : COLORES.azul;
+                  const tono = r.clave && estado ? tonoDe(estado) : 'azul';
                   const etiqueta = (
                     <>
-                      <span className="punto" style={{ background: color }} aria-hidden="true" />
+                      <span className={`estado estado--${tono}`} aria-hidden="true">
+                        <IconoTono tono={tono} />
+                      </span>
                       {r.etiqueta}
                       <span className="oculto">
                         ({r.clave ? textoEstado(estado) : 'referencia'})
@@ -318,8 +320,8 @@ export default async function DetalleAsesor({
                         )}
                       </td>
                       <td style={{ fontWeight: 600 }}>{r.valor}</td>
-                      <td style={{ color: '#5B6475' }}>{r.meta}</td>
-                      <td style={{ color: '#5B6475' }}>{r.prom}</td>
+                      <td style={{ color: 'var(--gris)' }}>{r.meta}</td>
+                      <td style={{ color: 'var(--gris)' }}>{r.prom}</td>
                     </tr>
                   );
                 })}
@@ -388,7 +390,7 @@ export default async function DetalleAsesor({
                         alignItems: 'center',
                         gap: 6,
                         fontSize: 12,
-                        color: '#3A4252',
+                        color: 'var(--gris-oscuro)',
                       }}
                     >
                       <span

@@ -45,10 +45,10 @@ const DESCRIPCION_ROL: Record<Rol, string> = {
   asesor: 'Solo su propio detalle e indicadores.',
 };
 const CHIP_ROL: Record<Rol, React.CSSProperties> = {
-  admin: { background: '#0B0D12', color: '#FFFFFF' },
-  dueno: { background: '#E8EEFF', color: '#1F5BFF' },
-  supervisor: { background: '#F0F3F9', color: '#3A4252' },
-  asesor: { background: '#E7F8EF', color: '#067647' },
+  admin: { background: 'var(--negro)', color: 'var(--fondo)' },
+  dueno: { background: 'var(--azul-suave)', color: 'var(--azul)' },
+  supervisor: { background: 'var(--fondo-suave)', color: 'var(--gris-oscuro)' },
+  asesor: { background: 'var(--verde-fondo)', color: 'var(--verde-texto)' },
 };
 const FIJOS_ADMIN: Modulo[] = ['usuarios', 'configuracion'];
 
@@ -210,7 +210,10 @@ export function AdminUsuarios({ usuarios, subcuentas, asesores, yo }: Props) {
         <div className="encabezado__textos">
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
             <h1 className="titulo">Usuarios y accesos</h1>
-            <span className="chip-tipo" style={{ background: '#E8EEFF', color: '#1F5BFF' }}>
+            <span
+              className="chip-tipo"
+              style={{ background: 'var(--azul-suave)', color: 'var(--azul)' }}
+            >
               Solo administradores
             </span>
           </div>
@@ -286,7 +289,7 @@ export function AdminUsuarios({ usuarios, subcuentas, asesores, yo }: Props) {
                     key={u.id}
                     style={
                       u.id === sel
-                        ? { background: '#EEF3FF' }
+                        ? { background: 'var(--azul-suave)' }
                         : u.activo
                           ? undefined
                           : { opacity: 0.55 }
@@ -317,7 +320,7 @@ export function AdminUsuarios({ usuarios, subcuentas, asesores, yo }: Props) {
                             {u.nombre}
                             {!u.activo && ' (inactivo)'}
                           </span>
-                          <span style={{ fontSize: 12, color: '#5B6475' }}>{u.correo}</span>
+                          <span style={{ fontSize: 12, color: 'var(--gris)' }}>{u.correo}</span>
                         </span>
                       </button>
                     </td>
@@ -326,17 +329,17 @@ export function AdminUsuarios({ usuarios, subcuentas, asesores, yo }: Props) {
                         {NOMBRES_ROL[u.rol]}
                       </span>
                     </td>
-                    <td style={{ fontSize: 13, color: '#3A4252' }}>
+                    <td style={{ fontSize: 13, color: 'var(--gris-oscuro)' }}>
                       {u.rol === 'admin'
                         ? 'Todas'
                         : u.subcuentas.map((s) => nombreSub.get(s) ?? s).join(', ') || 'Ninguna'}
                     </td>
-                    <td style={{ fontSize: 13, color: '#5B6475' }}>{u.ingreso}</td>
+                    <td style={{ fontSize: 13, color: 'var(--gris)' }}>{u.ingreso}</td>
                   </tr>
                 ))}
                 {filtrados.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ color: '#5B6475' }}>
+                    <td colSpan={4} style={{ color: 'var(--gris)' }}>
                       Ningún usuario coincide con la búsqueda.
                     </td>
                   </tr>
@@ -365,7 +368,7 @@ export function AdminUsuarios({ usuarios, subcuentas, asesores, yo }: Props) {
             </span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
               <h2 className="seccion__titulo">{sel === 'nuevo' ? 'Nuevo usuario' : b.nombre}</h2>
-              <span style={{ fontSize: 13, color: '#B4BCCC' }}>
+              <span style={{ fontSize: 13, color: 'var(--gris)' }}>
                 {sel === 'nuevo'
                   ? 'Recibirá una contraseña temporal'
                   : `${b.correo}${actual?.totpActivo ? ' · verificación en dos pasos activa' : ''}`}
@@ -449,7 +452,7 @@ export function AdminUsuarios({ usuarios, subcuentas, asesores, yo }: Props) {
                 style={{
                   padding: '12px 14px',
                   borderRadius: 12,
-                  background: 'rgba(255,255,255,0.06)',
+                  background: 'var(--fondo-suave)',
                 }}
               >
                 El administrador ve todas las subcuentas.
@@ -590,8 +593,8 @@ export function AdminUsuarios({ usuarios, subcuentas, asesores, yo }: Props) {
                 className="boton-sec"
                 style={{
                   background: 'transparent',
-                  color: '#fff',
-                  borderColor: 'rgba(255,255,255,0.28)',
+                  color: 'var(--negro)',
+                  borderColor: 'var(--control-borde)',
                 }}
                 onClick={() => void restablecer()}
                 disabled={enviando}

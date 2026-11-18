@@ -32,8 +32,11 @@ export const IconoAsesor = () => (
     <path d="M4 21c0-4 4-6 8-6s8 2 8 6" />
   </svg>
 );
+/** El color va por `style` para aceptar variables del tema (var(--…)) en los dos temas. */
+const conColor = (color?: string) => (color ? { color } : undefined);
+
 export const IconoReloj = ({ tam = 18, color }: { tam?: number; color?: string }) => (
-  <svg {...base} width={tam} height={tam} stroke={color ?? 'currentColor'}>
+  <svg {...base} width={tam} height={tam} style={conColor(color)}>
     <circle cx="12" cy="12" r="9" />
     <path d="M12 7v5l3 2" />
   </svg>
@@ -63,8 +66,8 @@ export const IconoTendencia = () => (
     <path d="M14 7h7v7" />
   </svg>
 );
-export const IconoAlerta = ({ color }: { color: string }) => (
-  <svg {...base} stroke={color}>
+export const IconoAlerta = ({ color, tam = 18 }: { color?: string; tam?: number }) => (
+  <svg {...base} width={tam} height={tam} style={conColor(color)}>
     <path d="M12 9v4" />
     <path d="M12 17h.01" />
     <path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" />
@@ -93,8 +96,8 @@ export const IconoMas = () => (
     <path d="M5 12h14" />
   </svg>
 );
-export const IconoCheck = ({ color = '#FFFFFF', tam = 12 }: { color?: string; tam?: number }) => (
-  <svg {...base} width={tam} height={tam} stroke={color} strokeWidth={3.2}>
+export const IconoCheck = ({ color, tam = 12 }: { color?: string; tam?: number }) => (
+  <svg {...base} width={tam} height={tam} style={conColor(color)} strokeWidth={3.2}>
     <path d="M5 12l5 5L20 7" />
   </svg>
 );
@@ -102,5 +105,23 @@ export const IconoBuscar = () => (
   <svg {...base} width={16} height={16}>
     <circle cx="11" cy="11" r="7" />
     <path d="M20 20l-3.5-3.5" />
+  </svg>
+);
+
+export const IconoCirculoCheck = ({ tam = 15 }: { tam?: number }) => (
+  <svg {...base} width={tam} height={tam}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="m8 12 3 3 5-6" />
+  </svg>
+);
+export const IconoInfo = ({ tam = 15 }: { tam?: number }) => (
+  <svg {...base} width={tam} height={tam}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5M12 8h.01" />
+  </svg>
+);
+export const IconoDescarga = () => (
+  <svg {...base}>
+    <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
   </svg>
 );

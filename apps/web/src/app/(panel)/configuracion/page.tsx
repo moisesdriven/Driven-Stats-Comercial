@@ -119,7 +119,7 @@ export default async function Configuracion({
                           <span
                             style={{
                               fontSize: 12,
-                              color: '#5B6475',
+                              color: 'var(--gris)',
                               fontFamily: 'ui-monospace, monospace',
                             }}
                           >
@@ -182,7 +182,7 @@ export default async function Configuracion({
                 })}
                 {subs.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ color: '#5B6475' }}>
+                    <td colSpan={5} style={{ color: 'var(--gris)' }}>
                       Aún no hay subcuentas dadas de alta.
                     </td>
                   </tr>
@@ -233,7 +233,7 @@ export default async function Configuracion({
                     : 'Sin datos'}
                 </span>
                 {m.ultimoError && (
-                  <span style={{ fontSize: 12, color: '#B42318' }}>{m.ultimoError}</span>
+                  <span style={{ fontSize: 12, color: 'var(--rojo-texto)' }}>{m.ultimoError}</span>
                 )}
               </div>
             ))}
@@ -263,7 +263,7 @@ export default async function Configuracion({
                     <td>
                       {TIPO_CARGA[c.tipo] ?? c.tipo}
                       {c.modo === 'sombra' && (
-                        <span style={{ fontSize: 12, color: '#5B6475' }}> · modo sombra</span>
+                        <span style={{ fontSize: 12, color: 'var(--gris)' }}> · modo sombra</span>
                       )}
                     </td>
                     <td>{haceCuanto(c.inicio)}</td>
@@ -281,7 +281,12 @@ export default async function Configuracion({
                       </Pildora>
                       {c.error && (
                         <span
-                          style={{ display: 'block', fontSize: 12, color: '#B42318', marginTop: 4 }}
+                          style={{
+                            display: 'block',
+                            fontSize: 12,
+                            color: 'var(--rojo-texto)',
+                            marginTop: 4,
+                          }}
                         >
                           {c.error.slice(0, 200)}
                         </span>
@@ -291,7 +296,7 @@ export default async function Configuracion({
                 ))}
                 {cargas.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ color: '#5B6475' }}>
+                    <td colSpan={5} style={{ color: 'var(--gris)' }}>
                       Aún no hay cargas registradas.
                     </td>
                   </tr>
@@ -318,7 +323,7 @@ export default async function Configuracion({
             <h2 className="seccion__titulo seccion__titulo--chico">Gasto del mes en análisis</h2>
             <span style={{ fontFamily: 'var(--titulos)', fontSize: 22, fontWeight: 700 }}>
               {usd(h.gastoDelMesUsd)}{' '}
-              <span style={{ fontSize: 14, color: '#5B6475', fontWeight: 500 }}>
+              <span style={{ fontSize: 14, color: 'var(--gris)', fontWeight: 500 }}>
                 de {usd(h.topeMensualUsd)}
               </span>
             </span>
@@ -372,7 +377,7 @@ export default async function Configuracion({
                       </td>
                       <td>
                         {fechaLarga(a.periodoDesde)} al {fechaLarga(a.periodoHasta)}
-                        <span style={{ display: 'block', fontSize: 12, color: '#5B6475' }}>
+                        <span style={{ display: 'block', fontSize: 12, color: 'var(--gris)' }}>
                           Lanzado {haceCuanto(a.creadoEn).toLowerCase()}
                         </span>
                       </td>
@@ -381,7 +386,7 @@ export default async function Configuracion({
                       <td>{numero(a.mensajesCalificados)}</td>
                       <td>
                         {usd(a.costoReal ?? a.costoEstimado)}
-                        <span style={{ display: 'block', fontSize: 12, color: '#5B6475' }}>
+                        <span style={{ display: 'block', fontSize: 12, color: 'var(--gris)' }}>
                           {a.costoReal !== null ? 'real' : 'estimado'}
                         </span>
                       </td>
@@ -392,7 +397,7 @@ export default async function Configuracion({
                             style={{
                               display: 'block',
                               fontSize: 12,
-                              color: '#B42318',
+                              color: 'var(--rojo-texto)',
                               marginTop: 4,
                             }}
                           >
@@ -405,7 +410,7 @@ export default async function Configuracion({
                 })}
                 {h.analisis.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ color: '#5B6475' }}>
+                    <td colSpan={7} style={{ color: 'var(--gris)' }}>
                       Aún no se ha ejecutado ningún análisis.
                     </td>
                   </tr>

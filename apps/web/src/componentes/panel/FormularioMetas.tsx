@@ -279,7 +279,7 @@ export function FormularioMetas({ locationId, metas, etapas, etapasCalidad, pued
               <fieldset key={g.etapa} className="grupo-metas">
                 <legend>
                   <span className="etapa-clara__nombre">{g.etapa}</span>{' '}
-                  <span style={{ fontSize: 13, color: '#5B6475', fontWeight: 400 }}>
+                  <span style={{ fontSize: 13, color: 'var(--gris)', fontWeight: 400 }}>
                     {g.pregunta}
                   </span>
                 </legend>
@@ -294,7 +294,7 @@ export function FormularioMetas({ locationId, metas, etapas, etapasCalidad, pued
                       }}
                     >
                       <span style={{ fontWeight: 600, fontSize: 14 }}>{c.etiqueta}</span>
-                      <span style={{ fontSize: 12, color: '#5B6475' }}>{c.ayuda}</span>
+                      <span style={{ fontSize: 12, color: 'var(--gris)' }}>{c.ayuda}</span>
                     </span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <input
@@ -309,7 +309,7 @@ export function FormularioMetas({ locationId, metas, etapas, etapasCalidad, pued
                         value={valores[c.clave] ?? ''}
                         onChange={(e) => setValores({ ...valores, [c.clave]: e.target.value })}
                       />
-                      <span style={{ fontSize: 13, color: '#5B6475', minWidth: 52 }}>
+                      <span style={{ fontSize: 13, color: 'var(--gris)', minWidth: 52 }}>
                         {c.unidad}
                       </span>
                     </span>
@@ -321,7 +321,7 @@ export function FormularioMetas({ locationId, metas, etapas, etapasCalidad, pued
           <label className="fila-meta" style={{ maxWidth: 560 }}>
             <span style={{ display: 'flex', flexDirection: 'column', flex: '1 1 0', minWidth: 0 }}>
               <span style={{ fontWeight: 600, fontSize: 14 }}>Margen para el amarillo</span>
-              <span style={{ fontSize: 12, color: '#5B6475' }}>
+              <span style={{ fontSize: 12, color: 'var(--gris)' }}>
                 Cuánto puede alejarse de la meta antes de pasar a rojo (indicadores con meta
                 distinta de 0)
               </span>
@@ -338,7 +338,7 @@ export function FormularioMetas({ locationId, metas, etapas, etapasCalidad, pued
                 value={valores.toleranciaRelativa}
                 onChange={(e) => setValores({ ...valores, toleranciaRelativa: e.target.value })}
               />
-              <span style={{ fontSize: 13, color: '#5B6475', minWidth: 52 }}>%</span>
+              <span style={{ fontSize: 13, color: 'var(--gris)', minWidth: 52 }}>%</span>
             </span>
           </label>
         </fieldset>
@@ -413,7 +413,7 @@ export function FormularioMetas({ locationId, metas, etapas, etapasCalidad, pued
                     }}
                   >
                     <span style={{ fontWeight: 600 }}>{e.nombre}</span>
-                    <span style={{ fontSize: 12, color: '#5B6475' }}>
+                    <span style={{ fontSize: 12, color: 'var(--gris)' }}>
                       {[e.pipeline, e.estandar ? `cuenta como ${e.estandar}` : 'sin etapa estándar']
                         .filter(Boolean)
                         .join(' · ')}

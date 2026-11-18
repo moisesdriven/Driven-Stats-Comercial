@@ -180,7 +180,7 @@ export function MapaEtapas({
                   <td>
                     <span style={{ fontWeight: 600 }}>{e.nombre}</span>
                     {e.pipeline && (
-                      <span style={{ fontSize: 12, color: '#5B6475' }}> · {e.pipeline}</span>
+                      <span style={{ fontSize: 12, color: 'var(--gris)' }}> · {e.pipeline}</span>
                     )}
                   </td>
                   <td>
@@ -419,7 +419,7 @@ export function LanzarAnalisis({
                   <tr key={s.locationId}>
                     <td style={{ fontWeight: 600 }}>{s.nombre}</td>
                     {s.error ? (
-                      <td colSpan={4} style={{ color: '#B42318' }}>
+                      <td colSpan={4} style={{ color: 'var(--rojo-texto)' }}>
                         {s.error}
                       </td>
                     ) : (
@@ -429,12 +429,12 @@ export function LanzarAnalisis({
                         <td>
                           {numero(s.mensajesEstimados)}
                           {(s.mensajesPorRegla ?? 0) > 0 && (
-                            <span style={{ display: 'block', fontSize: 12, color: '#5B6475' }}>
+                            <span style={{ display: 'block', fontSize: 12, color: 'var(--gris)' }}>
                               {numero(s.mensajesPorRegla)} saludos por regla, sin IA
                             </span>
                           )}
                           {(s.conversacionesReutilizadas ?? 0) > 0 && (
-                            <span style={{ display: 'block', fontSize: 12, color: '#5B6475' }}>
+                            <span style={{ display: 'block', fontSize: 12, color: 'var(--gris)' }}>
                               {numero(s.conversacionesReutilizadas)} conversaciones ya calificadas,
                               no se pagan otra vez
                             </span>
@@ -443,15 +443,18 @@ export function LanzarAnalisis({
                         <td>
                           {usd(s.costoEstimadoUsd ?? 0)}
                           {s.costoMaximoUsd !== undefined && (
-                            <span style={{ display: 'block', fontSize: 12, color: '#5B6475' }}>
+                            <span style={{ display: 'block', fontSize: 12, color: 'var(--gris)' }}>
                               hasta {usd(s.costoMaximoUsd)}
                             </span>
                           )}
                           {s.enCurso && (
-                            <span style={{ color: '#B42318' }}> · ya tiene uno en curso</span>
+                            <span style={{ color: 'var(--rojo-texto)' }}>
+                              {' '}
+                              · ya tiene uno en curso
+                            </span>
                           )}
                           {s.manualesMes >= est.maxManualesMes && (
-                            <span style={{ color: '#B42318' }}>
+                            <span style={{ color: 'var(--rojo-texto)' }}>
                               {' '}
                               · usó sus {est.maxManualesMes} del mes
                             </span>
@@ -555,7 +558,10 @@ export function ZonaSubcuenta({
       </span>
       {mensaje && (
         <span
-          style={{ fontSize: 12, color: mensaje.tipo === 'error' ? '#B42318' : '#067647' }}
+          style={{
+            fontSize: 12,
+            color: mensaje.tipo === 'error' ? 'var(--rojo-texto)' : 'var(--verde-texto)',
+          }}
           role="status"
         >
           {mensaje.texto}

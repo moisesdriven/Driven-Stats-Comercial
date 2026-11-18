@@ -3,6 +3,13 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
+const OPCIONES = [
+  { valor: 'hoy', texto: 'Hoy' },
+  { valor: '7d', texto: '7 días' },
+  { valor: 'mes', texto: 'Este mes' },
+  { valor: 'rango', texto: 'Rango' },
+];
+
 /** Filtro de periodo (hoy, últimos 7 días, este mes, rango): cambia la URL y la página recalcula. */
 export function FiltroPeriodo({
   clave,
@@ -28,23 +35,25 @@ export function FiltroPeriodo({
   };
   return (
     <>
-      <label className="filtro">
-        Periodo
-        <select
-          className="control"
-          value={clave}
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v === 'rango') ir({ periodo: 'rango', desde: rango.desde, hasta: rango.hasta });
-            else ir({ periodo: v === '7d' ? null : v, desde: null, hasta: null });
-          }}
-        >
-          <option value="7d">Últimos 7 días</option>
-          <option value="hoy">Hoy</option>
-          <option value="mes">Este mes</option>
-          <option value="rango">Rango de fechas</option>
-        </select>
-      </label>
+      <fieldset className="segmentos">
+        <legend>Periodo</legend>
+        {OPCIONES.map((o) => (
+          <label key={o.valor}>
+            <input
+              type="radio"
+              name="periodo"
+              value={o.valor}
+              checked={clave === o.valor}
+              onChange={() => {
+                if (o.valor === 'rango')
+                  ir({ periodo: 'rango', desde: rango.desde, hasta: rango.hasta });
+                else ir({ periodo: o.valor === '7d' ? null : o.valor, desde: null, hasta: null });
+              }}
+            />
+            <span>{o.texto}</span>
+          </label>
+        ))}
+      </fieldset>
       {clave === 'rango' && (
         <>
           <label className="filtro">
