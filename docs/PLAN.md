@@ -4,16 +4,22 @@ Fases según la sección 14 de `ESPECIFICACION.md`. Se trabaja en la rama
 `claude/bold-ptolemy-6m09ny`, con un commit por fase, y se espera aprobación antes de pasar a la
 siguiente.
 
-| Fase | Entregable                                                                          | Estado                |
-| ---- | ----------------------------------------------------------------------------------- | --------------------- |
-| 0    | Monorepo, CI, `.env.example`, `CLAUDE.md`, este plan                                | Terminada             |
-| 1    | Esquema `comercial`, roles, migraciones, cifrado, `crear-admin`, login y permisos   | Terminada             |
-| 2    | Cliente GHL, alta de subcuentas y tokens, cargas; `docs/mapeo-origen.md`            | Terminada             |
-| 3    | `packages/core`: horario laboral, indicadores, semáforo, cuello de botella, alertas | Terminada             |
-| 4    | Historial de etapas y análisis de calidad por muestra                               | Construida, validando |
-| 5    | Interfaz: vista general, subcuenta, asesor, horarios, usuarios, configuración       | Terminada             |
-| 6    | Purga de textos (alertas y resumen diario por WhatsApp: versión 2)                  | Terminada             |
-| 7    | Scripts de despliegue en PowerShell y `docs/DEPLOY.md`                              | Terminada             |
+| Fase | Entregable                                                                          | Estado         |
+| ---- | ----------------------------------------------------------------------------------- | -------------- |
+| 0    | Monorepo, CI, `.env.example`, `CLAUDE.md`, este plan                                | Terminada      |
+| 1    | Esquema `comercial`, roles, migraciones, cifrado, `crear-admin`, login y permisos   | Terminada      |
+| 2    | Cliente GHL, alta de subcuentas y tokens, cargas; `docs/mapeo-origen.md`            | Terminada      |
+| 3    | `packages/core`: horario laboral, indicadores, semáforo, cuello de botella, alertas | Terminada      |
+| 4    | Historial de etapas y análisis de calidad por muestra                               | Terminada (\*) |
+| 5    | Interfaz: vista general, subcuenta, asesor, horarios, usuarios, configuración       | Terminada      |
+| 6    | Purga de textos (alertas y resumen diario por WhatsApp: versión 2)                  | Terminada      |
+| 7    | Scripts de despliegue en PowerShell y `docs/DEPLOY.md`                              | Terminada      |
+
+(\*) Construida y validada en costo con análisis reales (estimado a ±1 % del real). La rúbrica v4
+aprueba la calibración en los dos conjuntos con Sonnet 5.5 (±1 93–94 %, categoría 85–87 %); con
+Haiku 5.5 (valor por omisión) solo al límite en el primero. El modelo lo elige el administrador
+global en Configuración › Calidad: ~US$ 8 (Sonnet) frente a ~US$ 0,40 (Haiku) al mes por subcuenta
+(ver `validacion.md` y `decisiones.md`, 18 nov 2026).
 
 ## Decisiones tomadas al inicio
 
@@ -99,8 +105,15 @@ Detalle en [`decisiones.md`](decisiones.md).
 - Zona horaria editable por subcuenta en Configuración (la de GHL puede no ser la del país donde
   opera el negocio; Jade18K queda en America/Lima). La carga de GHL no la sobrescribe.
 - Las tarjetas y tablas muestran las metas reales de cada subcuenta (antes había valores fijos).
-- Pendiente: el filtro por canal de la vista general (§10.2). `resumen_diario` no guarda la
-  dimensión canal; agregarla requiere cambiar el resumen del worker y regenerarlo.
+- Filtro por canal de la vista general (§10.2, 18 nov 2026): `resumen_diario.canal` (migración
+  0002). El worker guarda, además del total de la subcuenta y las filas por asesor, el total de la
+  subcuenta en cada canal; el resto de las consultas usa solo las filas con `canal` nulo. El
+  selector muestra los canales con datos en las subcuentas del usuario; con un canal elegido, la
+  calidad queda sin dato (no se mide por canal) y la exportación incluye el canal. Al desplegar hay
+  que recalcular el resumen (`servidor.sh recalcular 90`) para que existan las filas por canal.
+- Rediseño visual aprobado el 18 nov 2026 (ver `decisiones.md`).
+- Módulo Asesores propio, metas y etapas explícitamente por subcuenta, elección del modelo de IA
+  por el administrador global y navegación más rápida (18 nov 2026, ver `decisiones.md`).
 
 ## Fase 6 · resultado
 

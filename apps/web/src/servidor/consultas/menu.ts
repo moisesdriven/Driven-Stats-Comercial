@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { cache } from 'react';
 import type { EstadoSemaforo } from '@driven/core';
 import type { Db } from '@driven/db';
 import type { ContextoAcceso } from '../acceso';
@@ -10,8 +11,14 @@ export interface SubcuentaMenu {
   peor: EstadoSemaforo | null;
 }
 
-/** Subcuentas del usuario con el semáforo de su último resumen diario. */
-export async function subcuentasMenu(db: Db, ctx: ContextoAcceso): Promise<SubcuentaMenu[]> {
+/**
+ * Subcuentas del usuario con el semáforo de su último resumen diario. Una sola consulta por
+ * petición aunque la pidan el menú y la página.
+ */
+export const subcuentasMenu = cache(async function subcuentasMenu(
+  db: Db,
+  ctx: ContextoAcceso,
+): Promise<SubcuentaMenu[]> {
   if (!ctx.subcuentas.length) return [];
   const ids = sql.join(
     ctx.subcuentas.map((x) => sql`${x}`),
@@ -26,7 +33,8 @@ export async function subcuentasMenu(db: Db, ctx: ContextoAcceso): Promise<Subcu
     from comercial.subcuentas s
     left join lateral (
       select estados_etapa from comercial.resumen_diario
-      where location_id = s.location_id and asesor_id is null order by fecha desc limit 1
+      where location_id = s.location_id and asesor_id is null and canal is null
+      order by fecha desc limit 1
     ) r on true
     where s.location_id in (${ids}) and s.activa
     order by s.nombre`);
@@ -39,4 +47,4 @@ export async function subcuentasMenu(db: Db, ctx: ContextoAcceso): Promise<Subcu
       null,
     ),
   }));
-}
+});

@@ -46,7 +46,7 @@ Detalles que la especificación no fija. Todas se pueden cambiar.
 
 | Tema                        | Decisión                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Modelo y modo               | Claude Haiku 5.5 por la Batches API (50 % menos), sin pensamiento extendido y con esfuerzo bajo: es una clasificación con rúbrica simple. Salida JSON con esquema (`output_config.format`). Configurable con `IA_MODELO`.                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Modelo y modo               | Claude Haiku 5.5 por la Batches API (50 % menos), sin pensamiento extendido y con esfuerzo bajo: es una clasificación con rúbrica simple. Salida JSON con esquema (`output_config.format`). El administrador global elige el modelo en Configuración › Calidad (`IA_MODELO` es el valor por omisión).                                                                                                                                                                                                                                                                                                                                              |
 | Caché                       | Las instrucciones y la rúbrica (≈ 1.600 tokens en la v1 y ≈ 2.700 en la v2, más que el mínimo de 512 de Haiku 5.5) se marcan para caché en todas las solicitudes. En los lotes reales se leyó de caché casi toda la parte fija (instrucciones + esquema de structured outputs), incluso en el de la v2, que tardó 28 minutos.                                                                                                                                                                                                                                                                                                                      |
 | Puntaje                     | Se deriva de los 5 criterios (un punto por criterio, mínimo 1): el modelo no lo envía, así siempre cumple la regla de la §6.2. Los mensajes "multimedia" no llevan puntaje.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | Contexto                    | El tramo de la conversación dentro de las 3 etapas, máximo 40 mensajes y 6.000 caracteres. Los salientes de IA, workflows y campañas van como `[AUTOMATICO]` (contexto, nunca se califican). El contenido va delimitado y se instruye tratarlo solo como dato.                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -165,3 +165,44 @@ una maqueta con datos reales de Jade18K.
 - **Gráfico de tipos de mensaje:** serie categórica de 8 colores validada para daltonismo en ambos
   temas (variables `--serie-1…8`); la leyenda muestra nombre y porcentaje.
 - **Tipografía:** Sora (títulos y cifras) e Inter (texto), servidas desde el propio dominio.
+
+## Calidad: rúbrica v4 (18 nov 2026, decisiones del cliente)
+
+- Tono: se tolera una sola tilde faltante; dos o más faltas, una palabra mal escrita o una frase
+  confusa lo hacen falso.
+- Responde: si el asesor ya respondió el pedido antes, un seguimiento o una pregunta nueva responde.
+- Extensión: un mensaje corto que completa al anterior del mismo asesor se evalúa junto con él.
+- Categoría: un saludo o presentación que solo hace preguntas generales es saludo_plantilla; con
+  precio o enlaces del catálogo se clasifica por ese contenido.
+- Responde (contradicción "sin precio es falso" / "aclaración necesaria"): si el cliente pidió
+  precio y la asesora pregunta la talla, la fecha o el modelo, responde solo si explica por qué lo
+  necesita ("de acuerdo a la talla es el peso y de acuerdo al peso es el precio").
+- Resultados de calibración en `validacion.md`.
+
+## Modelo de IA, módulo Asesores y velocidad (18 nov 2026, pedido del cliente)
+
+- **Modelo de IA a elección del administrador global.** Configuración › Calidad tiene una tarjeta
+  con Haiku 5.5 o Sonnet 5.5 (con su resultado de calibración y el costo que habría tenido el último
+  análisis con cada uno) y el tope de gasto mensual. Solo el rol administrador la ve y la cambia;
+  queda en auditoría (`ajustes_calidad_guardados`). Se guarda en `comercial.ajustes` (migración 0003) y tiene prioridad sobre `IA_MODELO` / `IA_TOPE_MENSUAL_USD`, que quedan como valores por
+  omisión. El worker la lee en cada ciclo: no hace falta reiniciar. Un análisis manual fija su
+  modelo al lanzarse (el mismo con el que se estimó el costo).
+- **Corrección:** la estimación previa al envío usaba siempre el precio de Haiku. Ahora usa el del
+  modelo elegido, así el tope también protege con Sonnet (unas 18 veces más caro).
+- **Metas y etapas de calidad por subcuenta.** Ya se guardaban por subcuenta; la pantalla ahora lo
+  dice en el título ("Metas y etapas · Jade18K") y en los mensajes al guardar, y el menú conserva la
+  subcuenta que se está mirando al pasar a Asesores, Horarios o Metas.
+- **Módulo Asesores propio** (`/asesores`): tabla de asesores de la subcuenta elegida, con periodo y
+  enlace al detalle. Exige el permiso de detalle de asesores (no el de la vista de subcuenta); el
+  asesor va directo a su propio detalle. Antes el menú solo abría la subcuenta.
+- **Velocidad entre módulos:**
+  - Esqueleto de carga inmediato al cambiar de módulo (`(panel)/loading.tsx`).
+  - Las listas para actuar de la subcuenta (la consulta más pesada) llegan por streaming sin frenar
+    los indicadores: la página empieza a mostrarse en ~0,02 s en vez de ~0,4 s (base local).
+  - La consulta de "sin responder" lee los mensajes de la ventana una sola vez (~45 % menos).
+  - Sesión, permisos y menú se calculan una vez por petición (antes, dos: layout y página).
+- **403 con streaming:** como la página se envía detrás del esqueleto, el estado HTTP ya salió
+  cuando la página revisa permisos. Por eso el layout revisa el acceso a la ruta pedida antes del
+  primer byte en las cargas completas (`exigirAccesoRuta`, con la ruta que deja el proxy en
+  `x-ruta`); en la navegación interna sigue revisando cada página. Entrar y salir de la sesión hace
+  una carga completa de la página (además, no deja en el navegador nada de la sesión anterior).

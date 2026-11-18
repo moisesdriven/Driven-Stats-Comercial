@@ -164,6 +164,14 @@ export default async function DetalleAsesor({
           <span>{sub?.nombre}</span>
         )}
         <span aria-hidden="true">›</span>
+        {ctx.rol !== 'asesor' && (
+          <>
+            <Link href={`/asesores${qs ? `${qs}&` : '?'}subcuenta=${encodeURIComponent(id)}`}>
+              Asesores
+            </Link>
+            <span aria-hidden="true">›</span>
+          </>
+        )}
         <span>{nombre}</span>
       </nav>
 

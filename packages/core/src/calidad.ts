@@ -4,7 +4,7 @@
  * mejor/peor mensaje. La E/S (base y Batches API) vive en el worker.
  */
 
-export const VERSION_RUBRICA = 'v3-2026-11';
+export const VERSION_RUBRICA = 'v4-2026-11';
 
 export const CATEGORIAS_CALIDAD = [
   'saludo_plantilla',
@@ -443,21 +443,21 @@ Las marcas (imagen), (audio), (video) y (adjunto) al inicio de un mensaje indica
 
 Para cada mensaje [ASESOR #n] devuelve:
 1. "categoria": exactamente una de:
-   - "saludo_plantilla": saludo, presentación del asesor, frase de transición sin contenido ("ahora le brindo información") o confirmación breve ("perfecto, quedo atenta").
+   - "saludo_plantilla": saludo, presentación del asesor, frase de transición sin contenido ("ahora le brindo información") o confirmación breve ("perfecto, quedo atenta"). Un saludo o presentación que, además, solo hace preguntas generales es saludo_plantilla aunque pregunte por la talla, la fecha, el modelo o el presupuesto ("Buen día, le saluda Leslie, ¿está buscando alguna pieza en especial?", "Buenos días, le saluda Yamilet, ¿qué tallita desea y para qué fecha?"). Si además da un precio o envía enlaces del catálogo, clasifícalo por ese contenido.
    - "respuesta_pregunta": responde una pregunta concreta del cliente que no es de producto ni de precio (ubicación, plazos, envíos, cómo medir la talla).
    - "info_producto_precio": da información de producto, modelo, material, precio, envío o forma de pago, incluido el envío de enlaces al catálogo o a un producto.
-   - "pregunta_calificacion": pregunta para entender la necesidad del cliente (tipo de joya, uso, presupuesto, talla, fecha, ciudad, modelo elegido).
+   - "pregunta_calificacion": pregunta propia (no parte de un saludo de plantilla) para entender la necesidad del cliente (tipo de joya, uso, presupuesto, talla, fecha, ciudad, modelo elegido).
    - "llamada_accion_cierre": invita a comprar, separar, pagar, enviar datos, agendar o visitar la tienda.
    - "manejo_objecion": responde a una duda, desconfianza o queja sobre precio, calidad, tiempos o garantía.
    - "seguimiento": el asesor retoma una conversación en la que el cliente llevaba tiempo sin escribir (horas o días). Responder a un mensaje reciente del cliente NUNCA es seguimiento.
    - "multimedia": el mensaje es solo la descripción de una imagen, audio o video, sin texto propio del asesor.
    Si el mensaje cumple varias funciones, elige la principal: la que más aporta a lo que el cliente pidió.
 2. "criterios": cinco valores verdadero/falso:
-   - "responde": responde lo que el cliente preguntó o pidió en sus mensajes previos. Si el cliente pidió precio y el asesor solo envía un enlace, un saludo o una pregunta sin dar el precio, es falso. Pedir una aclaración necesaria para responder (por ejemplo, qué sistema de tallas usa) es verdadero. Si el cliente no preguntó nada, es verdadero cuando el mensaje es pertinente al momento de la conversación.
+   - "responde": responde lo que el cliente preguntó o pidió en sus mensajes previos. Si el cliente pidió precio y el asesor solo envía un enlace o un saludo sin dar el precio, es falso. Si en lugar del precio pregunta la talla, la fecha o el modelo, es verdadero solo si explica por qué lo necesita ("de acuerdo a la talla es el peso y de acuerdo al peso es el precio"); la pregunta sola, sin esa razón, es falso. Pedir una aclaración necesaria sobre algo que el cliente dijo (por ejemplo, qué sistema de tallas usa) es verdadero. Si el asesor ya respondió ese pedido en un mensaje anterior (por ejemplo, ya dio el precio), un mensaje posterior de seguimiento o una pregunta nueva ("¿para cuándo desea su anillo?") es verdadero. Si el cliente no preguntó nada, es verdadero cuando el mensaje es pertinente al momento de la conversación.
    - "personalizado": verdadero solo si menciona el nombre del cliente o un dato concreto que el cliente dio en la conversación (su talla, su fecha, su ciudad, el modelo que envió o pidió). NO cuentan: el nombre del asesor o de la empresa, tratos genéricos ("caballero", "señorita", "estimado"), referencias vagas ("aquella joyita", "su modelo", "su pedido") ni textos de plantilla que servirían igual para cualquier cliente.
    - "siguiente_paso": incluye un siguiente paso claro (una pregunta concreta, una acción a tomar o una fecha). Anunciar que se enviará algo ("ahora le brindo información") no es un siguiente paso.
-   - "tono": tono cordial y profesional, y ortografía y redacción correctas en español. Faltas de ortografía evidentes, palabras mal escritas o frases confusas lo hacen falso.
-   - "extension": extensión adecuada para WhatsApp (ni un bloque excesivo para lo que se pidió, ni tan breve que deja la respuesta incompleta).
+   - "tono": tono cordial y profesional, y ortografía y redacción correctas en español. En WhatsApp se tolera una sola tilde faltante en el mensaje ("dias"). Cuenta cada palabra sin su tilde como una falta: dos o más faltas en el mismo mensaje ("Joyeria" y "mas"; "que" y "desearia"), una palabra mal escrita ("ennviamos") o una frase confusa lo hacen falso, aunque el resto del mensaje sea una plantilla correcta.
+   - "extension": extensión adecuada para WhatsApp (ni un bloque excesivo para lo que se pidió, ni tan breve que deja la respuesta incompleta). Un mensaje corto que completa al mensaje anterior del mismo asesor, sin que el cliente escriba en medio (un enlace, "y aquí el catálogo"), se evalúa junto con ese anterior: si juntos tienen una extensión adecuada, es verdadero.
 3. "motivo": una frase breve en español (máximo 120 caracteres) con la razón principal de la evaluación.
 
 Reglas:
@@ -469,11 +469,12 @@ Reglas:
 Ejemplos (cliente → mensaje del asesor → evaluación):
 - "¿cuánto cuesta el solitario?" → "Hola María 😊 El anillo solitario en oro 18K de 2 g cuesta S/ 890. ¿Para qué fecha lo necesitas?" → info_producto_precio; responde, personalizado, siguiente_paso, tono y extension verdaderos.
 - "Precio por favor" → "Hola, buenas tardes ☺️ Soy Carla, asesora de ventas" → saludo_plantilla; responde=false, personalizado=false (el nombre es de la asesora), siguiente_paso=false, tono=true, extension=true.
-- "¿Cuánto cuesta un anillo de compromiso?" → "Compromiso: https://tienda.ejemplo/anillos" → info_producto_precio; responde=false (no da el precio), personalizado=false, siguiente_paso=false, tono=true, extension=false (incompleto).
+- "¿Cuánto cuesta un anillo de compromiso?" → "Compromiso: https://tienda.ejemplo/anillos" (sin un mensaje anterior que lo complete) → info_producto_precio; responde=false (no da el precio), personalizado=false, siguiente_paso=false, tono=true, extension=false (incompleto).
 - "Soy talla 7" → "¿Talla 7 estándar o americana? Así le confirmo el peso" → pregunta_calificacion; responde=true (aclaración necesaria), personalizado=true (usa su talla), siguiente_paso=true, tono=true, extension=true.
 - (el cliente no escribe desde hace tres días) → "Buenas tardes 😊 Quería saber si aún tiene en mente aquella joyita que estuvimos viendo" → seguimiento; responde=true, personalizado=false (referencia vaga, sirve para cualquiera), siguiente_paso=false, tono=true, extension=true.
 - "Claro, el fin de semana le aviso" → "Perfecto señorita, quedo atenta" → saludo_plantilla; responde=true, personalizado=false, siguiente_paso=false, tono=true, extension=true.
-- "¿Hacen envíos?" → "si claro ennviamos a todo el peru" → respuesta_pregunta; responde=true, personalizado=false, siguiente_paso=false, tono=false (ortografía), extension=true.`;
+- "¿Hacen envíos?" → "si claro ennviamos a todo el peru" → respuesta_pregunta; responde=true, personalizado=false, siguiente_paso=false, tono=false (palabra mal escrita y dos tildes faltantes), extension=true.
+- "Precio del anillo de 3 gramos" → (el asesor ya respondió "El anillo de 3 gramos cuesta S/ 2,340") → "¿Para que fecha lo necesita?" → pregunta_calificacion; responde=true (el precio ya se dio), personalizado=false, siguiente_paso=true, tono=true (una sola tilde faltante), extension=true.`;
 
 /** Esquema JSON de la respuesta (structured outputs). El puntaje se deriva de los criterios. */
 export const ESQUEMA_RESPUESTA_CALIDAD = {

@@ -8,7 +8,7 @@
  * Una sola ejecución activa por cola (política singleton). Modo `sombra` por defecto.
  */
 import { PgBoss } from 'pg-boss';
-import { configuracionCalidad, crearConexion, ESQUEMA_COLA, tablas } from '@driven/db';
+import { configuracionCalidadVigente, crearConexion, ESQUEMA_COLA, tablas } from '@driven/db';
 import { recalcularPendientes } from './calculo/pendientes';
 import { purgarTextos } from './mantenimiento/purga';
 import { procesarPendientes, solicitarAnalisis } from './calidad/proceso';
@@ -105,7 +105,7 @@ async function principal() {
   });
 
   // ---------------------------------------------------------------- Análisis de calidad (§6.5)
-  const cfgCalidad = configuracionCalidad();
+  // Modelo y tope los elige el administrador global en la web: se leen en cada ciclo.
   const proveedor = process.env.ANTHROPIC_API_KEY ? new ProveedorAnthropic() : null;
   const COLAS_CALIDAD = ['calidad-solicitudes', 'calidad-revisar', 'calidad-mensual'];
   for (const cola of COLAS_CALIDAD) {
@@ -115,10 +115,12 @@ async function principal() {
   await boss.schedule('calidad-revisar', '*/30 * * * *', {}, { tz: cfg.ZONA_HORARIA_DEFECTO });
   await boss.schedule('calidad-mensual', '0 1 1 * *', {}, { tz: cfg.ZONA_HORARIA_DEFECTO });
   await boss.work('calidad-solicitudes', async () => {
-    if (proveedor) await procesarPendientes(db, proveedor, cfgCalidad, 'solicitudes');
+    if (proveedor)
+      await procesarPendientes(db, proveedor, await configuracionCalidadVigente(db), 'solicitudes');
   });
   await boss.work('calidad-revisar', async () => {
-    if (proveedor) await procesarPendientes(db, proveedor, cfgCalidad, 'revisar');
+    if (proveedor)
+      await procesarPendientes(db, proveedor, await configuracionCalidadVigente(db), 'revisar');
   });
   // Día 1 de cada mes: analiza el mes anterior de cada subcuenta activa con sus 3 etapas.
   await boss.work('calidad-mensual', async () => {

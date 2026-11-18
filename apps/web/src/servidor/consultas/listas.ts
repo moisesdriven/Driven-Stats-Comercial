@@ -87,23 +87,29 @@ export async function listasParaActuar(
   }>(sql`
     -- Respuesta = saliente del asesor, del agente IA, de un workflow o sin origen confirmado (lo
     -- escribió el asesor o el agente IA: GHL aún no lo confirma). Las campañas no responden.
-    with ultima_respuesta as (
-      select m.contact_id, max(m.fecha) as fecha from comercial.mensajes m
-      where m.location_id = ${locationId} and m.direccion = 'outbound' and m.origen in ('manual', 'agente_ia', 'workflow', 'sin_origen')
+    -- Los mensajes de la ventana se leen una sola vez (base) y se reutilizan.
+    with base as materialized (
+      select m.contact_id, m.fecha, m.direccion, m.texto from comercial.mensajes m
+      where m.location_id = ${locationId}
         and m.fecha > ${new Date(ahora.getTime() - 61 * 86_400_000)}
-      group by m.contact_id
+        and (m.direccion = 'inbound'
+          or (m.direccion = 'outbound' and m.origen in ('manual', 'agente_ia', 'workflow', 'sin_origen')))
+    ),
+    ultima_respuesta as (
+      select contact_id, max(fecha) filter (where direccion = 'outbound') as fecha,
+        max(fecha) filter (where direccion = 'inbound') as ultimo_inbound
+      from base group by contact_id
     ),
     pendiente as (
-      select m.contact_id, min(m.fecha) as desde from comercial.mensajes m
-      left join ultima_respuesta r on r.contact_id = m.contact_id
-      where m.location_id = ${locationId} and m.direccion = 'inbound'
-        and m.fecha > ${new Date(ahora.getTime() - 61 * 86_400_000)}
-        and (r.fecha is null or m.fecha > r.fecha)
+      select m.contact_id, min(m.fecha) as desde from base m
+      join ultima_respuesta r on r.contact_id = m.contact_id
+      where m.direccion = 'inbound'
+        and (r.fecha is null or (r.ultimo_inbound > r.fecha and m.fecha > r.fecha))
         and coalesce(m.texto, '') !~* ${PATRON_MENSAJE_ENTRADA_SQL}
         and not exists (
           select 1 from comercial.historial_etapas h
           left join comercial.mapa_etapas e on e.location_id = h.location_id and e.stage_id = h.stage_id
-          where h.location_id = m.location_id and h.contact_id = m.contact_id
+          where h.location_id = ${locationId} and h.contact_id = m.contact_id
             and coalesce(e.etapa_estandar, h.etapa_estandar) = 'nuevo'
             and m.fecha >= h.desde and (h.hasta is null or m.fecha < h.hasta))
       group by m.contact_id

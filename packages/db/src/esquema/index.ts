@@ -502,6 +502,11 @@ export const resumenDiario = comercial.table(
     locationId: text('location_id').notNull(),
     /** Nulo = toda la subcuenta. */
     asesorId: text('asesor_id'),
+    /**
+     * Nulo = todos los canales. Con valor (whatsapp, instagram…) es el total de la subcuenta en ese
+     * canal (solo con asesor nulo): lo usa el filtro por canal de la vista general.
+     */
+    canal: text('canal'),
     indicadores: jsonb('indicadores').notNull(),
     estadosEtapa: jsonb('estados_etapa'),
     cuelloBotella: text('cuello_botella'),
@@ -509,8 +514,8 @@ export const resumenDiario = comercial.table(
     ...auditoriaFilas,
   },
   (t) => [
-    unique('resumen_diario_fecha_location_asesor')
-      .on(t.fecha, t.locationId, t.asesorId)
+    unique('resumen_diario_fecha_location_asesor_canal')
+      .on(t.fecha, t.locationId, t.asesorId, t.canal)
       .nullsNotDistinct(),
     index('resumen_diario_fecha_location').on(t.fecha, t.locationId),
   ],
@@ -650,3 +655,14 @@ export const syncEstado = comercial.table(
   },
   (t) => [primaryKey({ columns: [t.locationId, t.recurso] })],
 );
+
+/**
+ * Ajustes globales que el administrador global elige desde la web (Configuración › Calidad): el
+ * modelo de IA y el tope mensual de gasto. Sin fila, rigen las variables de entorno.
+ */
+export const ajustes = comercial.table('ajustes', {
+  clave: text('clave').primaryKey(),
+  valor: jsonb('valor').notNull(),
+  actualizadoEn: ts('actualizado_en').notNull().defaultNow(),
+  actualizadoPor: uuid('actualizado_por').references(() => usuarios.id, { onDelete: 'set null' }),
+});

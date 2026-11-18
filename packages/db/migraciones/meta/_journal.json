@@ -15,6 +15,20 @@
       "when": 1794956281193,
       "tag": "0001_plus_multimedia",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794978869316,
+      "tag": "0002_canal_resumen",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795017977829,
+      "tag": "0003_ajustes",
+      "breakpoints": true
     }
   ]
 }

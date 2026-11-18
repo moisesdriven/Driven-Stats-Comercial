@@ -7,6 +7,8 @@ import { POST as ausenciaRuta } from '@/app/api/subcuentas/[id]/ausencias/route'
 import { GET as horariosGet, PUT as horariosPut } from '@/app/api/subcuentas/[id]/horarios/route';
 import { GET as subIndRuta } from '@/app/api/subcuentas/[id]/indicadores/route';
 import { GET as vistaRuta } from '@/app/api/vista-general/route';
+import { cargarContexto } from '@/servidor/acceso';
+import { asesoresSubcuenta } from '@/servidor/consultas/indicadores';
 import {
   CLAVE_PRUEBA,
   crearUsuarioPrueba,
@@ -21,6 +23,7 @@ const acum = (c: Partial<Acumulado>): Acumulado => ({ ...acumuladoVacio(), ...c 
 describe.skipIf(!hayBaseDePruebas)('indicadores y horarios (integración)', () => {
   let db: Db;
   const cookies: Record<string, string> = {};
+  const ids: Record<string, string> = {};
 
   beforeAll(async () => {
     db = await prepararBase();
@@ -33,55 +36,63 @@ describe.skipIf(!hayBaseDePruebas)('indicadores y horarios (integración)', () =
       { userId: 'U1', nombre: 'Asesora Uno' },
       { userId: 'U2', nombre: 'Asesora Dos' },
     ]);
-    const r = (fecha: string, locationId: string, asesorId: string | null, a: Acumulado) => ({
+    const r = (
+      fecha: string,
+      locationId: string,
+      asesorId: string | null,
+      a: Acumulado,
+      canal: string | null = null,
+    ) => ({
       fecha,
       locationId,
       asesorId,
+      canal,
       indicadores: a,
     });
-    await db
-      .insert(tablas.resumenDiario)
-      .values([
-        r(
-          '2026-11-16',
-          'LA',
-          null,
-          acum({ leadsRecibidos: 10, tiemposRespuesta: [1, 2, 3], ventas: 1, fotoSinResponder: 4 }),
-        ),
-        r(
-          '2026-11-17',
-          'LA',
-          null,
-          acum({ leadsRecibidos: 10, tiemposRespuesta: [4], ventas: 1, fotoSinResponder: 2 }),
-        ),
-        r(
-          '2026-11-16',
-          'LA',
-          'U1',
-          acum({ leadsRecibidos: 6, tiemposRespuesta: [1, 2], fotoSinResponder: 3 }),
-        ),
-        r(
-          '2026-11-16',
-          'LA',
-          'U2',
-          acum({ leadsRecibidos: 4, tiemposRespuesta: [3], ventas: 1, fotoSinResponder: 1 }),
-        ),
-        r(
-          '2026-11-16',
-          'LB',
-          null,
-          acum({ leadsRecibidos: 5, tiemposRespuesta: [100], ventas: 3 }),
-        ),
-        r('2026-11-16', 'LC', null, acum({ leadsRecibidos: 1000, ventas: 500 })),
-      ]);
+    await db.insert(tablas.resumenDiario).values([
+      r(
+        '2026-11-16',
+        'LA',
+        null,
+        acum({ leadsRecibidos: 10, tiemposRespuesta: [1, 2, 3], ventas: 1, fotoSinResponder: 4 }),
+      ),
+      r(
+        '2026-11-17',
+        'LA',
+        null,
+        acum({ leadsRecibidos: 10, tiemposRespuesta: [4], ventas: 1, fotoSinResponder: 2 }),
+      ),
+      r(
+        '2026-11-16',
+        'LA',
+        'U1',
+        acum({ leadsRecibidos: 6, tiemposRespuesta: [1, 2], fotoSinResponder: 3 }),
+      ),
+      r(
+        '2026-11-16',
+        'LA',
+        'U2',
+        acum({ leadsRecibidos: 4, tiemposRespuesta: [3], ventas: 1, fotoSinResponder: 1 }),
+      ),
+      r('2026-11-16', 'LB', null, acum({ leadsRecibidos: 5, tiemposRespuesta: [100], ventas: 3 })),
+      r('2026-11-16', 'LC', null, acum({ leadsRecibidos: 1000, ventas: 500 })),
+      // Totales por canal (no deben sumarse al total de todos los canales).
+      r('2026-11-16', 'LA', null, acum({ leadsRecibidos: 7, ventas: 1 }), 'whatsapp'),
+      r('2026-11-16', 'LA', null, acum({ leadsRecibidos: 3 }), 'instagram'),
+      r('2026-11-16', 'LC', null, acum({ leadsRecibidos: 1000, ventas: 500 }), 'whatsapp'),
+    ]);
     await crearUsuarioPrueba(db, { correo: 'admin@ind.pe', rol: 'admin' });
-    await crearUsuarioPrueba(db, {
+    ids.dueno = await crearUsuarioPrueba(db, {
       correo: 'dueno@ind.pe',
       rol: 'dueno',
       subcuentas: ['LA', 'LB'],
     });
-    await crearUsuarioPrueba(db, { correo: 'super@ind.pe', rol: 'supervisor', subcuentas: ['LA'] });
-    await crearUsuarioPrueba(db, {
+    ids.super = await crearUsuarioPrueba(db, {
+      correo: 'super@ind.pe',
+      rol: 'supervisor',
+      subcuentas: ['LA'],
+    });
+    ids.asesor = await crearUsuarioPrueba(db, {
       correo: 'asesor@ind.pe',
       rol: 'asesor',
       subcuentas: ['LA'],
@@ -113,6 +124,26 @@ describe.skipIf(!hayBaseDePruebas)('indicadores y horarios (integración)', () =
     ).toEqual(['LA', 'LB']);
   });
 
+  it('filtro por canal: solo las filas de ese canal, de las subcuentas del usuario', async () => {
+    const r = await llamar(vistaRuta, `/api/vista-general${RANGO}&canal=instagram`, {
+      cookie: cookies.dueno,
+    });
+    expect(r.estado).toBe(200);
+    expect((r.cuerpo.indicadores as { leadsRecibidos: number }).leadsRecibidos).toBe(3);
+    expect(r.cuerpo.canal).toBe('instagram');
+    // Opciones: los canales con datos en sus subcuentas (LA); C es ajena, pero también es whatsapp.
+    expect(r.cuerpo.canales).toEqual(['instagram', 'whatsapp']);
+    const w = await llamar(vistaRuta, `/api/vista-general${RANGO}&canal=whatsapp`, {
+      cookie: cookies.dueno,
+    });
+    expect((w.cuerpo.indicadores as { leadsRecibidos: number }).leadsRecibidos).toBe(7); // nunca C
+    // Un valor raro se ignora y vuelve al total.
+    const x = await llamar(vistaRuta, `/api/vista-general${RANGO}&canal=';drop`, {
+      cookie: cookies.dueno,
+    });
+    expect((x.cuerpo.indicadores as { leadsRecibidos: number }).leadsRecibidos).toBe(25);
+  });
+
   it('el administrador ve todas; el supervisor no tiene vista general', async () => {
     const a = await llamar(vistaRuta, `/api/vista-general${RANGO}`, { cookie: cookies.admin });
     expect((a.cuerpo.indicadores as { leadsRecibidos: number }).leadsRecibidos).toBe(1025);
@@ -140,6 +171,32 @@ describe.skipIf(!hayBaseDePruebas)('indicadores y horarios (integración)', () =
       'Asesora Uno',
     ]);
     expect(r.cuerpo.evaluacion).toHaveProperty('cuello');
+  });
+
+  it('módulo Asesores: asesores de la subcuenta con su permiso, nunca de una ajena', async () => {
+    const ctx = async (k: string) => (await cargarContexto(db, ids[k]!))!;
+    const r = await asesoresSubcuenta(db, await ctx('super'), 'LA', '2026-11-16', '2026-11-17');
+    expect(r.asesores.map((a) => a.nombre).sort()).toEqual(['Asesora Dos', 'Asesora Uno']);
+    await expect(
+      asesoresSubcuenta(db, await ctx('super'), 'LB', '2026-11-16', '2026-11-17'),
+    ).rejects.toMatchObject({ estado: 403 });
+    // El asesor solo ve su propia fila.
+    const propio = await asesoresSubcuenta(
+      db,
+      await ctx('asesor'),
+      'LA',
+      '2026-11-16',
+      '2026-11-17',
+    );
+    expect(propio.asesores.map((a) => a.asesorId)).toEqual(['U1']);
+    // Sin el permiso de detalle de asesores, nada.
+    await db
+      .insert(tablas.permisosUsuario)
+      .values({ usuarioId: ids.dueno!, modulo: 'detalle_asesores', nivel: 'ninguno' });
+    await expect(
+      asesoresSubcuenta(db, await ctx('dueno'), 'LA', '2026-11-16', '2026-11-17'),
+    ).rejects.toMatchObject({ estado: 403 });
+    await db.delete(tablas.permisosUsuario);
   });
 
   it('nadie lee indicadores de una subcuenta ajena', async () => {

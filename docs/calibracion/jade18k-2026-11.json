@@ -1,5 +1,5 @@
 {
-  "descripcion": "Jade18K, semana del 9 al 15 nov 2026: 100 mensajes elegidos al azar del análisis 1 (orden md5(message_id || semilla42)). Etiquetas de referencia revisadas a mano el 16 nov 2026 en dos pasadas con la rúbrica v2 (la segunda, contrastando con las reglas escritas cada discrepancia estable de la IA). Solo ids y etiquetas; el contexto se lee de la base.",
+  "descripcion": "Jade18K, semana del 9 al 15 nov 2026: 100 mensajes elegidos al azar del análisis 1 (orden md5(message_id || semilla42)). Etiquetas de referencia revisadas a mano el 16 nov 2026 en dos pasadas con la rúbrica v2 (la segunda, contrastando con las reglas escritas cada discrepancia estable de la IA). Solo ids y etiquetas; el contexto se lee de la base. Rúbrica v4 (18 nov 2026, decisiones del cliente): se re-etiquetaron 20 valores sin ver respuestas de la IA con la v4: tono verdadero en 7 mensajes con una sola tilde faltante; responde verdadero en 7 cuyo pedido ya había respondido el asesor antes; extensión verdadera en 3 mensajes cortos que completan al anterior del asesor; y categoría saludo_plantilla en 3 saludos de plantilla que terminan en una pregunta genérica. Además, 5 saludos o presentaciones que solo hacen preguntas generales (talla, fecha, modelo, presupuesto) pasan a saludo_plantilla, según la decisión del cliente; los que traen precio o enlaces del catálogo conservan su categoría. Decisión del cliente (18 nov) sobre preguntar talla, fecha o modelo cuando el cliente pidió precio: responde solo si la asesora explica por qué lo necesita. Cambia responde en 1 mensaje(s).",
   "locationId": "93mgPQwURqpEvyzZcf9m",
   "mensajes": [
     {
@@ -61,11 +61,11 @@
       "messageId": "Hk3PWc4OBWxYjhHZU9R4",
       "categoria": "info_producto_precio",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
         "tono": false,
-        "extension": false
+        "extension": true
       }
     },
     {
@@ -75,18 +75,18 @@
         "responde": false,
         "personalizado": false,
         "siguiente_paso": false,
-        "tono": false,
+        "tono": true,
         "extension": true
       }
     },
     {
       "messageId": "qcVoLgxt0iDxMkp3MONN",
-      "categoria": "pregunta_calificacion",
+      "categoria": "saludo_plantilla",
       "criterios": {
         "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
-        "tono": false,
+        "tono": true,
         "extension": true
       }
     },
@@ -138,7 +138,7 @@
       "messageId": "UXJ6nN9lRfM502oSX2B7",
       "categoria": "llamada_accion_cierre",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": true,
         "siguiente_paso": true,
         "tono": false,
@@ -196,7 +196,7 @@
         "responde": false,
         "personalizado": false,
         "siguiente_paso": false,
-        "tono": false,
+        "tono": true,
         "extension": false
       }
     },
@@ -281,7 +281,7 @@
       "messageId": "ZUNhjfHOzWHf0bkpYiBw",
       "categoria": "llamada_accion_cierre",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
@@ -345,9 +345,9 @@
     },
     {
       "messageId": "uMruLt0xybZVVnKIu39j",
-      "categoria": "pregunta_calificacion",
+      "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
@@ -369,7 +369,7 @@
       "messageId": "911lVSIeGdlQWhm03evW",
       "categoria": "pregunta_calificacion",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
@@ -394,7 +394,7 @@
         "responde": true,
         "personalizado": true,
         "siguiente_paso": false,
-        "tono": false,
+        "tono": true,
         "extension": true
       }
     },
@@ -523,10 +523,10 @@
       "messageId": "59EcigRCLbMdaS987ALm",
       "categoria": "respuesta_pregunta",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
-        "tono": false,
+        "tono": true,
         "extension": true
       }
     },
@@ -543,7 +543,7 @@
     },
     {
       "messageId": "bZvkYijSdLrSV5TAfXvV",
-      "categoria": "pregunta_calificacion",
+      "categoria": "saludo_plantilla",
       "criterios": {
         "responde": true,
         "personalizado": false,
@@ -598,7 +598,7 @@
     },
     {
       "messageId": "n0JBEQbFq2pV5YLwze6K",
-      "categoria": "pregunta_calificacion",
+      "categoria": "saludo_plantilla",
       "criterios": {
         "responde": true,
         "personalizado": false,
@@ -655,7 +655,7 @@
       "messageId": "OdGbY1RELglcmOfdLkwi",
       "categoria": "pregunta_calificacion",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": false,
@@ -725,12 +725,12 @@
         "personalizado": false,
         "siguiente_paso": false,
         "tono": false,
-        "extension": false
+        "extension": true
       }
     },
     {
       "messageId": "W1ODKp2kJ9WuPh3TIJil",
-      "categoria": "pregunta_calificacion",
+      "categoria": "saludo_plantilla",
       "criterios": {
         "responde": true,
         "personalizado": false,
@@ -774,7 +774,7 @@
     },
     {
       "messageId": "eqwWhvwJt8pGs5vza6QC",
-      "categoria": "pregunta_calificacion",
+      "categoria": "saludo_plantilla",
       "criterios": {
         "responde": true,
         "personalizado": false,
@@ -791,7 +791,7 @@
         "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
-        "extension": false
+        "extension": true
       }
     },
     {
@@ -809,7 +809,7 @@
       "messageId": "cWbQBBLhks0PxgZG6q9w",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": false,
         "tono": true,
@@ -900,7 +900,7 @@
         "responde": false,
         "personalizado": false,
         "siguiente_paso": false,
-        "tono": false,
+        "tono": true,
         "extension": true
       }
     },
@@ -933,7 +933,7 @@
         "responde": true,
         "personalizado": false,
         "siguiente_paso": true,
-        "tono": false,
+        "tono": true,
         "extension": true
       }
     },
@@ -950,7 +950,7 @@
     },
     {
       "messageId": "0YLWlRxsgEm53U81PlEh",
-      "categoria": "pregunta_calificacion",
+      "categoria": "saludo_plantilla",
       "criterios": {
         "responde": true,
         "personalizado": false,
@@ -1038,7 +1038,7 @@
     },
     {
       "messageId": "T0ctqmRSgNFKPuz6nvKZ",
-      "categoria": "pregunta_calificacion",
+      "categoria": "saludo_plantilla",
       "criterios": {
         "responde": true,
         "personalizado": false,

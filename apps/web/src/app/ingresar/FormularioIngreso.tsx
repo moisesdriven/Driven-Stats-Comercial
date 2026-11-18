@@ -1,11 +1,9 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { enviar } from '@/componentes/enviar';
 
 export function FormularioIngreso() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -23,10 +21,10 @@ export function FormularioIngreso() {
       setError(String(r.datos.error ?? 'No se pudo iniciar sesión.'));
       return;
     }
-    router.replace(
+    // Carga completa (no navegación interna): entra al panel con la sesión nueva desde cero.
+    window.location.assign(
       r.datos.requiere2fa ? '/verificar' : r.datos.debeCambiarClave ? '/cambiar-clave' : '/',
     );
-    router.refresh();
   }
 
   return (

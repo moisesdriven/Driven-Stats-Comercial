@@ -1,8 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { tablas, type Db } from '@driven/db';
 import { POST as ingresarRuta } from '@/app/api/auth/ingresar/route';
 import { GET as historialRuta, POST as lanzarRuta } from '@/app/api/calidad/analisis/route';
 import { POST as estimarRuta } from '@/app/api/calidad/estimacion/route';
+import {
+  GET as ajustesRuta,
+  PUT as guardarAjustesRuta,
+} from '@/app/api/configuracion/calidad/route';
 import { GET as ejemplosRuta } from '@/app/api/subcuentas/[id]/asesores/[userId]/calidad/route';
 import { GET as subIndRuta } from '@/app/api/subcuentas/[id]/indicadores/route';
 import {
@@ -201,6 +206,65 @@ describe.skipIf(!hayBaseDePruebas)('análisis de calidad desde la web (integraci
     });
     expect(r.cuerpo.codigo).toBe('tope_gasto');
     process.env.IA_TOPE_MENSUAL_USD = '10';
+  });
+
+  describe('modelo de IA y tope (administrador global)', () => {
+    const ajustes = { modelo: 'claude-sonnet-5-5', topeMensualUsd: 30 };
+
+    it('solo el administrador global ve y cambia el modelo y el tope', async () => {
+      for (const k of ['dueno', 'super', 'asesor']) {
+        const ver = await llamar(ajustesRuta, '/api/configuracion/calidad', { cookie: cookies[k] });
+        expect(ver.estado).toBe(403);
+        const guardar = await llamar(guardarAjustesRuta, '/api/configuracion/calidad', {
+          metodo: 'PUT',
+          cookie: cookies[k],
+          cuerpo: ajustes,
+        });
+        expect(guardar.estado).toBe(403);
+      }
+      expect(await db.select().from(tablas.ajustes)).toHaveLength(0);
+    });
+
+    it('rechaza un modelo fuera de la lista', async () => {
+      const r = await llamar(guardarAjustesRuta, '/api/configuracion/calidad', {
+        metodo: 'PUT',
+        cookie: cookies.admin,
+        cuerpo: { modelo: 'claude-opus-5-5', topeMensualUsd: 30 },
+      });
+      expect(r.estado).toBe(400);
+    });
+
+    it('lo guardado tiene prioridad sobre el entorno: la estimación usa el modelo nuevo y se audita', async () => {
+      const antes = await llamar(estimarRuta, '/api/calidad/estimacion', {
+        cookie: cookies.admin,
+        cuerpo: PERIODO,
+      });
+      const r = await llamar(guardarAjustesRuta, '/api/configuracion/calidad', {
+        metodo: 'PUT',
+        cookie: cookies.admin,
+        cuerpo: ajustes,
+      });
+      expect(r.estado).toBe(200);
+      const ver = await llamar(ajustesRuta, '/api/configuracion/calidad', {
+        cookie: cookies.admin,
+      });
+      expect(ver.cuerpo).toMatchObject({ modelo: 'claude-sonnet-5-5', topeMensualUsd: 30 });
+      const despues = await llamar(estimarRuta, '/api/calidad/estimacion', {
+        cookie: cookies.admin,
+        cuerpo: PERIODO,
+      });
+      expect(despues.cuerpo).toMatchObject({ modelo: 'claude-sonnet-5-5', topeMensualUsd: 30 });
+      // Sonnet cuesta más que Haiku con la misma muestra.
+      expect(Number(despues.cuerpo.costoEstimadoTotalUsd)).toBeGreaterThan(
+        Number(antes.cuerpo.costoEstimadoTotalUsd),
+      );
+      const [aud] = await db
+        .select()
+        .from(tablas.auditoria)
+        .where(eq(tablas.auditoria.que, 'ajustes_calidad_guardados'));
+      expect(aud?.detalle).toMatchObject({ despues: ajustes });
+      await db.delete(tablas.ajustes);
+    });
   });
 
   describe('resultados', () => {

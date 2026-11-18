@@ -1,11 +1,9 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { enviar } from '@/componentes/enviar';
 
 export function FormularioCambio() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -27,8 +25,9 @@ export function FormularioCambio() {
       setError(String(r.datos.error ?? 'No se pudo cambiar la contraseña.'));
       return;
     }
-    router.replace('/');
-    router.refresh();
+    // Carga completa intencional al cambiar de sesión: no queda nada de la anterior en el navegador.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.assign('/');
   }
 
   return (

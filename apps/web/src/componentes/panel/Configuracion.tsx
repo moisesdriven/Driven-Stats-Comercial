@@ -232,6 +232,7 @@ interface Estimacion {
   topeMensualUsd: number;
   maxManualesMes: number;
   modelo: string;
+  modeloNombre?: string;
 }
 
 const usd = (v: number) =>
@@ -468,10 +469,10 @@ export function LanzarAnalisis({
             </table>
           </div>
           <p className={`aviso aviso--${superaTope || bloqueos.length ? 'error' : 'info'}`}>
-            Costo esperado: <strong>{usd(est.costoEstimadoTotalUsd)}</strong> con {est.modelo}; como
-            máximo {usd(est.costoMaximoTotalUsd)} si la caché no funciona (este es el que se compara
-            con el tope). Gastado este mes: {usd(est.gastoDelMesUsd)} de un tope de{' '}
-            {usd(est.topeMensualUsd)}.
+            Costo esperado: <strong>{usd(est.costoEstimadoTotalUsd)}</strong> con{' '}
+            {est.modeloNombre ?? est.modelo}; como máximo {usd(est.costoMaximoTotalUsd)} si la caché
+            no funciona (este es el que se compara con el tope). Gastado este mes:{' '}
+            {usd(est.gastoDelMesUsd)} de un tope de {usd(est.topeMensualUsd)}.
             {superaTope && ' En el peor caso, este análisis superaría el tope mensual.'}
           </p>
           {!superaTope && bloqueos.length === 0 && (
@@ -568,5 +569,125 @@ export function ZonaSubcuenta({
         </span>
       )}
     </span>
+  );
+}
+
+interface OpcionModelo {
+  id: string;
+  nombre: string;
+  resumen: string;
+  costoRelativo: number;
+}
+
+/**
+ * Modelo de IA y tope mensual de los análisis de calidad: los elige el administrador global. Aplica
+ * desde el siguiente análisis, sin reiniciar el servidor.
+ */
+export function ModeloCalidad({
+  modelos,
+  modelo,
+  topeMensualUsd,
+  ultimoAnalisis,
+}: {
+  modelos: readonly OpcionModelo[];
+  modelo: string;
+  topeMensualUsd: number;
+  ultimoAnalisis: { modelo: string | null; costoReal: number | null } | null;
+}) {
+  const router = useRouter();
+  const [elegido, setElegido] = useState(modelo);
+  const [tope, setTope] = useState(String(topeMensualUsd));
+  const [mensaje, setMensaje] = useState<Mensaje>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const base = modelos.find((m) => m.id === ultimoAnalisis?.modelo);
+  const comparar = (m: OpcionModelo) =>
+    base && ultimoAnalisis?.costoReal
+      ? (ultimoAnalisis.costoReal * m.costoRelativo) / base.costoRelativo
+      : null;
+  return (
+    <form
+      className="seccion seccion--relleno"
+      aria-label="Modelo de IA"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setOcupado(true);
+        setMensaje(null);
+        const r = await enviar('/api/configuracion/calidad', 'PUT', {
+          modelo: elegido,
+          topeMensualUsd: Number(tope),
+        });
+        setOcupado(false);
+        setMensaje(
+          r.ok
+            ? { tipo: 'ok', texto: 'Guardado. Aplica desde el siguiente análisis.' }
+            : { tipo: 'error', texto: r.datos.error ?? 'No se pudo guardar.' },
+        );
+        if (r.ok) router.refresh();
+      }}
+    >
+      <div className="fila-cabecera" style={{ flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <h2 className="seccion__titulo seccion__titulo--chico">Modelo de IA</h2>
+          <span className="seccion__nota">
+            Solo el administrador global lo cambia. Aplica a todas las subcuentas desde el siguiente
+            análisis.
+          </span>
+        </div>
+        <button className="boton" disabled={ocupado}>
+          Guardar
+        </button>
+      </div>
+      {mensaje && (
+        <p className={`aviso aviso--${mensaje.tipo}`} role="status">
+          {mensaje.texto}
+        </p>
+      )}
+      <fieldset className="opciones-modelo">
+        <legend className="oculto">Modelo</legend>
+        {modelos.map((m) => {
+          const costo = comparar(m);
+          return (
+            <label
+              key={m.id}
+              className={`opcion-clara opcion-modelo${elegido === m.id ? ' opcion-clara--on' : ''}`}
+            >
+              <input
+                type="radio"
+                name="modelo"
+                value={m.id}
+                checked={elegido === m.id}
+                onChange={() => setElegido(m.id)}
+              />
+              <span className="opcion-modelo__textos">
+                <strong>{m.nombre}</strong>
+                <span>{m.resumen}</span>
+                {costo !== null && (
+                  <span className="opcion-modelo__costo">
+                    El último análisis habría costado unos {usd(costo)}
+                  </span>
+                )}
+              </span>
+            </label>
+          );
+        })}
+      </fieldset>
+      <label className="campo" style={{ maxWidth: 260 }}>
+        <span>Tope de gasto mensual (US$)</span>
+        <input
+          className="control"
+          type="number"
+          min={1}
+          max={1000}
+          step={1}
+          required
+          value={tope}
+          onChange={(e) => setTope(e.target.value)}
+        />
+      </label>
+      <span className="seccion__nota">
+        Suma todos los análisis del mes de todas las subcuentas. Si un análisis lo va a superar, se
+        detiene antes de enviarse.
+      </span>
+    </form>
   );
 }

@@ -34,6 +34,7 @@ export default async function MetasPagina({
   }
   const id = typeof sp.subcuenta === 'string' ? sp.subcuenta : subs[0]!.location_id;
   exigirSubcuentaPagina(ctx, id);
+  const nombre = subs.find((s) => s.location_id === id)?.nombre ?? id;
   const [metas, { etapas, etapasCalidad }] = await enPagina(
     Promise.all([obtenerMetas(db, ctx, id), etapasDeSubcuenta(db, ctx, id)]),
   );
@@ -47,9 +48,11 @@ export default async function MetasPagina({
     <>
       <div className="encabezado">
         <div className="encabezado__textos">
-          <h1 className="titulo">Metas y etapas</h1>
+          <h1 className="titulo">Metas y etapas · {nombre}</h1>
           <p className="subtitulo">
-            Las metas definen el semáforo de cada indicador y el cuello de botella de cada equipo.
+            Cada subcuenta tiene sus propias metas y etapas de calidad: lo que guardes aquí solo
+            aplica a {nombre}. Las metas definen el semáforo de cada indicador y el cuello de
+            botella del equipo.
           </p>
         </div>
         {subs.length > 1 && (
@@ -66,6 +69,7 @@ export default async function MetasPagina({
       <FormularioMetas
         key={id}
         locationId={id}
+        nombreSubcuenta={nombre}
         metas={metas}
         etapasCalidad={etapasCalidad}
         puedeEditar={ctx.modulos.metas === 'editar'}

@@ -1783,3 +1783,78 @@ a.pestana {
   box-shadow: inset 0 0 0 4px var(--sup);
   background: var(--azul);
 }
+
+/* ---------------------------------------------------------------- Esqueleto de carga */
+.esqueleto {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.esqueleto__titulo,
+.esqueleto__linea,
+.esqueleto__bloque {
+  border-radius: 12px;
+  background: var(--fondo-suave);
+  animation: esqueleto-pulso 1.4s ease-in-out infinite;
+}
+.esqueleto__titulo {
+  width: min(320px, 70%);
+  height: 30px;
+}
+.esqueleto__linea {
+  width: min(520px, 90%);
+  height: 14px;
+}
+.esqueleto__bloque {
+  height: 112px;
+  border: 1px solid var(--borde);
+}
+.esqueleto__bloque--alto {
+  height: 320px;
+}
+@keyframes esqueleto-pulso {
+  50% {
+    opacity: 0.55;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .esqueleto__titulo,
+  .esqueleto__linea,
+  .esqueleto__bloque {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------- Modelo de IA (Configuración) */
+.opciones-modelo {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 10px;
+}
+.opcion-modelo {
+  align-items: flex-start;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+.opcion-modelo input {
+  margin-top: 3px;
+  accent-color: var(--azul);
+}
+.opcion-modelo__textos {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--gris);
+}
+.opcion-modelo__textos strong {
+  font-size: 15px;
+  color: var(--negro);
+}
+.opcion-modelo__costo {
+  color: var(--negro);
+  font-weight: 600;
+}

@@ -11,6 +11,7 @@ import {
   instruccionesCalidad,
   VERSION_RUBRICA,
   estimarCosto,
+  preciosDe,
   maxTokensPara,
   muestraEstratificada,
   recortarContexto,
@@ -25,7 +26,7 @@ import {
   type MensajeCalidad,
 } from '@driven/core';
 import type { Db } from './cliente';
-import { analisisCalidad } from './esquema/index';
+import { ajustes, analisisCalidad } from './esquema/index';
 
 export type EsfuerzoIa = 'low' | 'medium' | 'high';
 
@@ -62,6 +63,72 @@ export function configuracionCalidad(env: NodeJS.ProcessEnv = process.env): Conf
     saludosPorRegla: !['no', 'false', '0'].includes(
       (env.CALIDAD_SALUDOS_POR_REGLA ?? 'si').toLowerCase(),
     ),
+  };
+}
+
+/**
+ * Modelos que el administrador global puede elegir para calificar (Configuración › Calidad). Las
+ * cifras salen de la calibración del 18 nov 2026 con la rúbrica v4 (`docs/validacion.md`).
+ */
+export const MODELOS_CALIDAD = [
+  {
+    id: 'claude-haiku-5-5',
+    nombre: 'Haiku 5.5',
+    resumen: 'Económico. En la calibración no alcanzó el mínimo en el conjunto independiente.',
+    costoRelativo: 1,
+  },
+  {
+    id: 'claude-sonnet-5-5',
+    nombre: 'Sonnet 5.5',
+    resumen: 'Preciso. Aprobó la calibración en los dos conjuntos; cuesta unas 18 veces más.',
+    costoRelativo: 18,
+  },
+] as const;
+
+export type ModeloCalidad = (typeof MODELOS_CALIDAD)[number]['id'];
+
+export const esModeloCalidad = (m: unknown): m is ModeloCalidad =>
+  MODELOS_CALIDAD.some((x) => x.id === m);
+
+export const CLAVE_AJUSTES_CALIDAD = 'calidad';
+
+/** Lo que guardó el administrador global; lo que falte se toma de las variables de entorno. */
+export interface AjustesCalidadGuardados {
+  modelo?: ModeloCalidad;
+  topeMensualUsd?: number;
+  actualizadoEn?: Date;
+}
+
+export async function leerAjustesCalidad(db: Db): Promise<AjustesCalidadGuardados> {
+  const [f] = await db
+    .select()
+    .from(ajustes)
+    .where(eq(ajustes.clave, CLAVE_AJUSTES_CALIDAD))
+    .limit(1);
+  const v = (f?.valor ?? {}) as Record<string, unknown>;
+  const tope = Number(v.topeMensualUsd);
+  return {
+    ...(esModeloCalidad(v.modelo) ? { modelo: v.modelo } : {}),
+    ...(Number.isFinite(tope) && tope > 0 ? { topeMensualUsd: tope } : {}),
+    ...(f ? { actualizadoEn: f.actualizadoEn } : {}),
+  };
+}
+
+/**
+ * Configuración que rige ahora: la del entorno con el modelo y el tope que eligió el administrador
+ * global. Se lee en cada uso (estimación, lanzamiento y cada ciclo del worker), así que un cambio
+ * aplica sin reiniciar.
+ */
+export async function configuracionCalidadVigente(
+  db: Db,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<ConfiguracionCalidad> {
+  const base = configuracionCalidad(env);
+  const g = await leerAjustesCalidad(db);
+  return {
+    ...base,
+    ...(g.modelo ? { modelo: g.modelo } : {}),
+    ...(g.topeMensualUsd ? { topeMensualUsd: g.topeMensualUsd } : {}),
   };
 }
 
@@ -361,7 +428,8 @@ export async function prepararSolicitudes(
     solicitudes
       .filter((s) => s.mensajes > 0 && s.reutilizarDe === null)
       .map((s) => ({ tokensConversacion: s.tokensConversacion, mensajes: s.mensajes })),
-    undefined,
+    // Precio del modelo elegido: el tope se compara con esta estimación antes de enviar.
+    preciosDe(cfg.modelo),
     { pensamiento: cfg.ajustes.pensamiento },
   );
   return { semilla, universo, muestra, solicitudes, sinMensajes, descartes, estimacion };

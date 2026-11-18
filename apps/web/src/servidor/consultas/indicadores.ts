@@ -75,6 +75,39 @@ export async function indicadoresSubcuenta(
 ) {
   exigirModulo(ctx, 'vista_subcuenta');
   exigirSubcuenta(ctx, locationId);
+  return calcularSubcuenta(db, ctx, locationId, desde, hasta);
+}
+
+/**
+ * Módulo Asesores: los asesores de una subcuenta con sus indicadores. Exige el permiso de detalle
+ * de asesores (no el de la vista de subcuenta); un asesor solo ve su propia fila.
+ */
+export async function asesoresSubcuenta(
+  db: Db,
+  ctx: ContextoAcceso,
+  locationId: string,
+  desde: string,
+  hasta: string,
+) {
+  exigirModulo(ctx, 'detalle_asesores');
+  exigirSubcuenta(ctx, locationId);
+  const d = await calcularSubcuenta(db, ctx, locationId, desde, hasta);
+  return {
+    subcuenta: d.subcuenta,
+    corrido: d.corrido,
+    asesores:
+      ctx.rol === 'asesor' ? d.asesores.filter((a) => a.asesorId === ctx.userIdGhl) : d.asesores,
+  };
+}
+
+/** Sin revisar permisos: solo para las funciones exportadas de arriba, que ya los revisaron. */
+async function calcularSubcuenta(
+  db: Db,
+  ctx: ContextoAcceso,
+  locationId: string,
+  desde: string,
+  hasta: string,
+) {
   const [sub] = await db
     .select()
     .from(tablas.subcuentas)
@@ -89,6 +122,7 @@ export async function indicadoresSubcuenta(
         eq(tablas.resumenDiario.locationId, locationId),
         inArray(tablas.resumenDiario.locationId, ctx.subcuentas),
         between(tablas.resumenDiario.fecha, desde, hasta),
+        isNull(tablas.resumenDiario.canal),
       ),
     )
     .orderBy(asc(tablas.resumenDiario.fecha));
@@ -149,6 +183,7 @@ export async function indicadoresAsesor(
     eq(tablas.resumenDiario.locationId, locationId),
     inArray(tablas.resumenDiario.locationId, ctx.subcuentas),
     between(tablas.resumenDiario.fecha, desde, hasta),
+    isNull(tablas.resumenDiario.canal),
   );
   const propias = await db
     .select()
@@ -171,7 +206,8 @@ export async function indicadoresAsesor(
   // Asesores con leads en el periodo: para comparar contra el promedio por asesor de la subcuenta.
   const conLeads = await db.execute<{ n: number }>(sql`
     select count(distinct asesor_id)::int as n from comercial.resumen_diario
-    where location_id = ${locationId} and asesor_id is not null and fecha between ${desde} and ${hasta}
+    where location_id = ${locationId} and asesor_id is not null and canal is null
+      and fecha between ${desde} and ${hasta}
       and (indicadores->>'leadsRecibidos')::int > 0`);
   return {
     asesor: { userId, nombre: asesor?.nombre ?? userId },
@@ -193,11 +229,20 @@ export async function indicadoresAsesor(
   };
 }
 
-/** Vista general: suma de las subcuentas del usuario (el dueño ve solo las suyas). */
-export async function vistaGeneral(db: Db, ctx: ContextoAcceso, desde: string, hasta: string) {
+/**
+ * Vista general: suma de las subcuentas del usuario (el dueño ve solo las suyas). Con `canal`, usa
+ * las filas de ese canal; la calidad no se mide por canal, así que en ese caso queda sin dato.
+ */
+export async function vistaGeneral(
+  db: Db,
+  ctx: ContextoAcceso,
+  desde: string,
+  hasta: string,
+  canal: string | null = null,
+) {
   exigirModulo(ctx, 'vista_general');
   if (!ctx.subcuentas.length)
-    return { desde, hasta, subcuentas: [], total: null, ventasPorDia: [] };
+    return { desde, hasta, subcuentas: [], total: null, ventasPorDia: [], canales: [] };
   const dias = diasEntre(desde, hasta);
   const subs = await db
     .select()
@@ -211,13 +256,25 @@ export async function vistaGeneral(db: Db, ctx: ContextoAcceso, desde: string, h
         inArray(tablas.resumenDiario.locationId, ctx.subcuentas),
         isNull(tablas.resumenDiario.asesorId),
         between(tablas.resumenDiario.fecha, desde, hasta),
+        canal ? eq(tablas.resumenDiario.canal, canal) : isNull(tablas.resumenDiario.canal),
       ),
     )
     .orderBy(asc(tablas.resumenDiario.fecha));
-  const calidades = await ultimosAnalisis(
-    db,
-    subs.map((s) => s.locationId),
-  );
+  // Canales con datos en las subcuentas del usuario (opciones del filtro).
+  const canales = await db.execute<{ canal: string }>(sql`
+    select distinct canal from comercial.resumen_diario
+    where canal is not null and asesor_id is null
+      and location_id in (${sql.join(
+        ctx.subcuentas.map((x) => sql`${x}`),
+        sql`, `,
+      )})
+    order by canal`);
+  const calidades = canal
+    ? new Map<string, ResumenCalidad>()
+    : await ultimosAnalisis(
+        db,
+        subs.map((s) => s.locationId),
+      );
   const porSubcuenta = subs.map((s) => ({
     locationId: s.locationId,
     nombre: s.nombre,
@@ -257,5 +314,7 @@ export async function vistaGeneral(db: Db, ctx: ContextoAcceso, desde: string, h
     ...resultado(total.acumulado, metasAgencia, dias, calidadAgencia),
     ventasPorDia: total.ventasPorDia,
     subcuentas: porSubcuenta,
+    canal,
+    canales: canales.rows.map((r) => r.canal),
   };
 }

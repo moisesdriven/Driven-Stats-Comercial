@@ -439,3 +439,100 @@ el puntaje a ±1, 12 de 13.
 No se implementó. Requiere rangos de largo que el cliente no ha definido, y la calibración muestra que
 las diferencias de extensión no son de largo sino de mensajes cortos que completan a otro (punto 3 de
 arriba): es una aclaración de la rúbrica, no una regla de largo.
+
+## Calidad · rúbrica v3 (multimedia) y v4 (decisiones del cliente) (18 de noviembre de 2026)
+
+Base local con 18 días de Jade18K (31 oct–18 nov), recargada desde GHL. Gasto total en pruebas:
+~US$ 0,19 (análisis real US$ 0,10 y 12 calibraciones con Haiku 5.5, de ~US$ 0,008 cada una).
+
+### Análisis real con la rúbrica v3 (semana del 9 al 15 de noviembre)
+
+| Solicitudes | Mensajes calificados | Por regla | Estimado   | Real       | Desvío | Fallidos | Con plus multimedia |
+| ----------- | -------------------- | --------- | ---------- | ---------- | ------ | -------- | ------------------- |
+| 909         | 2.480                | 497       | US$ 0,0995 | US$ 0,1003 | 0,8 %  | 0        | 510 (21 %)          |
+
+La estimación de costo sigue a ±1 % del real con las instrucciones más largas, y el plus de
+multimedia se aplicó al cerrar el análisis (510 mensajes ganaron +1).
+
+### Rúbrica v4
+
+Decisiones del cliente del 18 nov 2026 sobre los tres desacuerdos que dejó la v2 y la categoría de
+los saludos con pregunta:
+
+1. **Tono:** una sola tilde faltante en el mensaje se tolera; dos o más faltas, una palabra mal
+   escrita o una frase confusa lo hacen falso.
+2. **Responde:** si el asesor ya respondió el pedido en un mensaje anterior, un seguimiento o una
+   pregunta nueva cuenta como que responde.
+3. **Extensión:** un mensaje corto que completa al anterior del mismo asesor (sin que el cliente
+   escriba en medio) se evalúa junto con ese anterior.
+4. **Categoría:** un saludo o presentación que solo hace preguntas generales (talla, fecha, modelo,
+   presupuesto) es saludo_plantilla. Si además da precio o enlaces del catálogo, se clasifica por ese
+   contenido (la rúbrica ya decía que los enlaces del catálogo son información de producto).
+
+Los dos conjuntos de referencia se re-etiquetaron con esas reglas **antes** de calibrar la versión
+final y sin mirar sus respuestas, leyendo cada mensaje con su contexto: 25 valores en el conjunto
+del 9–15 nov y 27 en el del 2–8 nov (detalle en la descripción de cada archivo de
+`docs/calibracion/`).
+
+Corrección durante la calibración: una primera redacción de la regla 4 agregaba "si pregunta un dato
+concreto (talla, fecha), es pregunta de calificación". Eso contradecía la decisión del cliente (que
+eligió "saludo aunque termine en pregunta" frente a "manda la pregunta aunque empiece con saludo") y
+se quitó.
+
+### Resultados de calibración de la v4 (Haiku 5.5, dos corridas por conjunto)
+
+| Conjunto                     | Puntaje ±1  | Categoría   | Exacto      | v2 en el mismo conjunto |
+| ---------------------------- | ----------- | ----------- | ----------- | ----------------------- |
+| 9–15 nov (100)               | 94 % / 94 % | 87 % / 84 % | 54 % / 53 % | 91–93 % · 85–87 %       |
+| 2–8 nov, independiente (100) | 79 % / 82 % | 71 % / 73 % | 54 % / 52 % | 86–87 % · 72 %          |
+
+- En el primer conjunto la v4 cumple el puntaje a ±1 con margen y la categoría queda en el mínimo
+  (una corrida 87 %, otra 84 %).
+- **En el conjunto independiente no aprueba, igual que la v2.** La diferencia principal es
+  "responde": en ~30 de 100 mensajes la IA dice que el asesor no respondió y la referencia dice que
+  sí; le siguen extensión (~18) y tono (~14), siempre con la IA más estricta que la referencia.
+- La referencia del conjunto independiente la etiquetó Claude (no una persona) el 16 nov y se
+  ajustó hoy a las reglas nuevas. Para saber quién tiene razón en esos ~30 casos hace falta la
+  revisión de una persona del equipo comercial.
+- Sonnet 5.5 mejoró la categoría en este conjunto con la v2 (85 %), a ~20 veces el costo
+  (~US$ 2 por análisis semanal frente a ~US$ 0,10).
+
+### Cierre de la calibración (18 de noviembre de 2026)
+
+1. **Contraste con las reglas escritas** (el método del 16 nov): de los 101 desacuerdos que la IA
+   repitió en las dos corridas del conjunto independiente, en 13 la regla respaldaba a la IA y se
+   corrigió la referencia; en los otros 88 la regla respalda a la referencia. Desde aquí el conjunto
+   deja de ser independiente: miró respuestas de la IA para esos 13 valores.
+2. **Quinta decisión del cliente** (la contradicción que dejaba la rúbrica entre "sin precio es
+   falso" y "una aclaración necesaria es verdadero"): si el cliente pidió precio y la asesora pregunta
+   la talla, la fecha o el modelo, responde **solo si explica por qué lo necesita**. Cambia
+   "responde" en 3 mensajes de referencia.
+
+### Resultados finales de la v4 (18 de noviembre de 2026)
+
+Rúbrica `v4-2026-11` con las cinco decisiones del cliente y las referencias corregidas. Mínimos:
+puntaje a ±1 ≥ 90 % y categoría ≥ 85 %.
+
+| Modelo     | Conjunto               | Puntaje ±1  | Categoría   | Exacto | Costo (100 mensajes) | Resultado   |
+| ---------- | ---------------------- | ----------- | ----------- | ------ | -------------------- | ----------- |
+| Haiku 5.5  | 9–15 nov               | 92 % / 93 % | 85 % / 84 % | ~55 %  | US$ 0,008            | Al límite   |
+| Haiku 5.5  | 2–8 nov, independiente | 85 % / 80 % | 69 % / 73 % | ~53 %  | US$ 0,008            | No aprueba  |
+| Sonnet 5.5 | 9–15 nov               | 93 %        | 85 %        | 58 %   | US$ 0,141            | **Aprueba** |
+| Sonnet 5.5 | 2–8 nov, independiente | 94 %        | 87 %        | 68 %   | US$ 0,145            | **Aprueba** |
+
+- **Sonnet 5.5 aprueba los dos conjuntos con la misma rúbrica.** En el conjunto independiente sube
+  la categoría de ~70 % a 87 % y el puntaje exacto de ~53 % a 68 %. Los errores de categoría de
+  Haiku (por ejemplo, la plantilla de catálogo o de ubicación clasificada como saludo) eran del
+  modelo: la rúbrica ya los resolvía.
+- **Haiku 5.5 no llega al mínimo de forma estable.** Aprueba al límite el conjunto con el que se
+  escribió la rúbrica y falla en el independiente, sobre todo en categoría y "responde".
+- **Costo:** Sonnet cuesta ~18 veces más que Haiku. El análisis semanal real de Jade18K (909
+  solicitudes, 2.480 mensajes) costó US$ 0,10 con Haiku y costaría ~US$ 1,8 con Sonnet, unos
+  US$ 8 al mes por subcuenta con un análisis por semana. El tope `IA_TOPE_MENSUAL_USD` (10 por
+  omisión) suma todos los análisis del mes. Con Sonnet alcanza para una subcuenta: hay que subirlo
+  antes de agregar más.
+- **Cambio de modelo:** lo hace el administrador global en Configuración › Calidad (decisión del
+  cliente del 18 nov 2026), junto con el tope mensual; sin reiniciar. `IA_MODELO` queda como valor
+  por omisión. Para comparar, cada análisis guarda su modelo y su versión de la rúbrica.
+- La estimación previa al envío usaba siempre el precio de Haiku; se corrigió para usar el del
+  modelo elegido (si no, el tope habría subestimado ~18 veces el costo con Sonnet).

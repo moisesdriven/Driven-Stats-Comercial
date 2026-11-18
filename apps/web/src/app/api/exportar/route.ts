@@ -1,6 +1,7 @@
 import { obtenerDb } from '@/servidor/db';
 import { exportar } from '@/servidor/exportar';
 import { manejar, requerirSesion } from '@/servidor/http';
+import { leerCanal } from '@/lib/canales';
 import { leerRango } from '@/servidor/rango';
 
 /** Descarga en CSV de la vista general o de una subcuenta (indicadores agregados). */
@@ -11,6 +12,7 @@ export const GET = manejar(async (req) => {
   const r = await exportar(obtenerDb(), ctx, {
     tipo: url.searchParams.get('tipo') ?? '',
     subcuenta: url.searchParams.get('subcuenta'),
+    canal: leerCanal(Object.fromEntries(url.searchParams)),
     desde,
     hasta,
   });

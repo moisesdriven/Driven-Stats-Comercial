@@ -11,8 +11,9 @@ import {
   Vacio,
   VentasPorDia,
 } from '@/componentes/panel/Bloques';
-import { FiltroPeriodo } from '@/componentes/panel/Filtros';
+import { FiltroCanal, FiltroPeriodo } from '@/componentes/panel/Filtros';
 import { IconoDescarga } from '@/componentes/panel/Iconos';
+import { leerCanal, nombreCanal } from '@/lib/canales';
 import { destacadoEtapa, sufijoTiempo, type Presentacion } from '@/lib/destacado';
 import { dias, haceCuanto, minutos, numero, porcentaje, rangoFechas, soles } from '@/lib/formato';
 import { diasDelPeriodo, leerPeriodo, qsPeriodo } from '@/lib/periodo';
@@ -31,11 +32,13 @@ export default async function VistaGeneral({
 }) {
   const { ctx } = await requerirSesionPagina();
   if (ctx.modulos.vista_general === 'ninguno') redirect(inicioDe(ctx));
-  const periodo = leerPeriodo(await searchParams);
+  const params = await searchParams;
+  const periodo = leerPeriodo(params);
+  const canal = leerCanal(params);
   const db = obtenerDb();
   const [v, actualizado] = await enPagina(
     Promise.all([
-      vistaGeneral(db, ctx, periodo.desde, periodo.hasta),
+      vistaGeneral(db, ctx, periodo.desde, periodo.hasta, canal),
       ultimaActualizacion(db, ctx.subcuentas),
     ]),
   );
@@ -57,16 +60,23 @@ export default async function VistaGeneral({
           <h1 className="titulo">Vista general</h1>
           <p className="subtitulo">
             {v.subcuentas.length} {v.subcuentas.length === 1 ? 'subcuenta' : 'subcuentas'} ·{' '}
-            {numero(i?.leadsRecibidos ?? 0)} leads · {rangoFechas(periodo.desde, periodo.hasta)}
+            {numero(i?.leadsRecibidos ?? 0)} leads{canal ? ` por ${nombreCanal(canal)}` : ''} ·{' '}
+            {rangoFechas(periodo.desde, periodo.hasta)}
             {actualizado ? ` · actualizado ${haceCuanto(actualizado).toLowerCase()}` : ''}
           </p>
         </div>
         <div className="filtros">
+          {v.canales.length > 0 && (
+            <FiltroCanal
+              actual={canal}
+              canales={v.canales.map((c) => ({ valor: c, texto: nombreCanal(c) }))}
+            />
+          )}
           <FiltroPeriodo clave={periodo.clave} desde={periodo.desde} hasta={periodo.hasta} />
           {ctx.modulos.exportar !== 'ninguno' && (
             <a
               className="boton-sec"
-              href={`/api/exportar?tipo=vista-general&desde=${periodo.desde}&hasta=${periodo.hasta}`}
+              href={`/api/exportar?tipo=vista-general&desde=${periodo.desde}&hasta=${periodo.hasta}${canal ? `&canal=${encodeURIComponent(canal)}` : ''}`}
               download
             >
               <IconoDescarga />

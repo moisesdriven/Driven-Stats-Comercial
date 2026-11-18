@@ -150,6 +150,8 @@ describe.skipIf(!URL_PRUEBAS)('calcular:resumen (integración)', () => {
       ingresoEn: ingreso,
       estado,
       etapaEstandar: etapa,
+      // K5 llega por Instagram; el resto, por WhatsApp (filtro por canal de la vista general).
+      canal: contactId === 'K5' ? 'instagram' : 'whatsapp',
     });
     await db
       .insert(tablas.leads)
@@ -178,6 +180,7 @@ describe.skipIf(!URL_PRUEBAS)('calcular:resumen (integración)', () => {
           asesor
             ? eq(tablas.resumenDiario.asesorId, asesor)
             : isNull(tablas.resumenDiario.asesorId),
+          isNull(tablas.resumenDiario.canal),
         ),
       );
     return f?.indicadores as Acumulado | undefined;
@@ -230,10 +233,40 @@ describe.skipIf(!URL_PRUEBAS)('calcular:resumen (integración)', () => {
       .select()
       .from(tablas.resumenDiario)
       .where(
-        and(eq(tablas.resumenDiario.fecha, '2026-11-16'), isNull(tablas.resumenDiario.asesorId)),
+        and(
+          eq(tablas.resumenDiario.fecha, '2026-11-16'),
+          isNull(tablas.resumenDiario.asesorId),
+          isNull(tablas.resumenDiario.canal),
+        ),
       );
     expect(f?.estadosEtapa).toHaveProperty('atencion');
     expect(f?.cuelloBotella).toBe('atencion'); // mediana 20 min frente a la meta de 5
+  });
+
+  it('guarda el total de la subcuenta por canal, que suma el total de todos los canales', async () => {
+    const porCanal = await db
+      .select()
+      .from(tablas.resumenDiario)
+      .where(
+        and(
+          eq(tablas.resumenDiario.fecha, '2026-11-16'),
+          eq(tablas.resumenDiario.locationId, LOC),
+          isNull(tablas.resumenDiario.asesorId),
+        ),
+      );
+    const de = (canal: string | null) =>
+      porCanal.find((f) => f.canal === canal)?.indicadores as Acumulado | undefined;
+    expect(porCanal.map((f) => f.canal).sort()).toEqual(['instagram', 'whatsapp', null].sort());
+    expect(de('instagram')?.leadsRecibidos).toBe(1);
+    expect(de('whatsapp')?.leadsRecibidos).toBe(4);
+    expect(de(null)?.leadsRecibidos).toBe(5);
+    expect((de('whatsapp')?.ventas ?? 0) + (de('instagram')?.ventas ?? 0)).toBe(de(null)?.ventas);
+    // Las filas por asesor no se parten por canal.
+    const asesores = await db
+      .select()
+      .from(tablas.resumenDiario)
+      .where(eq(tablas.resumenDiario.locationId, LOC));
+    expect(asesores.filter((f) => f.asesorId !== null && f.canal !== null)).toHaveLength(0);
   });
 
   it('recalcular es idempotente', async () => {
