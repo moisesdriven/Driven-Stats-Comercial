@@ -1,5 +1,5 @@
 {
-  "descripcion": "Jade18K, semana del 2 al 8 nov 2026: 100 mensajes elegidos al azar entre los 1.889 que el análisis calificaría (semilla conjunto-2-nov; orden md5(message_id || semilla-nov2)). Etiquetas de referencia revisadas a mano el 16 nov 2026 con la rúbrica v2, en una sola pasada y sin ver respuestas de la IA (conjunto independiente). Solo ids y etiquetas; el contexto se lee de la base. Rúbrica v4 (18 nov 2026, decisiones del cliente): se re-etiquetaron 19 valores sin ver respuestas de la IA con la v4: tono verdadero en 15 mensajes con una sola tilde faltante o sobrante; responde verdadero en 1 cuyo pedido ya había respondido el asesor antes; extensión verdadera en 3 mensajes cortos que completan al anterior del asesor. Ninguna categoría cambia (los saludos con pregunta genérica ya eran saludo_plantilla). Además, 8 saludos o presentaciones que solo hacen preguntas generales (talla, fecha, modelo, presupuesto) pasan a saludo_plantilla, según la decisión del cliente; los que traen precio o enlaces del catálogo conservan su categoría.",
+  "descripcion": "Jade18K, semana del 2 al 8 nov 2026: 100 mensajes elegidos al azar entre los 1.889 que el análisis calificaría (semilla conjunto-2-nov; orden md5(message_id || semilla-nov2)). Etiquetas de referencia revisadas a mano el 16 nov 2026 con la rúbrica v2, en una sola pasada y sin ver respuestas de la IA (conjunto independiente). Solo ids y etiquetas; el contexto se lee de la base. Rúbrica v4 (18 nov 2026, decisiones del cliente): se re-etiquetaron 19 valores sin ver respuestas de la IA con la v4: tono verdadero en 15 mensajes con una sola tilde faltante o sobrante; responde verdadero en 1 cuyo pedido ya había respondido el asesor antes; extensión verdadera en 3 mensajes cortos que completan al anterior del asesor. Ninguna categoría cambia (los saludos con pregunta genérica ya eran saludo_plantilla). Además, 8 saludos o presentaciones que solo hacen preguntas generales (talla, fecha, modelo, presupuesto) pasan a saludo_plantilla, según la decisión del cliente; los que traen precio o enlaces del catálogo conservan su categoría. Contraste con las reglas escritas de la v4 de los 101 desacuerdos que la IA repitió en dos corridas (18 nov): en 13 valores la regla respaldaba a la IA y se corrigió la referencia (la cotización larga con cuatro faltas, siguiente paso y bloque excesivo; la disculpa que sí responde; un saludo genérico ante un pedido de precio; dos saludos que solo preguntan qué producto desea). En los otros 88 la regla respalda a la referencia. Decisión del cliente (18 nov) sobre preguntar talla, fecha o modelo cuando el cliente pidió precio: responde solo si la asesora explica por qué lo necesita. Cambia responde en 2 mensaje(s).",
   "locationId": "93mgPQwURqpEvyzZcf9m",
   "mensajes": [
     {
@@ -17,7 +17,7 @@
       "messageId": "6P18MiRCE7Dn0EMulhDT",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": true,
+        "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": true,
@@ -28,7 +28,7 @@
       "messageId": "uDmaPzM61scxDwKeFSQg",
       "categoria": "manejo_objecion",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": true,
         "siguiente_paso": false,
         "tono": true,
@@ -147,7 +147,7 @@
     },
     {
       "messageId": "B5c5vcOc1Wwkpwn4gRgW",
-      "categoria": "pregunta_calificacion",
+      "categoria": "saludo_plantilla",
       "criterios": {
         "responde": true,
         "personalizado": false,
@@ -226,7 +226,7 @@
       "messageId": "B9tX1xGRWScBLsEdp57q",
       "categoria": "info_producto_precio",
       "criterios": {
-        "responde": true,
+        "responde": false,
         "personalizado": true,
         "siguiente_paso": true,
         "tono": false,
@@ -565,9 +565,9 @@
     },
     {
       "messageId": "nMd08jhmrSiBfGu4Cx9v",
-      "categoria": "pregunta_calificacion",
+      "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": true,
+        "responde": false,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": true,
@@ -855,9 +855,9 @@
       "criterios": {
         "responde": true,
         "personalizado": false,
-        "siguiente_paso": false,
-        "tono": true,
-        "extension": true
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": false
       }
     },
     {
@@ -877,9 +877,9 @@
       "criterios": {
         "responde": true,
         "personalizado": false,
-        "siguiente_paso": false,
-        "tono": true,
-        "extension": true
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": false
       }
     },
     {
@@ -1042,9 +1042,9 @@
       "criterios": {
         "responde": true,
         "personalizado": false,
-        "siguiente_paso": false,
-        "tono": true,
-        "extension": true
+        "siguiente_paso": true,
+        "tono": false,
+        "extension": false
       }
     },
     {

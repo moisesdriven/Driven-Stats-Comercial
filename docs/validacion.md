@@ -497,6 +497,17 @@ se quitó.
 - Sonnet 5.5 mejoró la categoría en este conjunto con la v2 (85 %), a ~20 veces el costo
   (~US$ 2 por análisis semanal frente a ~US$ 0,10).
 
+### Cierre de la calibración (18 de noviembre de 2026)
+
+1. **Contraste con las reglas escritas** (el método del 16 nov): de los 101 desacuerdos que la IA
+   repitió en las dos corridas del conjunto independiente, en 13 la regla respaldaba a la IA y se
+   corrigió la referencia; en los otros 88 la regla respalda a la referencia. Desde aquí el conjunto
+   deja de ser independiente: miró respuestas de la IA para esos 13 valores.
+2. **Quinta decisión del cliente** (la contradicción que dejaba la rúbrica entre "sin precio es
+   falso" y "una aclaración necesaria es verdadero"): si el cliente pidió precio y la asesora pregunta
+   la talla, la fecha o el modelo, responde **solo si explica por qué lo necesita**. Cambia
+   "responde" en 3 mensajes de referencia.
+
 ### Pendiente (decisión del cliente)
 
 - Cómo cerrar la calibración: (a) que una persona del equipo revise los mensajes en desacuerdo del

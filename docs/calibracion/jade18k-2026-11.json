@@ -1,5 +1,5 @@
 {
-  "descripcion": "Jade18K, semana del 9 al 15 nov 2026: 100 mensajes elegidos al azar del análisis 1 (orden md5(message_id || semilla42)). Etiquetas de referencia revisadas a mano el 16 nov 2026 en dos pasadas con la rúbrica v2 (la segunda, contrastando con las reglas escritas cada discrepancia estable de la IA). Solo ids y etiquetas; el contexto se lee de la base. Rúbrica v4 (18 nov 2026, decisiones del cliente): se re-etiquetaron 20 valores sin ver respuestas de la IA con la v4: tono verdadero en 7 mensajes con una sola tilde faltante; responde verdadero en 7 cuyo pedido ya había respondido el asesor antes; extensión verdadera en 3 mensajes cortos que completan al anterior del asesor; y categoría saludo_plantilla en 3 saludos de plantilla que terminan en una pregunta genérica. Además, 5 saludos o presentaciones que solo hacen preguntas generales (talla, fecha, modelo, presupuesto) pasan a saludo_plantilla, según la decisión del cliente; los que traen precio o enlaces del catálogo conservan su categoría.",
+  "descripcion": "Jade18K, semana del 9 al 15 nov 2026: 100 mensajes elegidos al azar del análisis 1 (orden md5(message_id || semilla42)). Etiquetas de referencia revisadas a mano el 16 nov 2026 en dos pasadas con la rúbrica v2 (la segunda, contrastando con las reglas escritas cada discrepancia estable de la IA). Solo ids y etiquetas; el contexto se lee de la base. Rúbrica v4 (18 nov 2026, decisiones del cliente): se re-etiquetaron 20 valores sin ver respuestas de la IA con la v4: tono verdadero en 7 mensajes con una sola tilde faltante; responde verdadero en 7 cuyo pedido ya había respondido el asesor antes; extensión verdadera en 3 mensajes cortos que completan al anterior del asesor; y categoría saludo_plantilla en 3 saludos de plantilla que terminan en una pregunta genérica. Además, 5 saludos o presentaciones que solo hacen preguntas generales (talla, fecha, modelo, presupuesto) pasan a saludo_plantilla, según la decisión del cliente; los que traen precio o enlaces del catálogo conservan su categoría. Decisión del cliente (18 nov) sobre preguntar talla, fecha o modelo cuando el cliente pidió precio: responde solo si la asesora explica por qué lo necesita. Cambia responde en 1 mensaje(s).",
   "locationId": "93mgPQwURqpEvyzZcf9m",
   "mensajes": [
     {
@@ -347,7 +347,7 @@
       "messageId": "uMruLt0xybZVVnKIu39j",
       "categoria": "saludo_plantilla",
       "criterios": {
-        "responde": false,
+        "responde": true,
         "personalizado": false,
         "siguiente_paso": true,
         "tono": false,

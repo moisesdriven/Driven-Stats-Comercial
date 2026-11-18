@@ -174,4 +174,7 @@ una maqueta con datos reales de Jade18K.
 - Extensión: un mensaje corto que completa al anterior del mismo asesor se evalúa junto con él.
 - Categoría: un saludo o presentación que solo hace preguntas generales es saludo_plantilla; con
   precio o enlaces del catálogo se clasifica por ese contenido.
-- Resultados de calibración y pendiente en `validacion.md`.
+- Responde (contradicción "sin precio es falso" / "aclaración necesaria"): si el cliente pidió
+  precio y la asesora pregunta la talla, la fecha o el modelo, responde solo si explica por qué lo
+  necesita ("de acuerdo a la talla es el peso y de acuerdo al peso es el precio").
+- Resultados de calibración en `validacion.md`.
