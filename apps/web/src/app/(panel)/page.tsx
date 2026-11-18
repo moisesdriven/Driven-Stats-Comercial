@@ -4,6 +4,7 @@ import type { EtapaProceso } from '@driven/core';
 import {
   Alerta,
   BarrasEtapa,
+  Embudo,
   Kpi,
   Leyenda,
   PildoraCuello,
@@ -11,29 +12,17 @@ import {
   VentasPorDia,
 } from '@/componentes/panel/Bloques';
 import { FiltroPeriodo } from '@/componentes/panel/Filtros';
+import { IconoDescarga } from '@/componentes/panel/Iconos';
 import { destacadoEtapa, sufijoTiempo, type Presentacion } from '@/lib/destacado';
 import { dias, haceCuanto, minutos, numero, porcentaje, rangoFechas, soles } from '@/lib/formato';
 import { diasDelPeriodo, leerPeriodo, qsPeriodo } from '@/lib/periodo';
-import {
-  ETAPAS_ORDEN,
-  NOMBRE_ETAPA,
-  PREGUNTA_ETAPA,
-  textoEstadoEtapa,
-  tonoDe,
-} from '@/lib/semaforo';
+import { ETAPAS_ORDEN, NOMBRE_ETAPA } from '@/lib/semaforo';
 import { ultimaActualizacion } from '@/servidor/consultas/actualizacion';
 import { vistaGeneral } from '@/servidor/consultas/indicadores';
 import { obtenerDb } from '@/servidor/db';
 import { enPagina, inicioDe, requerirSesionPagina } from '@/servidor/pagina';
 
 export const metadata = { title: 'Vista general · Driven Comercial' };
-
-const ARTICULO: Record<EtapaProceso, string> = {
-  atencion: 'la atención',
-  seguimiento: 'el seguimiento',
-  negociacion: 'la negociación',
-  cierre: 'el cierre',
-};
 
 export default async function VistaGeneral({
   searchParams,
@@ -76,10 +65,11 @@ export default async function VistaGeneral({
           <FiltroPeriodo clave={periodo.clave} desde={periodo.desde} hasta={periodo.hasta} />
           {ctx.modulos.exportar !== 'ninguno' && (
             <a
-              className="boton"
+              className="boton-sec"
               href={`/api/exportar?tipo=vista-general&desde=${periodo.desde}&hasta=${periodo.hasta}`}
               download
             >
+              <IconoDescarga />
               Exportar
             </a>
           )}
@@ -90,42 +80,33 @@ export default async function VistaGeneral({
         <Vacio>Aún no hay subcuentas con datos. Da de alta una subcuenta en Configuración.</Vacio>
       ) : (
         <>
-          <section aria-label="Evaluación por etapa" className="oscura">
-            <div className="fila-cabecera" style={{ flexWrap: 'wrap', alignItems: 'baseline' }}>
-              <h2 className="seccion__titulo">
-                {ev.cuello
-                  ? `El cuello de botella ${etiquetaAgencia} está en ${ARTICULO[ev.cuello]}`
-                  : `Sin cuello de botella ${etiquetaAgencia}`}
-              </h2>
-              <span className="oscura__nota">Semáforo frente a la meta de cada subcuenta</span>
-            </div>
-            <div className="rejilla rejilla--etapas">
-              {ETAPAS_ORDEN.map((e, n) => {
-                const estado = ev.etapas[e];
-                const d = destacadoEtapa(e, ev.estados, i, pres!);
-                return (
-                  <div
-                    key={e}
-                    className={`etapa-oscura${estado === 'rojo' ? ' etapa-oscura--rojo' : ''}`}
-                  >
-                    <div className="fila-cabecera">
-                      <span className="etapa-oscura__nombre">
-                        {n + 1} · {NOMBRE_ETAPA[e]}
-                      </span>
-                      <span className={`pildora pildora--${tonoDe(estado)}`}>
-                        {textoEstadoEtapa(estado)}
-                      </span>
-                    </div>
-                    <span className="etapa-oscura__pregunta">{PREGUNTA_ETAPA[e]}</span>
-                    <span className="etapa-oscura__valor">{d.valor}</span>
-                    <span className="etapa-oscura__detalle">
-                      {d.etiqueta} · {d.meta}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          {(() => {
+            const destacados = Object.fromEntries(
+              ETAPAS_ORDEN.map((e) => [e, destacadoEtapa(e, ev.estados, i, pres!)]),
+            ) as Record<EtapaProceso, ReturnType<typeof destacadoEtapa>>;
+            const d = ev.cuello ? destacados[ev.cuello] : null;
+            return (
+              <Embudo
+                titulo={`Embudo comercial ${etiquetaAgencia}`}
+                cuello={ev.cuello}
+                etapas={ev.etapas}
+                destacados={destacados}
+                aviso={
+                  ev.cuello && d ? (
+                    <>
+                      <strong>Cuello de botella: {NOMBRE_ETAPA[ev.cuello]}.</strong> {d.etiqueta}:{' '}
+                      {d.valor} ({d.meta.charAt(0).toLowerCase() + d.meta.slice(1)}). Mejorar aquí
+                      destraba las etapas siguientes.
+                    </>
+                  ) : (
+                    <>
+                      <strong>Sin cuello de botella.</strong> Todas las etapas están en meta.
+                    </>
+                  )
+                }
+              />
+            );
+          })()}
 
           <section aria-label="Indicadores" className="rejilla rejilla--kpis">
             <Kpi
@@ -182,19 +163,35 @@ export default async function VistaGeneral({
           <section aria-label="Subcuentas" className="seccion">
             <div className="seccion__cabecera">
               <h2 className="seccion__titulo">Subcuentas</h2>
-              <Leyenda />
             </div>
-            <div className="tabla-caja">
+            <div
+              className="tabla-caja tabla-caja--apilable"
+              tabIndex={0}
+              role="region"
+              aria-label="Tabla de subcuentas"
+            >
               <table className="tabla" style={{ minWidth: 880 }}>
                 <thead>
                   <tr>
                     <th scope="col">Subcuenta</th>
-                    <th scope="col">Leads</th>
-                    <th scope="col">T. respuesta</th>
-                    <th scope="col">Sin responder</th>
-                    <th scope="col">Pendientes</th>
-                    <th scope="col">Conversión</th>
-                    <th scope="col">Ventas</th>
+                    <th scope="col" className="n">
+                      Leads
+                    </th>
+                    <th scope="col" className="n">
+                      T. respuesta
+                    </th>
+                    <th scope="col" className="n">
+                      Sin responder
+                    </th>
+                    <th scope="col" className="n">
+                      Pendientes
+                    </th>
+                    <th scope="col" className="n">
+                      Conversión
+                    </th>
+                    <th scope="col" className="n">
+                      Ventas
+                    </th>
                     <th scope="col">Etapas A · S · N · C</th>
                     <th scope="col">Cuello de botella</th>
                   </tr>
@@ -209,22 +206,37 @@ export default async function VistaGeneral({
                           <strong>{s.nombre}</strong>
                         )}
                       </td>
-                      <td>{numero(s.indicadores.leadsRecibidos)}</td>
-                      <td>{minutos(s.indicadores.tiempoRespuestaMediana)}</td>
-                      <td>{numero(s.indicadores.sinResponder)}</td>
-                      <td>{numero(s.indicadores.seguimientoVencido)}</td>
-                      <td>{porcentaje(s.indicadores.conversion)}</td>
-                      <td style={{ fontWeight: 600 }}>{numero(s.indicadores.ventas)}</td>
-                      <td>
+                      <td className="n" data-etiqueta="Leads">
+                        {numero(s.indicadores.leadsRecibidos)}
+                      </td>
+                      <td className="n" data-etiqueta="T. respuesta">
+                        {minutos(s.indicadores.tiempoRespuestaMediana)}
+                      </td>
+                      <td className="n" data-etiqueta="Sin responder">
+                        {numero(s.indicadores.sinResponder)}
+                      </td>
+                      <td className="n" data-etiqueta="Pendientes">
+                        {numero(s.indicadores.seguimientoVencido)}
+                      </td>
+                      <td className="n" data-etiqueta="Conversión">
+                        {porcentaje(s.indicadores.conversion)}
+                      </td>
+                      <td className="n" data-etiqueta="Ventas" style={{ fontWeight: 600 }}>
+                        {numero(s.indicadores.ventas)}
+                      </td>
+                      <td data-etiqueta="Etapas">
                         <BarrasEtapa etapas={s.evaluacion.etapas} />
                       </td>
-                      <td>
+                      <td data-etiqueta="Cuello de botella">
                         <PildoraCuello cuello={s.evaluacion.cuello} etapas={s.evaluacion.etapas} />
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div style={{ padding: '4px 20px 18px' }}>
+              <Leyenda />
             </div>
           </section>
 
@@ -245,7 +257,7 @@ export default async function VistaGeneral({
               <VentasPorDia dias={diasDelPeriodo(periodo)} porDia={v.ventasPorDia} />
             </section>
             <section aria-label="Alertas cruzadas" className="seccion seccion--relleno">
-              <h2 className="seccion__titulo seccion__titulo--chico">Alertas cruzadas</h2>
+              <h2 className="seccion__titulo seccion__titulo--chico">Alertas</h2>
               {v.subcuentas.flatMap((s) =>
                 s.evaluacion.alertas.map((a) => (
                   <Alerta key={`${s.locationId}-${a}`} quien={s.nombre} clave={a} />

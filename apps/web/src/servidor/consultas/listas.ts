@@ -18,6 +18,9 @@ import type { Db } from '@driven/db';
 import { exigirModulo, exigirSubcuenta, type ContextoAcceso } from '../acceso';
 import { tiemposSubcuenta } from './tiempo';
 
+/** Texto de espera de un pendiente con el asesor fuera de turno (no es falta suya). */
+export const ESPERA_FUERA_DE_TURNO = 'Asesor fuera de turno';
+
 export interface FilaAccion {
   conversationId: string | null;
   contacto: string;
@@ -162,7 +165,7 @@ export async function listasParaActuar(
         fueraDeTurno.push({
           ...base,
           mensaje: textoCliente,
-          espera: 'Asesor fuera de turno',
+          espera: ESPERA_FUERA_DE_TURNO,
           minutos: min,
           urgente: false,
         });

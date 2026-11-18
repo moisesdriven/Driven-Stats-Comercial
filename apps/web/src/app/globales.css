@@ -1,50 +1,309 @@
+/*
+ * Tema de Driven Comercial (rediseño aprobado el 18 nov 2026, tokens en packages/ui).
+ * Cada color es un par claro/oscuro: light-dark() donde existe y, si no, prefers-color-scheme.
+ * El tema sigue la preferencia del sistema; el menú y algunos bloques son siempre oscuros
+ * (.zona-oscura).
+ */
 :root {
-  --primario: #1f5bff;
-  --primario-hover: #0b3fd9;
-  --texto: #0b0d12;
-  --texto-secundario: #5b6475;
-  --borde: #e3e8f2;
-  --fondo-trabajo: linear-gradient(180deg, #ffffff 0%, #eef2f9 100%);
-  --fondo-menu: linear-gradient(180deg, #0b0d12 0%, #1b2030 100%);
+  color-scheme: light dark;
+
+  --fondo-c: #f3f5fa;
+  --fondo-o: #0b0d12;
+  --sup-c: #ffffff;
+  --sup-o: #131722;
+  --sup2-c: #eef2f9;
+  --sup2-o: #1b2030;
+  --negro-c: #0b0d12;
+  --negro-o: #f5f7fb;
+  --gris-c: #535c6e;
+  --gris-o: #b4bccc;
+  --gris-oscuro-c: #3a4252;
+  --gris-oscuro-o: #cdd3df;
+  --borde-c: #e3e8f2;
+  --borde-o: #262b38;
+  --borde-fila-c: #edf0f6;
+  --borde-fila-o: #1f2330;
+  --control-c: #8590a6;
+  --control-o: #687187;
+  --azul-c: #1f5bff;
+  --azul-o: #7c9dff;
+  --azul-hover-c: #0b3fd9;
+  --azul-hover-o: #a3baff;
+  --azul-tinta-c: #ffffff;
+  --azul-tinta-o: #0b0d12;
+  --azul-suave-c: #e8eeff;
+  --azul-suave-o: #1a2547;
+  --verde-c: #079455;
+  --verde-o: #4ade9a;
+  --verde-texto-c: #067647;
+  --verde-texto-o: #4ade9a;
+  --verde-fondo-c: #e3f6ec;
+  --verde-fondo-o: #0d2a1d;
+  --amarillo-c: #dc6803;
+  --amarillo-o: #fdba5a;
+  --amarillo-texto-c: #93370d;
+  --amarillo-texto-o: #fdba5a;
+  --amarillo-fondo-c: #fef0dc;
+  --amarillo-fondo-o: #33240c;
+  --rojo-c: #d92d20;
+  --rojo-o: #ff8a80;
+  --rojo-texto-c: #b42318;
+  --rojo-texto-o: #ff8a80;
+  --rojo-fondo-c: #fdeae8;
+  --rojo-fondo-o: #3a1517;
+  --barra-c: #1f5bff;
+  --barra-o: #6b93ff;
+
+  --fondo: light-dark(var(--fondo-c), var(--fondo-o));
+  --sup: light-dark(var(--sup-c), var(--sup-o));
+  --fondo-suave: light-dark(var(--sup2-c), var(--sup2-o));
+  --negro: light-dark(var(--negro-c), var(--negro-o));
+  --gris: light-dark(var(--gris-c), var(--gris-o));
+  --gris-oscuro: light-dark(var(--gris-oscuro-c), var(--gris-oscuro-o));
+  --borde: light-dark(var(--borde-c), var(--borde-o));
+  --borde-fila: light-dark(var(--borde-fila-c), var(--borde-fila-o));
+  --control-borde: light-dark(var(--control-c), var(--control-o));
+  --azul: light-dark(var(--azul-c), var(--azul-o));
+  --azul-hover: light-dark(var(--azul-hover-c), var(--azul-hover-o));
+  --azul-tinta: light-dark(var(--azul-tinta-c), var(--azul-tinta-o));
+  --azul-suave: light-dark(var(--azul-suave-c), var(--azul-suave-o));
+  --verde: light-dark(var(--verde-c), var(--verde-o));
+  --verde-texto: light-dark(var(--verde-texto-c), var(--verde-texto-o));
+  --verde-fondo: light-dark(var(--verde-fondo-c), var(--verde-fondo-o));
+  --amarillo: light-dark(var(--amarillo-c), var(--amarillo-o));
+  --amarillo-texto: light-dark(var(--amarillo-texto-c), var(--amarillo-texto-o));
+  --amarillo-fondo: light-dark(var(--amarillo-fondo-c), var(--amarillo-fondo-o));
+  --rojo: light-dark(var(--rojo-c), var(--rojo-o));
+  --rojo-texto: light-dark(var(--rojo-texto-c), var(--rojo-texto-o));
+  --rojo-fondo: light-dark(var(--rojo-fondo-c), var(--rojo-fondo-o));
+  --barra: light-dark(var(--barra-c), var(--barra-o));
+
+  /* Serie categórica (gráficos con varias categorías), validada para daltonismo en ambos temas. */
+  --serie-1: light-dark(#2a78d6, #3987e5);
+  --serie-2: light-dark(#eb6834, #d95926);
+  --serie-3: light-dark(#1baf7a, #199e70);
+  --serie-4: light-dark(#eda100, #c98500);
+  --serie-5: light-dark(#e87ba4, #d55181);
+  --serie-6: light-dark(#008300, #0ca30c);
+  --serie-7: light-dark(#6250d6, #9085e9);
+  --serie-8: light-dark(#e34948, #e66767);
+
+  /* Fijos: el azul de marca y los degradados oscuros se ven igual en los dos temas. */
+  --marca: #1f5bff;
+  --grad-negro: linear-gradient(180deg, #0b0d12 0%, #1b2030 100%);
+  --grad-negro-tarjeta: linear-gradient(135deg, #0b0d12 0%, #1b2030 100%);
+  --grad-azul: linear-gradient(135deg, #1f5bff 0%, #4d7cff 100%);
+
+  --titulos: Sora, Inter, system-ui, sans-serif;
+  --texto: Inter, system-ui, sans-serif;
+
+  accent-color: var(--azul);
+  scrollbar-color: var(--control-borde) transparent;
+}
+
+/* Navegadores sin light-dark(): los mismos pares por media query. */
+@supports not (color: light-dark(#000, #fff)) {
+  :root {
+    --fondo: var(--fondo-c);
+    --sup: var(--sup-c);
+    --fondo-suave: var(--sup2-c);
+    --negro: var(--negro-c);
+    --gris: var(--gris-c);
+    --gris-oscuro: var(--gris-oscuro-c);
+    --borde: var(--borde-c);
+    --borde-fila: var(--borde-fila-c);
+    --control-borde: var(--control-c);
+    --azul: var(--azul-c);
+    --azul-hover: var(--azul-hover-c);
+    --azul-tinta: var(--azul-tinta-c);
+    --azul-suave: var(--azul-suave-c);
+    --verde: var(--verde-c);
+    --verde-texto: var(--verde-texto-c);
+    --verde-fondo: var(--verde-fondo-c);
+    --amarillo: var(--amarillo-c);
+    --amarillo-texto: var(--amarillo-texto-c);
+    --amarillo-fondo: var(--amarillo-fondo-c);
+    --rojo: var(--rojo-c);
+    --rojo-texto: var(--rojo-texto-c);
+    --rojo-fondo: var(--rojo-fondo-c);
+    --barra: var(--barra-c);
+    --serie-1: #2a78d6;
+    --serie-2: #eb6834;
+    --serie-3: #1baf7a;
+    --serie-4: #eda100;
+    --serie-5: #e87ba4;
+    --serie-6: #008300;
+    --serie-7: #6250d6;
+    --serie-8: #e34948;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: var(--fondo-o);
+      --sup: var(--sup-o);
+      --fondo-suave: var(--sup2-o);
+      --negro: var(--negro-o);
+      --gris: var(--gris-o);
+      --gris-oscuro: var(--gris-oscuro-o);
+      --borde: var(--borde-o);
+      --borde-fila: var(--borde-fila-o);
+      --control-borde: var(--control-o);
+      --azul: var(--azul-o);
+      --azul-hover: var(--azul-hover-o);
+      --azul-tinta: var(--azul-tinta-o);
+      --azul-suave: var(--azul-suave-o);
+      --verde: var(--verde-o);
+      --verde-texto: var(--verde-texto-o);
+      --verde-fondo: var(--verde-fondo-o);
+      --amarillo: var(--amarillo-o);
+      --amarillo-texto: var(--amarillo-texto-o);
+      --amarillo-fondo: var(--amarillo-fondo-o);
+      --rojo: var(--rojo-o);
+      --rojo-texto: var(--rojo-texto-o);
+      --rojo-fondo: var(--rojo-fondo-o);
+      --barra: var(--barra-o);
+      --serie-1: #3987e5;
+      --serie-2: #d95926;
+      --serie-3: #199e70;
+      --serie-4: #c98500;
+      --serie-5: #d55181;
+      --serie-6: #0ca30c;
+      --serie-7: #9085e9;
+      --serie-8: #e66767;
+    }
+  }
+}
+
+/*
+ * Bloques siempre oscuros (menú lateral, resúmenes, paneles de edición). Los colores heredados
+ * (color, accent-color) se re-declaran para que tomen los valores oscuros de la zona.
+ */
+.zona-oscura,
+.menu,
+.oscura,
+.resumen-asesor,
+.panel-oscuro,
+.tarjeta-rol--oscura {
+  color-scheme: only dark;
+  color: var(--negro);
+  accent-color: var(--azul);
+}
+/* Los valores oscuros se declaran directamente (no con light-dark()): el compilador de CSS
+   reemplaza light-dark() por variables que se resuelven una sola vez en :root. */
+.zona-oscura,
+.menu,
+.oscura,
+.resumen-asesor,
+.panel-oscuro,
+.tarjeta-rol--oscura {
+  --fondo: var(--fondo-o);
+  --sup: var(--sup-o);
+  --fondo-suave: var(--sup2-o);
+  --negro: var(--negro-o);
+  --gris: var(--gris-o);
+  --gris-oscuro: var(--gris-oscuro-o);
+  --borde: var(--borde-o);
+  --borde-fila: var(--borde-fila-o);
+  --control-borde: var(--control-o);
+  --azul: var(--azul-o);
+  --azul-hover: var(--azul-hover-o);
+  --azul-tinta: var(--azul-tinta-o);
+  --azul-suave: var(--azul-suave-o);
+  --verde: var(--verde-o);
+  --verde-texto: var(--verde-texto-o);
+  --verde-fondo: var(--verde-fondo-o);
+  --amarillo: var(--amarillo-o);
+  --amarillo-texto: var(--amarillo-texto-o);
+  --amarillo-fondo: var(--amarillo-fondo-o);
+  --rojo: var(--rojo-o);
+  --rojo-texto: var(--rojo-texto-o);
+  --rojo-fondo: var(--rojo-fondo-o);
+  --barra: var(--barra-o);
+}
+
+/* Alto contraste de Windows: bordes visibles donde el estado se marcaba con fondos o sombras. */
+@media (forced-colors: active) {
+  .pildora,
+  .chip,
+  .kpi,
+  .seccion,
+  .etapa,
+  .paso,
+  .boton,
+  .boton-sec {
+    border: 1px solid CanvasText;
+  }
+  .medidor__relleno,
+  .barras__barra,
+  .progreso > div {
+    background: Highlight;
+  }
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  background: var(--fondo);
+}
+
 body {
   margin: 0;
-  min-height: 100vh;
-  font-family: Inter, system-ui, sans-serif;
-  color: var(--texto);
-  background: var(--fondo-trabajo);
+  min-height: 100dvh;
+  font-family: var(--texto);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--negro);
+  background: var(--fondo);
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
-  color: var(--primario);
+  color: var(--azul);
   text-decoration: none;
 }
 
 a:hover {
-  color: var(--primario-hover);
+  color: var(--azul-hover);
+}
+
+:focus-visible {
+  outline: 2px solid var(--azul);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 
 /* ---------- Ingreso y formularios ---------- */
 .auth {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: 24px 16px;
+  background:
+    radial-gradient(
+      1200px 600px at 10% -10%,
+      color-mix(in oklab, var(--azul) 14%, transparent),
+      transparent 60%
+    ),
+    var(--fondo);
 }
 
 .auth__tarjeta {
   width: 100%;
   max-width: 420px;
-  background: linear-gradient(180deg, #ffffff 0%, #f7f9fd 100%);
+  background: var(--sup);
   border: 1px solid var(--borde);
-  border-radius: 20px;
+  border-radius: 18px;
   padding: 32px;
-  box-shadow: 0 12px 32px rgba(11, 13, 18, 0.08);
+  box-shadow: 0 12px 32px rgb(11 13 18 / 0.1);
 }
 
 .auth__marca {
@@ -56,12 +315,12 @@ a:hover {
 
 .auth__marca strong {
   display: block;
-  font-family: 'Space Grotesk', Inter, sans-serif;
+  font-family: var(--titulos);
 }
 
 .auth__marca div span {
   font-size: 13px;
-  color: var(--texto-secundario);
+  color: var(--gris);
 }
 
 .auth__logo {
@@ -70,20 +329,21 @@ a:hover {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: var(--fondo-menu);
+  background: var(--marca);
   color: #fff;
   font-weight: 700;
 }
 
 .auth h1 {
   margin: 0 0 4px;
-  font-family: 'Space Grotesk', Inter, sans-serif;
+  font-family: var(--titulos);
   font-size: 24px;
+  letter-spacing: -0.01em;
 }
 
 .auth__subtitulo {
   margin: 0 0 24px;
-  color: var(--texto-secundario);
+  color: var(--gris);
   font-size: 14px;
 }
 
@@ -102,21 +362,21 @@ a:hover {
 .campo input {
   min-height: 44px;
   padding: 0 12px;
-  border: 1px solid var(--borde);
+  border: 1px solid var(--control-borde);
   border-radius: 10px;
   font: inherit;
   font-weight: 400;
-  color: var(--texto);
-  background: #fff;
+  color: var(--negro);
+  background: var(--sup);
 }
 
 .campo input:focus-visible {
-  outline: 2px solid var(--primario);
+  outline: 2px solid var(--azul);
   outline-offset: 1px;
 }
 
 .campo small {
-  color: var(--texto-secundario);
+  color: var(--gris);
   font-weight: 400;
 }
 
@@ -132,12 +392,12 @@ a:hover {
 
 .boton-primario {
   border: none;
-  background: var(--primario);
-  color: #fff;
+  background: var(--azul);
+  color: var(--azul-tinta);
 }
 
 .boton-primario:hover {
-  background: var(--primario-hover);
+  background: var(--azul-hover);
 }
 
 .boton-primario:disabled {
@@ -146,17 +406,17 @@ a:hover {
 }
 
 .boton-secundario {
-  border: 1px solid var(--borde);
-  background: #fff;
-  color: var(--texto);
+  border: 1px solid var(--control-borde);
+  background: var(--sup);
+  color: var(--negro);
 }
 
 .mensaje-error {
   margin: 0;
   padding: 10px 12px;
   border-radius: 10px;
-  background: #fdecea;
-  color: #b42318;
+  background: var(--rojo-fondo);
+  color: var(--rojo-texto);
   font-size: 14px;
 }
 
@@ -177,12 +437,12 @@ a:hover {
 
 .inicio__cabecera h1 {
   margin: 0;
-  font-family: 'Space Grotesk', Inter, sans-serif;
+  font-family: var(--titulos);
 }
 
 .inicio__cabecera p {
   margin: 4px 0 0;
-  color: var(--texto-secundario);
+  color: var(--gris);
 }
 
 .inicio__tarjeta {
@@ -190,10 +450,10 @@ a:hover {
   padding: 24px;
   border: 1px solid var(--borde);
   border-radius: 16px;
-  background: linear-gradient(180deg, #ffffff 0%, #f7f9fd 100%);
+  background: var(--sup);
 }
 
 .inicio__nota {
-  color: var(--texto-secundario);
+  color: var(--gris);
   font-size: 14px;
 }

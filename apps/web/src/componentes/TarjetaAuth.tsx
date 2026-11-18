@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { IconoTendencia } from './panel/Iconos';
 
 export function TarjetaAuth({
   titulo,
@@ -14,7 +15,7 @@ export function TarjetaAuth({
       <section className="auth__tarjeta" aria-labelledby="auth-titulo">
         <div className="auth__marca">
           <span className="auth__logo" aria-hidden="true">
-            D
+            <IconoTendencia />
           </span>
           <div>
             <strong>Driven Comercial</strong>

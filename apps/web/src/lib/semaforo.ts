@@ -36,12 +36,21 @@ export function textoLeyenda(e: EstadoSemaforo | null | undefined): string {
         : 'Sin dato';
 }
 
+/** Colores de relleno por tono: variables del tema, se adaptan a claro y oscuro. */
 export const COLORES: Record<Tono, string> = {
-  verde: '#12B76A',
-  amarillo: '#F79009',
-  rojo: '#F04438',
-  azul: '#1F5BFF',
-  gris: '#B9C1D0',
+  verde: 'var(--verde)',
+  amarillo: 'var(--amarillo)',
+  rojo: 'var(--rojo)',
+  azul: 'var(--barra)',
+  gris: 'var(--control-borde)',
+};
+
+/** Letra de cada etapa en la columna A · S · N · C. */
+export const LETRA_ETAPA: Record<EtapaProceso, string> = {
+  atencion: 'A',
+  seguimiento: 'S',
+  negociacion: 'N',
+  cierre: 'C',
 };
 
 export const NOMBRE_ETAPA: Record<EtapaProceso, string> = {

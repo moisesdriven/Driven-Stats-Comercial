@@ -13,3 +13,4 @@ scripts/deploy/config.psd1
 .DS_Store
 next-env.d.ts
 apps/web/cli/
+.claude/settings.local.json

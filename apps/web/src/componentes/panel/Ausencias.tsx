@@ -14,9 +14,15 @@ export interface AusenciaUI {
 }
 
 const CHIP = {
-  feriado: { texto: 'Feriado', estilo: { background: '#E8EEFF', color: '#1F5BFF' } },
-  vacaciones: { texto: 'Vacaciones', estilo: { background: '#FEF3E2', color: '#93370D' } },
-  permiso: { texto: 'Permiso', estilo: { background: '#F0F3F9', color: '#3A4252' } },
+  feriado: { texto: 'Feriado', estilo: { background: 'var(--azul-suave)', color: 'var(--azul)' } },
+  vacaciones: {
+    texto: 'Vacaciones',
+    estilo: { background: 'var(--amarillo-fondo)', color: 'var(--amarillo-texto)' },
+  },
+  permiso: {
+    texto: 'Permiso',
+    estilo: { background: 'var(--fondo-suave)', color: 'var(--gris-oscuro)' },
+  },
 } as const;
 
 /** "2026-11-20" + "09:00" en la zona de la subcuenta → ISO con desfase. */
@@ -238,7 +244,7 @@ export function Ausencias({
                 {CHIP[a.tipo].texto}
               </span>
               <span style={{ fontSize: 14, fontWeight: 600, flex: '1 1 200px' }}>{a.quien}</span>
-              <span style={{ fontSize: 13, color: '#5B6475' }}>{a.fecha}</span>
+              <span style={{ fontSize: 13, color: 'var(--gris)' }}>{a.fecha}</span>
               {puedeEditar && a.editable && (
                 <button
                   type="button"

@@ -139,5 +139,29 @@ Detalles que la especificación no fija. Todas se pueden cambiar.
     directamente de la conversación (`cargarMensajesRecientes`), que GHL entrega al instante;
   - como respaldo, la exportación se vuelve a revisar en las últimas 24 horas
     (`HORAS_REVISION_EXPORTACION`).
-  Todo se guarda con el mismo upsert idempotente, así que un mensaje que llega por las dos vías no
-  se duplica.
+    Todo se guarda con el mismo upsert idempotente, así que un mensaje que llega por las dos vías no
+    se duplica.
+
+## Rediseño visual del panel (18 nov 2026, aprobado por el cliente)
+
+Reemplaza la referencia visual de `diseno/*.dc.html`, que queda como antecedente. Se aprobó sobre
+una maqueta con datos reales de Jade18K.
+
+- **Colores:** los de Driven de siempre (azul `#1F5BFF`, negro azulado `#0B0D12` y blanco) en pares
+  claro/oscuro (`packages/ui/src/tokens.ts`, variables en `apps/web/src/app/globales.css`). Las
+  pruebas de `tokens.test.ts` verifican el contraste: texto ≥ 4,5:1 y bordes de controles ≥ 3:1.
+- **Modo oscuro automático:** sigue la preferencia del sistema (`color-scheme` en `<meta>` y `:root`).
+  El menú lateral, el embudo, el resumen del asesor y los paneles de edición son siempre oscuros.
+  Next compila `light-dark()` con variables que se resuelven una vez en `:root`, por eso esas zonas
+  declaran directamente los valores oscuros.
+- **Estados:** siempre ícono + texto, nunca solo color. En la columna A · S · N · C cada letra lleva
+  ✓ (cumple) o ! (debajo de la meta).
+- **Vista general:** el embudo comercial reemplaza las cuatro tarjetas oscuras. Cada etapa lleva una
+  barra de avance hacia la meta (el `avance` de `destacado.ts`) y la etapa del cuello de botella va
+  resaltada, con un aviso que lo explica en una frase.
+- **Tablas:** con consultas de contenedor se convierten en tarjetas cuando falta ancho (celular).
+- **Periodo:** control segmentado con radios nativos (Hoy · 7 días · Este mes · Rango).
+- **"Para actuar ahora":** pestaña aparte para "Asesor fuera de turno".
+- **Gráfico de tipos de mensaje:** serie categórica de 8 colores validada para daltonismo en ambos
+  temas (variables `--serie-1…8`); la leyenda muestra nombre y porcentaje.
+- **Tipografía:** Sora (títulos y cifras) e Inter (texto), servidas desde el propio dominio.

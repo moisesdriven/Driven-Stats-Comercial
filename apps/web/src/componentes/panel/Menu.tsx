@@ -1,7 +1,8 @@
 import { NOMBRES_ROL } from '@driven/core';
 import { BotonSalir } from '@/componentes/BotonSalir';
 import { iniciales } from '@/lib/formato';
-import { tonoDe } from '@/lib/semaforo';
+import { textoEstado, tonoDe } from '@/lib/semaforo';
+import { IconoTono } from './Bloques';
 import type { ContextoAcceso } from '@/servidor/acceso';
 import type { SubcuentaMenu } from '@/servidor/consultas/menu';
 import { EnlaceMenu } from './EnlaceMenu';
@@ -72,7 +73,7 @@ export function Menu({ ctx, subcuentas }: { ctx: ContextoAcceso; subcuentas: Sub
         )}
       </div>
       {admin && (
-        <div className="menu__grupo">
+        <div className="menu__grupo menu__grupo--secundario">
           <span className="menu__titulo">Administración</span>
           {m.usuarios !== 'ninguno' && (
             <EnlaceMenu href="/usuarios" clase="menu__enlace">
@@ -87,7 +88,7 @@ export function Menu({ ctx, subcuentas }: { ctx: ContextoAcceso; subcuentas: Sub
         </div>
       )}
       {m.vista_subcuenta !== 'ninguno' && subcuentas.length > 0 && (
-        <div className="menu__grupo">
+        <div className="menu__grupo menu__grupo--secundario">
           <span className="menu__titulo">Subcuentas</span>
           {subcuentas.map((s) => (
             <EnlaceMenu
@@ -96,7 +97,10 @@ export function Menu({ ctx, subcuentas }: { ctx: ContextoAcceso; subcuentas: Sub
               clase="menu__subcuenta"
             >
               <span>{s.nombre}</span>
-              <span className={`punto punto--${tonoDe(s.peor)}`} aria-hidden="true" />
+              <span className={`estado estado--${tonoDe(s.peor)}`} title={textoEstado(s.peor)}>
+                <IconoTono tono={tonoDe(s.peor)} />
+                <span className="oculto">({textoEstado(s.peor)})</span>
+              </span>
             </EnlaceMenu>
           ))}
         </div>
@@ -106,8 +110,8 @@ export function Menu({ ctx, subcuentas }: { ctx: ContextoAcceso; subcuentas: Sub
           {iniciales(ctx.nombre)}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{ctx.nombre}</span>
-          <span style={{ fontSize: 12, color: '#9AA3B5' }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{ctx.nombre}</span>
+          <span style={{ fontSize: 12, color: 'var(--gris)' }}>
             {NOMBRES_ROL[ctx.rol]} · {nombreSubcuenta}
           </span>
         </div>

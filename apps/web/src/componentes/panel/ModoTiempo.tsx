@@ -106,7 +106,7 @@ export function ModoTiempo({
             />
             <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
               <span style={{ fontWeight: 600 }}>{o.titulo}</span>
-              <span style={{ fontSize: 12, color: '#5B6475' }}>{o.texto}</span>
+              <span style={{ fontSize: 12, color: 'var(--gris)' }}>{o.texto}</span>
             </span>
           </button>
         ))}

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { nombreCorto } from '@/lib/formato';
 import type { FilaAccion } from '@/servidor/consultas/listas';
-import { IconoExterno } from './Iconos';
+import { IconoExterno, IconoReloj } from './Iconos';
 
 const CANAL: Record<string, string> = {
   whatsapp: 'WA',
@@ -15,7 +15,7 @@ const CANAL: Record<string, string> = {
   llamada: 'TEL',
 };
 
-/** "Para actuar ahora": pestañas con las tres listas y enlace a la conversación en GHL. */
+/** "Para actuar ahora": pestañas con las listas y enlace a la conversación en GHL. */
 export function ListasAccion({
   listas,
 }: {
@@ -27,7 +27,10 @@ export function ListasAccion({
   return (
     <section aria-label="Listas para actuar" className="seccion">
       <div className="seccion__cabecera" style={{ paddingBottom: 0 }}>
-        <h2 className="seccion__titulo">Para actuar ahora</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <h2 className="seccion__titulo">Para actuar ahora</h2>
+          <span className="seccion__nota">Clientes que esperan una respuesta o un contacto</span>
+        </div>
         <div role="tablist" aria-label="Listas" className="pestanas">
           {listas.map((l) => (
             <button
@@ -43,7 +46,8 @@ export function ListasAccion({
                 setVisibles(10);
               }}
             >
-              {l.etiqueta} · {l.total}
+              {l.etiqueta}
+              <strong style={{ fontFamily: 'var(--titulos)' }}>{l.total}</strong>
             </button>
           ))}
         </div>
@@ -52,7 +56,7 @@ export function ListasAccion({
         id="panel-listas"
         role="tabpanel"
         aria-labelledby={`tab-${actual}`}
-        style={{ display: 'flex', flexDirection: 'column', padding: '12px 24px 20px' }}
+        style={{ display: 'flex', flexDirection: 'column', padding: '8px 20px 20px' }}
       >
         {!lista?.filas.length && <p className="vacio">Nada pendiente en esta lista.</p>}
         {lista?.filas.slice(0, visibles).map((f, n) => (
@@ -67,7 +71,10 @@ export function ListasAccion({
             <span className="accion__asesor">
               {f.asesor ? nombreCorto(f.asesor) : 'Sin asesor'}
             </span>
-            <span className={`pildora pildora--${f.urgente ? 'rojo' : 'amarillo'}`}>
+            <span
+              className={`pildora pildora--${lista?.id === 'fuera' ? 'gris' : f.urgente ? 'rojo' : 'amarillo'}`}
+            >
+              <IconoReloj tam={14} />
               {f.espera}
             </span>
             {f.enlace && (
@@ -89,8 +96,10 @@ export function ListasAccion({
         )}
         {lista && lista.filas.length > 0 && (
           <p className="seccion__nota" style={{ marginTop: 12 }}>
-            {lista.id === 'sin' ? 'Los más recientes primero' : 'Los de más espera primero'} ·{' '}
-            {Math.min(visibles, lista.filas.length)} de {lista.total}
+            {lista.id === 'sin' || lista.id === 'fuera'
+              ? 'Los más recientes primero'
+              : 'Los de más espera primero'}{' '}
+            · {Math.min(visibles, lista.filas.length)} de {lista.total}
             {lista.total > lista.filas.length
               ? ` (se cargan los primeros ${lista.filas.length})`
               : ''}

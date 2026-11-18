@@ -155,7 +155,7 @@ export function RanuraEjemplos() {
       <div className="fila-cabecera" style={{ flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <h2 className="seccion__titulo">Su mejor y su peor mensaje del último análisis</h2>
-          <span style={{ fontSize: 13, color: '#B4BCCC' }}>
+          <span style={{ fontSize: 13, color: 'var(--gris)' }}>
             {datos?.analisis
               ? `Calidad promedio ${numero(datos.analisis.promedio, 1)} / 5 · muestra de ${numero(datos.analisis.muestra)} conversaciones · ${mesAnio(datos.analisis.periodoDesde)} · etapas: ${datos.analisis.etapas.join(', ')}`
               : (error ??
@@ -177,8 +177,8 @@ export function RanuraEjemplos() {
         {datos?.ejemplos.map((m) => {
           const mejor = m.tipo === 'mejor';
           const color = mejor
-            ? { acento: '#12B76A', fondo: '#E7F8EF', texto: '#067647' }
-            : { acento: '#F04438', fondo: '#FDECEA', texto: '#B42318' };
+            ? { acento: 'var(--verde)', fondo: 'var(--verde-fondo)', texto: 'var(--verde-texto)' }
+            : { acento: 'var(--rojo)', fondo: 'var(--rojo-fondo)', texto: 'var(--rojo-texto)' };
           return (
             <article key={m.tipo} className="ejemplo" style={{ borderTopColor: color.acento }}>
               <div className="fila-cabecera" style={{ flexWrap: 'wrap' }}>
@@ -207,7 +207,7 @@ export function RanuraEjemplos() {
                   {m.puntaje ?? '—'} / 5
                 </span>
               </div>
-              <span style={{ fontSize: 12, color: '#5B6475' }}>
+              <span style={{ fontSize: 12, color: 'var(--gris)' }}>
                 {fechaLarga(String(m.fecha).slice(0, 10))} ·{' '}
                 {NOMBRES_CATEGORIA[m.categoria as CategoriaCalidad] ?? m.categoria}
               </span>
@@ -226,7 +226,7 @@ export function RanuraEjemplos() {
                           background: 'linear-gradient(135deg, #1F5BFF 0%, #4D7CFF 100%)',
                           color: '#fff',
                         }
-                      : { background: '#F0F3F9', color: '#0B0D12' }
+                      : { background: 'var(--fondo-suave)', color: 'var(--negro)' }
                   }
                 >
                   <span className="burbuja__quien">{nombre}</span>
@@ -239,7 +239,7 @@ export function RanuraEjemplos() {
                   flexDirection: 'column',
                   gap: 6,
                   paddingTop: 4,
-                  borderTop: '1px solid #EDF0F6',
+                  borderTop: '1px solid var(--borde-fila)',
                 }}
               >
                 {CRITERIOS.map((c) => {
@@ -248,14 +248,18 @@ export function RanuraEjemplos() {
                     <span key={c} className="criterio">
                       <span
                         className="criterio__icono"
-                        style={{ background: ok ? '#E7F8EF' : '#FDECEA' }}
+                        style={{ background: ok ? 'var(--verde-fondo)' : 'var(--rojo-fondo)' }}
                         role="img"
                         aria-label={ok ? 'Cumple' : 'No cumple'}
                       >
                         {ok ? (
-                          <IconoCheck color="#067647" />
+                          <IconoCheck color="var(--verde-texto)" />
                         ) : (
-                          <span style={{ color: '#B42318', fontWeight: 700, fontSize: 12 }}>✕</span>
+                          <span
+                            style={{ color: 'var(--rojo-texto)', fontWeight: 700, fontSize: 12 }}
+                          >
+                            ✕
+                          </span>
                         )}
                       </span>
                       {NOMBRE_CRITERIO[c]}
@@ -263,7 +267,9 @@ export function RanuraEjemplos() {
                   );
                 })}
               </div>
-              {m.motivo && <span style={{ fontSize: 13, color: '#3A4252' }}>{m.motivo}</span>}
+              {m.motivo && (
+                <span style={{ fontSize: 13, color: 'var(--gris-oscuro)' }}>{m.motivo}</span>
+              )}
               <div className="fila-cabecera" style={{ flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: color.texto }}>
                   {m.clienteRespondio ? 'El cliente respondió' : 'El cliente no volvió a escribir'}
