@@ -13,9 +13,11 @@ siguiente.
 | 4    | Historial de etapas y análisis de calidad por muestra                               | Terminada (\*) |
 | 5    | Interfaz: vista general, subcuenta, asesor, horarios, usuarios, configuración       | Terminada      |
 
-(\*) Construida y validada en costo con análisis reales (estimado a ±1 % del real). La calibración
-de la rúbrica v4 aprueba con el primer conjunto de referencia, pero no con el independiente: queda
-pendiente la decisión del cliente sobre cómo cerrarla (ver `validacion.md`, 18 nov 2026).
+(\*) Construida y validada en costo con análisis reales (estimado a ±1 % del real). La rúbrica v4
+aprueba la calibración en los dos conjuntos con Sonnet 5.5 (±1 93–94 %, categoría 85–87 %); con
+Haiku 5.5 (valor por omisión) solo al límite en el primero. Falta que el cliente elija el modelo
+(`IA_MODELO`), una decisión de costo: ~US$ 8 frente a ~US$ 0,40 al mes por subcuenta (ver
+`validacion.md`, 18 nov 2026).
 | 6 | Purga de textos (alertas y resumen diario por WhatsApp: versión 2) | Terminada |
 | 7 | Scripts de despliegue en PowerShell y `docs/DEPLOY.md` | Terminada |
 

@@ -508,8 +508,38 @@ se quitó.
    la talla, la fecha o el modelo, responde **solo si explica por qué lo necesita**. Cambia
    "responde" en 3 mensajes de referencia.
 
-### Pendiente (decisión del cliente)
+### Resultados finales de la v4 (18 de noviembre de 2026)
 
-- Cómo cerrar la calibración: (a) que una persona del equipo revise los mensajes en desacuerdo del
-  conjunto independiente y se ajuste la referencia o la rúbrica; (b) usar Sonnet 5.5; o (c) aceptar
-  el nivel actual, sabiendo que la IA es más estricta que la referencia en "responde".
+Rúbrica `v4-2026-11` con las cinco decisiones del cliente y las referencias corregidas. Mínimos:
+puntaje a ±1 ≥ 90 % y categoría ≥ 85 %.
+
+| Modelo     | Conjunto               | Puntaje ±1  | Categoría   | Exacto | Costo (100 mensajes) | Resultado   |
+| ---------- | ---------------------- | ----------- | ----------- | ------ | -------------------- | ----------- |
+| Haiku 5.5  | 9–15 nov               | 92 % / 93 % | 85 % / 84 % | ~55 %  | US$ 0,008            | Al límite   |
+| Haiku 5.5  | 2–8 nov, independiente | 85 % / 80 % | 69 % / 73 % | ~53 %  | US$ 0,008            | No aprueba  |
+| Sonnet 5.5 | 9–15 nov               | 93 %        | 85 %        | 58 %   | US$ 0,141            | **Aprueba** |
+| Sonnet 5.5 | 2–8 nov, independiente | 94 %        | 87 %        | 68 %   | US$ 0,145            | **Aprueba** |
+
+- **Sonnet 5.5 aprueba los dos conjuntos con la misma rúbrica.** En el conjunto independiente sube
+  la categoría de ~70 % a 87 % y el puntaje exacto de ~53 % a 68 %. Los errores de categoría de
+  Haiku (por ejemplo, la plantilla de catálogo o de ubicación clasificada como saludo) eran del
+  modelo: la rúbrica ya los resolvía.
+- **Haiku 5.5 no llega al mínimo de forma estable.** Aprueba al límite el conjunto con el que se
+  escribió la rúbrica y falla en el independiente, sobre todo en categoría y "responde".
+- **Costo:** Sonnet cuesta ~18 veces más que Haiku. El análisis semanal real de Jade18K (909
+  solicitudes, 2.480 mensajes) costó US$ 0,10 con Haiku y costaría ~US$ 1,8 con Sonnet, unos
+  US$ 8 al mes por subcuenta con un análisis por semana. El tope `IA_TOPE_MENSUAL_USD` (10 por
+  omisión) suma todos los análisis del mes. Con Sonnet alcanza para una subcuenta: hay que subirlo
+  antes de agregar más. La estimación previa al envío ya usa el precio de Sonnet, así que el tope
+  lo detiene antes de gastar.
+- **Cambio de modelo:** solo configuración, `IA_MODELO=claude-sonnet-5-5` en el `.env` del
+  servidor. No hay código que cambiar. Para comparar, cada análisis guarda su modelo y su versión
+  de la rúbrica.
+
+### Decisión pendiente del cliente
+
+- Qué modelo usar en producción:
+  - **Sonnet 5.5:** cumple la calibración; unos US$ 8 al mes por subcuenta y hay que subir el tope.
+  - **Haiku 5.5:** unos US$ 0,40 al mes por subcuenta; no cumple la calibración en el conjunto
+    independiente.
+- Mientras el cliente no decida, el valor por omisión sigue siendo Haiku.
