@@ -8,7 +8,9 @@
   display: grid;
   grid-template-columns: 252px minmax(0, 1fr);
   min-height: 100dvh;
-  background: var(--fondo);
+  /* La columna del menú es oscura en todo el alto, aunque la página sea más larga que la pantalla
+     (el menú es sticky y solo mide una pantalla). */
+  background: linear-gradient(to right, #1b2030 252px, transparent 252px), var(--fondo);
   font-family: var(--texto);
   color: var(--negro);
 }
@@ -156,8 +158,10 @@
 .contenido {
   min-width: 0;
   width: 100%;
-  max-width: 1440px;
-  padding: 28px clamp(16px, 3vw, 40px) 64px;
+  /* Ocupa todo el ancho disponible (monitores grandes incluidos); el tope solo evita líneas
+     imposibles de leer en pantallas ultra anchas. */
+  max-width: 2400px;
+  padding: 28px clamp(16px, 3vw, 48px) 64px;
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -165,6 +169,7 @@
 @media (max-width: 900px) {
   .panel {
     grid-template-columns: minmax(0, 1fr);
+    background: var(--fondo);
   }
   .menu {
     position: sticky;
@@ -579,7 +584,8 @@
   gap: 12px;
 }
 .rejilla--kpis {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  /* auto-fit: las tarjetas se estiran para llenar la fila en pantallas anchas (sin hueco al final). */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
 }
 .rejilla--kpis-chicos {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
@@ -1857,4 +1863,32 @@ a.pestana {
 .opcion-modelo__costo {
   color: var(--negro);
   font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- Metas: grupos por etapa */
+/* Los 4 grupos (Atención, Seguimiento, Negociación, Cierre) van 1, 2 × 2 o 4 en fila según el
+   ancho, nunca 3 + 1. */
+.metas-caja {
+  container-type: inline-size;
+}
+.rejilla--metas {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+}
+@container (min-width: 760px) {
+  .rejilla--metas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container (min-width: 1640px) {
+  .rejilla--metas {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.copiar-metas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
 }

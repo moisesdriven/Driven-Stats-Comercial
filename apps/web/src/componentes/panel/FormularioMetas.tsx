@@ -169,30 +169,44 @@ interface Props {
   locationId: string;
   /** Nombre de la subcuenta: metas y etapas de calidad son propias de cada una. */
   nombreSubcuenta: string;
+  /** La subcuenta aún no tiene metas propias (usa las de Driven por defecto). */
+  porDefecto: boolean;
+  /** Otras subcuentas del usuario con metas propias, para copiarlas. */
+  otras: { id: string; nombre: string; metas: Metas }[];
   metas: Metas;
   etapas: Etapa[];
   etapasCalidad: string[];
   puedeEditar: boolean;
 }
 
+/** Valores del formulario (texto) a partir de unas metas. */
+function valoresDe(metas: Metas): Record<string, string> {
+  return {
+    ...(Object.fromEntries(
+      GRUPOS.flatMap((g) => g.campos).map((c) => [c.clave, leer(metas, c.clave)?.toString() ?? '']),
+    ) as Record<string, string>),
+    toleranciaRelativa: String(Math.round(metas.toleranciaRelativa * 100)),
+  };
+}
+
 export function FormularioMetas({
   locationId,
   nombreSubcuenta,
+  porDefecto,
+  otras,
   metas,
   etapas,
   etapasCalidad,
   puedeEditar,
 }: Props) {
   const router = useRouter();
-  const inicial = Object.fromEntries(
-    GRUPOS.flatMap((g) => g.campos).map((c) => [c.clave, leer(metas, c.clave)?.toString() ?? '']),
-  ) as Record<string, string>;
-  const [valores, setValores] = useState<Record<string, string>>({
-    ...inicial,
-    toleranciaRelativa: String(Math.round(metas.toleranciaRelativa * 100)),
-  });
+  const [valores, setValores] = useState<Record<string, string>>(() => valoresDe(metas));
+  const [origen, setOrigen] = useState(otras[0]?.id ?? '');
   const [calidad, setCalidad] = useState<string[]>(etapasCalidad);
-  const [msgMetas, setMsgMetas] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
+  const [msgMetas, setMsgMetas] = useState<{
+    tipo: 'ok' | 'error' | 'info';
+    texto: string;
+  } | null>(null);
   const [msgCalidad, setMsgCalidad] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(
     null,
   );
@@ -270,6 +284,45 @@ export function FormularioMetas({
           </div>
           {puedeEditar && <button className="boton">Guardar metas</button>}
         </div>
+        {porDefecto && (
+          <p className="aviso aviso--info">
+            {nombreSubcuenta} todavía usa las metas por defecto de Driven. Ajústalas a este equipo
+            {otras.length ? ' o copia las de otra subcuenta' : ''} y pulsa «Guardar metas».
+          </p>
+        )}
+        {puedeEditar && otras.length > 0 && (
+          <div className="copiar-metas">
+            <label className="filtro">
+              Copiar metas de
+              <select
+                className="control"
+                value={origen}
+                onChange={(e) => setOrigen(e.target.value)}
+              >
+                {otras.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="boton-sec"
+              onClick={() => {
+                const o = otras.find((x) => x.id === origen);
+                if (!o) return;
+                setValores(valoresDe(o.metas));
+                setMsgMetas({
+                  tipo: 'info',
+                  texto: `Copiadas las metas de ${o.nombre}. Revisa los valores y pulsa «Guardar metas» para aplicarlas a ${nombreSubcuenta}.`,
+                });
+              }}
+            >
+              Copiar
+            </button>
+          </div>
+        )}
         {msgMetas && (
           <p className={`aviso aviso--${msgMetas.tipo}`} role="status">
             {msgMetas.texto}
@@ -286,52 +339,51 @@ export function FormularioMetas({
             gap: 16,
           }}
         >
-          <div
-            className="rejilla"
-            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(420px, 100%), 1fr))' }}
-          >
-            {GRUPOS.map((g) => (
-              <fieldset key={g.etapa} className="grupo-metas">
-                <legend>
-                  <span className="etapa-clara__nombre">{g.etapa}</span>{' '}
-                  <span style={{ fontSize: 13, color: 'var(--gris)', fontWeight: 400 }}>
-                    {g.pregunta}
-                  </span>
-                </legend>
-                {g.campos.map((c) => (
-                  <label key={c.clave} className="fila-meta">
-                    <span
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        flex: '1 1 0',
-                        minWidth: 0,
-                      }}
-                    >
-                      <span style={{ fontWeight: 600, fontSize: 14 }}>{c.etiqueta}</span>
-                      <span style={{ fontSize: 12, color: 'var(--gris)' }}>{c.ayuda}</span>
+          <div className="metas-caja">
+            <div className="rejilla--metas">
+              {GRUPOS.map((g) => (
+                <fieldset key={g.etapa} className="grupo-metas">
+                  <legend>
+                    <span className="etapa-clara__nombre">{g.etapa}</span>{' '}
+                    <span style={{ fontSize: 13, color: 'var(--gris)', fontWeight: 400 }}>
+                      {g.pregunta}
                     </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <input
-                        className="control"
-                        style={{ width: 96, textAlign: 'right' }}
-                        type="number"
-                        inputMode="decimal"
-                        step={c.paso}
-                        min={c.min}
-                        max={c.max}
-                        required={!c.opcional}
-                        value={valores[c.clave] ?? ''}
-                        onChange={(e) => setValores({ ...valores, [c.clave]: e.target.value })}
-                      />
-                      <span style={{ fontSize: 13, color: 'var(--gris)', minWidth: 52 }}>
-                        {c.unidad}
+                  </legend>
+                  {g.campos.map((c) => (
+                    <label key={c.clave} className="fila-meta">
+                      <span
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          flex: '1 1 0',
+                          minWidth: 0,
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, fontSize: 14 }}>{c.etiqueta}</span>
+                        <span style={{ fontSize: 12, color: 'var(--gris)' }}>{c.ayuda}</span>
                       </span>
-                    </span>
-                  </label>
-                ))}
-              </fieldset>
-            ))}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                          className="control"
+                          style={{ width: 96, textAlign: 'right' }}
+                          type="number"
+                          inputMode="decimal"
+                          step={c.paso}
+                          min={c.min}
+                          max={c.max}
+                          required={!c.opcional}
+                          value={valores[c.clave] ?? ''}
+                          onChange={(e) => setValores({ ...valores, [c.clave]: e.target.value })}
+                        />
+                        <span style={{ fontSize: 13, color: 'var(--gris)', minWidth: 52 }}>
+                          {c.unidad}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </fieldset>
+              ))}
+            </div>
           </div>
           <label className="fila-meta" style={{ maxWidth: 560 }}>
             <span style={{ display: 'flex', flexDirection: 'column', flex: '1 1 0', minWidth: 0 }}>
@@ -381,6 +433,12 @@ export function FormularioMetas({
             </button>
           )}
         </div>
+        {etapasCalidad.length !== 3 && !msgCalidad && (
+          <p className="aviso aviso--info">
+            {nombreSubcuenta} aún no tiene sus 3 etapas de calidad: hasta elegirlas no se analiza la
+            calidad de sus mensajes (ni manual ni mensual).
+          </p>
+        )}
         {msgCalidad && (
           <p className={`aviso aviso--${msgCalidad.tipo}`} role="status">
             {msgCalidad.texto}

@@ -206,3 +206,14 @@ una maqueta con datos reales de Jade18K.
   primer byte en las cargas completas (`exigirAccesoRuta`, con la ruta que deja el proxy en
   `x-ruta`); en la navegación interna sigue revisando cada página. Entrar y salir de la sesión hace
   una carga completa de la página (además, no deja en el navegador nada de la sesión anterior).
+
+## Pantallas grandes y metas de una subcuenta nueva (18 nov 2026, pedido del cliente)
+
+- El contenido ocupa todo el ancho disponible (antes tenía un máximo de 1.440 px y en monitores
+  grandes quedaba un espacio vacío a la derecha); el tope es 2.400 px. La columna del menú es oscura
+  en todo el alto. Las tarjetas de indicadores se estiran para llenar la fila.
+- Metas: los cuatro grupos van en 1 columna, 2 × 2 o 4 en fila según el ancho (nunca 3 + 1).
+- Subcuenta nueva: empieza con las metas por defecto de Driven y sin etapas de calidad. La pantalla
+  de Metas lo avisa, permite copiar las metas de otra subcuenta del usuario (se revisan y se guardan
+  con «Guardar metas») y recuerda que sin sus 3 etapas de calidad no se analiza la calidad de sus
+  mensajes.
