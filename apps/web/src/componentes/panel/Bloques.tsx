@@ -298,12 +298,12 @@ export function Embudo({
 }) {
   const tonoCuello = cuello ? tonoDe(etapas[cuello]) : 'verde';
   return (
-    <section aria-labelledby="titulo-embudo" className="oscura embudo">
+    <section aria-labelledby="titulo-embudo" className="embudo">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <h2 id="titulo-embudo" className="seccion__titulo">
           {titulo}
         </h2>
-        <span className="oscura__nota">Cada etapa frente a la meta de la subcuenta</span>
+        <span className="seccion__nota">Cada etapa frente a la meta de la subcuenta</span>
       </div>
       <div className={`aviso-cuello aviso-cuello--${tonoCuello}`} role="note">
         <IconoTono tono={tonoCuello} />

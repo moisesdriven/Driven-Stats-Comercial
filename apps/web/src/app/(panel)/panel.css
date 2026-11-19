@@ -572,8 +572,23 @@
 }
 
 /* ---------------------------------------------------------------- Embudo comercial */
+/* Sigue el tema (claro u oscuro), como el resto de la página (pedido del cliente, 19 nov 2026). */
 .embudo {
   container-type: inline-size;
+  border-radius: 16px;
+  padding: 20px;
+  background: var(--sup);
+  border: 1px solid var(--borde);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.paso > .fila-cabecera {
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+.paso__nombre {
+  white-space: nowrap;
 }
 .aviso-cuello {
   display: flex;
@@ -680,7 +695,8 @@
   border-radius: 1px;
   background: var(--negro);
 }
-@container (width < 760px) {
+/* Cuatro en fila solo si cada etapa tiene espacio para su nombre y su estado en una línea. */
+@container (width < 1040px) {
   .pasos {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
