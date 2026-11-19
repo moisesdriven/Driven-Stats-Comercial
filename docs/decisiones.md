@@ -151,7 +151,7 @@ una maqueta con datos reales de Jade18K.
   claro/oscuro (`packages/ui/src/tokens.ts`, variables en `apps/web/src/app/globales.css`). Las
   pruebas de `tokens.test.ts` verifican el contraste: texto ≥ 4,5:1 y bordes de controles ≥ 3:1.
 - **Modo oscuro automático:** sigue la preferencia del sistema (`color-scheme` en `<meta>` y `:root`).
-  El menú lateral, el embudo, el resumen del asesor y los paneles de edición son siempre oscuros.
+  El menú lateral, el resumen del asesor y los paneles de edición son siempre oscuros (el embudo sigue el tema desde el 19 nov 2026).
   Next compila `light-dark()` con variables que se resuelven una vez en `:root`, por eso esas zonas
   declaran directamente los valores oscuros.
 - **Estados:** siempre ícono + texto, nunca solo color. En la columna A · S · N · C cada letra lleva
@@ -242,3 +242,10 @@ una maqueta con datos reales de Jade18K.
 - **Modo claro/oscuro:** botón en el menú que alterna entre los dos. Se guarda en la cookie `tema`
   y el layout raíz la aplica en `<html data-tema>` (sin destello). Sin elección, sigue al sistema.
   Los valores de cada tema se declaran directamente en `globales.css`.
+
+## Embudo de la vista general con el tema (19 nov 2026, pedido del cliente)
+
+- El embudo comercial deja de ser siempre oscuro: usa la superficie del tema (blanco en modo claro,
+  oscuro en modo oscuro), como el resto de la página.
+- Las cuatro etapas van en fila solo con ancho suficiente; si no, 2 × 2, para que el nombre de la
+  etapa y su estado entren en una línea.
