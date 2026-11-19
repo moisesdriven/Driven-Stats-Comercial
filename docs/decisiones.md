@@ -231,3 +231,14 @@ una maqueta con datos reales de Jade18K.
   en tiempo, calidad y conversión, solo los que tienen dato). Decisión del cliente: las dos filas.
 - **Logo:** la «D» de Driven como ícono de la pestaña (`icon.png`, `apple-icon.png`, `favicon.ico`
   en `apps/web/src/app`).
+
+## Menú contraíble y modo claro/oscuro a elección (19 nov 2026, pedido del cliente)
+
+- **Escritorio:** el botón junto a la marca contrae el menú a una franja de íconos (72 px, con la
+  ayuda emergente de cada enlace) y lo vuelve a desplegar de izquierda a derecha. Se recuerda en la
+  cookie `menu`; el servidor la lee y dibuja la página ya contraída o expandida.
+- **Celular:** barra superior con ☰; el menú entra como panel desde la izquierda, sobre un velo.
+  Se cierra al navegar, con Escape, tocando el velo o con su botón.
+- **Modo claro/oscuro:** botón en el menú que alterna entre los dos. Se guarda en la cookie `tema`
+  y el layout raíz la aplica en `<html data-tema>` (sin destello). Sin elección, sigue al sistema.
+  Los valores de cada tema se declaran directamente en `globales.css`.

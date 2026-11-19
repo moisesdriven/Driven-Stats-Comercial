@@ -174,6 +174,80 @@
 }
 
 /*
+ * Tema elegido por el usuario con el botón del menú (cookie `tema`, aplicada por el servidor en
+ * <html data-tema>). Sin elección, rige la preferencia del sistema (arriba). Los valores se declaran
+ * directamente: el compilador resuelve light-dark() una sola vez en :root.
+ */
+:root[data-tema='claro'] {
+  color-scheme: light;
+  --fondo: var(--fondo-c);
+  --sup: var(--sup-c);
+  --fondo-suave: var(--sup2-c);
+  --negro: var(--negro-c);
+  --gris: var(--gris-c);
+  --gris-oscuro: var(--gris-oscuro-c);
+  --borde: var(--borde-c);
+  --borde-fila: var(--borde-fila-c);
+  --control-borde: var(--control-c);
+  --azul: var(--azul-c);
+  --azul-hover: var(--azul-hover-c);
+  --azul-tinta: var(--azul-tinta-c);
+  --azul-suave: var(--azul-suave-c);
+  --verde: var(--verde-c);
+  --verde-texto: var(--verde-texto-c);
+  --verde-fondo: var(--verde-fondo-c);
+  --amarillo: var(--amarillo-c);
+  --amarillo-texto: var(--amarillo-texto-c);
+  --amarillo-fondo: var(--amarillo-fondo-c);
+  --rojo: var(--rojo-c);
+  --rojo-texto: var(--rojo-texto-c);
+  --rojo-fondo: var(--rojo-fondo-c);
+  --barra: var(--barra-c);
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+  --serie-3: #1baf7a;
+  --serie-4: #eda100;
+  --serie-5: #e87ba4;
+  --serie-6: #008300;
+  --serie-7: #6250d6;
+  --serie-8: #e34948;
+}
+:root[data-tema='oscuro'] {
+  color-scheme: dark;
+  --fondo: var(--fondo-o);
+  --sup: var(--sup-o);
+  --fondo-suave: var(--sup2-o);
+  --negro: var(--negro-o);
+  --gris: var(--gris-o);
+  --gris-oscuro: var(--gris-oscuro-o);
+  --borde: var(--borde-o);
+  --borde-fila: var(--borde-fila-o);
+  --control-borde: var(--control-o);
+  --azul: var(--azul-o);
+  --azul-hover: var(--azul-hover-o);
+  --azul-tinta: var(--azul-tinta-o);
+  --azul-suave: var(--azul-suave-o);
+  --verde: var(--verde-o);
+  --verde-texto: var(--verde-texto-o);
+  --verde-fondo: var(--verde-fondo-o);
+  --amarillo: var(--amarillo-o);
+  --amarillo-texto: var(--amarillo-texto-o);
+  --amarillo-fondo: var(--amarillo-fondo-o);
+  --rojo: var(--rojo-o);
+  --rojo-texto: var(--rojo-texto-o);
+  --rojo-fondo: var(--rojo-fondo-o);
+  --barra: var(--barra-o);
+  --serie-1: #3987e5;
+  --serie-2: #d95926;
+  --serie-3: #199e70;
+  --serie-4: #c98500;
+  --serie-5: #d55181;
+  --serie-6: #0ca30c;
+  --serie-7: #9085e9;
+  --serie-8: #e66767;
+}
+
+/*
  * Bloques siempre oscuros (menú lateral, resúmenes, paneles de edición). Los colores heredados
  * (color, accent-color) se re-declaran para que tomen los valores oscuros de la zona.
  */

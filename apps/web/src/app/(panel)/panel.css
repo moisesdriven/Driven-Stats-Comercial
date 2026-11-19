@@ -5,12 +5,16 @@
  */
 
 .panel {
+  --ancho-menu: 252px;
   display: grid;
-  grid-template-columns: 252px minmax(0, 1fr);
+  grid-template-columns: var(--ancho-menu) minmax(0, 1fr);
   min-height: 100dvh;
   /* La columna del menú es oscura en todo el alto, aunque la página sea más larga que la pantalla
      (el menú es sticky y solo mide una pantalla). */
-  background: linear-gradient(to right, #1b2030 252px, transparent 252px), var(--fondo);
+  background:
+    linear-gradient(to right, #1b2030 var(--ancho-menu), transparent var(--ancho-menu)),
+    var(--fondo);
+  transition: grid-template-columns 0.22s ease;
   font-family: var(--texto);
   color: var(--negro);
 }
@@ -31,8 +35,8 @@
 .menu__marca {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 8px;
+  gap: 8px;
+  padding: 0 2px;
 }
 .menu__logo {
   width: 34px;
@@ -165,41 +169,6 @@
   display: flex;
   flex-direction: column;
   gap: 22px;
-}
-@media (max-width: 900px) {
-  .panel {
-    grid-template-columns: minmax(0, 1fr);
-    background: var(--fondo);
-  }
-  .menu {
-    position: sticky;
-    z-index: 5;
-    height: auto;
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 16px;
-    border-right: 0;
-    border-bottom: 1px solid var(--borde);
-    overflow-x: auto;
-    overflow-y: hidden;
-  }
-  .menu__marca > div:last-child,
-  .menu__titulo,
-  .menu__usuario,
-  .menu__grupo--secundario {
-    display: none;
-  }
-  .menu__grupo {
-    flex-direction: row;
-  }
-  .menu__enlace {
-    white-space: nowrap;
-    min-height: 36px;
-  }
-  .contenido {
-    padding-top: 20px;
-  }
 }
 .migas {
   display: flex;
@@ -2161,5 +2130,170 @@ a.pestana {
   }
   .calendario {
     justify-content: center;
+  }
+}
+
+/* ---------------------------------------------------------------- Menú contraíble y celular */
+.menu__textos-marca {
+  min-width: 0;
+  flex: 1 1 auto;
+  white-space: nowrap;
+}
+.menu__contraer {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gris-oscuro);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.menu__contraer:hover {
+  background: var(--fondo-suave);
+  color: var(--negro);
+}
+.menu__tema {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+.menu__grupo--tema {
+  margin-top: auto;
+}
+.menu__grupo--tema + .menu__usuario {
+  margin-top: 0;
+}
+.menu__datos-usuario {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.barra-movil,
+.velo-menu {
+  display: none;
+}
+
+/* Escritorio: el menú se contrae a una franja de íconos y se despliega de izquierda a derecha. */
+@media (min-width: 901px) {
+  .panel--contraido {
+    --ancho-menu: 72px;
+  }
+  .panel--contraido .menu {
+    padding-inline: 12px;
+    overflow-x: hidden;
+  }
+  .panel--contraido .menu__marca {
+    flex-direction: column;
+    padding: 0;
+  }
+  .panel--contraido .menu__textos-marca,
+  .panel--contraido .menu__titulo,
+  .panel--contraido .menu__grupo--subcuentas,
+  .panel--contraido .menu__datos-usuario {
+    display: none;
+  }
+  .panel--contraido .menu__texto {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .panel--contraido .menu__enlace {
+    justify-content: center;
+    padding: 0;
+  }
+  .panel--contraido .menu__usuario {
+    flex-direction: column;
+    padding: 8px 4px;
+  }
+  .panel--contraido .menu__salir {
+    margin-left: 0;
+    padding: 0 6px;
+  }
+}
+
+/* Celular: barra superior con ☰ y el menú como panel que entra desde la izquierda. */
+@media (max-width: 900px) {
+  .panel {
+    grid-template-columns: minmax(0, 1fr);
+    background: var(--fondo);
+  }
+  .barra-movil {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: var(--grad-negro);
+    color: #f5f7fb;
+    font-family: var(--titulos);
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .barra-movil__boton {
+    width: 40px;
+    height: 40px;
+    border: 1px solid #262b38;
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+  }
+  .barra-movil__marca {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .barra-movil .menu__logo {
+    width: 30px;
+    height: 30px;
+  }
+  .menu {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    width: min(288px, 86vw);
+    height: 100dvh;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform 0.25s ease,
+      visibility 0s linear 0.25s;
+  }
+  .panel--menu-abierto .menu {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.25s ease;
+    box-shadow: 0 0 48px rgb(0 0 0 / 0.4);
+  }
+  .velo-menu {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    background: rgb(11 13 18 / 0.5);
+  }
+  .contenido {
+    padding-top: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .menu {
+    transition: none !important;
   }
 }
