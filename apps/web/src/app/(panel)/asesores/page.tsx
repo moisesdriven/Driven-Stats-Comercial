@@ -52,13 +52,19 @@ export default async function Asesores({
               plantilla="/asesores?subcuenta={id}"
             />
           )}
-          <FiltroPeriodo clave={periodo.clave} desde={periodo.desde} hasta={periodo.hasta} />
+          <FiltroPeriodo
+            clave={periodo.clave}
+            desde={periodo.desde}
+            hasta={periodo.hasta}
+            hoy={periodo.hoy}
+          />
         </div>
       </div>
       <TablaAsesores
         titulo="Indicadores por asesor"
         asesores={asesores}
         corrido={d.corrido}
+        equipo={d.equipo}
         enlace={(a) => `/subcuentas/${id}/asesores/${a}${qs}`}
       />
     </>

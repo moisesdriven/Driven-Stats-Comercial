@@ -125,3 +125,14 @@ export const IconoDescarga = () => (
     <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
   </svg>
 );
+export const IconoCalendario = () => (
+  <svg {...base}>
+    <rect x="3" y="5" width="18" height="16" rx="2" />
+    <path d="M16 3v4M8 3v4M3 11h18" />
+  </svg>
+);
+export const IconoFlecha = ({ dir }: { dir: 'izq' | 'der' | 'abajo' }) => (
+  <svg {...base} width={16} height={16}>
+    <path d={dir === 'izq' ? 'M15 6l-6 6 6 6' : dir === 'der' ? 'M9 6l6 6-6 6' : 'M6 9l6 6 6-6'} />
+  </svg>
+);

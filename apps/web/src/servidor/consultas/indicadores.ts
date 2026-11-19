@@ -95,6 +95,11 @@ export async function asesoresSubcuenta(
   return {
     subcuenta: d.subcuenta,
     corrido: d.corrido,
+    // Para la fila «Total del equipo»: mediana real y calidad de toda la subcuenta.
+    equipo: {
+      tiempoRespuestaMediana: d.indicadores.tiempoRespuestaMediana,
+      calidad: d.indicadores.calidad,
+    },
     asesores:
       ctx.rol === 'asesor' ? d.asesores.filter((a) => a.asesorId === ctx.userIdGhl) : d.asesores,
   };

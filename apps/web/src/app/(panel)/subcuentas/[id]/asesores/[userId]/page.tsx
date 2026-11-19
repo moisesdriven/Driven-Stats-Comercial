@@ -177,7 +177,12 @@ export default async function DetalleAsesor({
 
       <div className="encabezado" style={{ justifyContent: 'flex-end' }}>
         <div className="filtros">
-          <FiltroPeriodo clave={periodo.clave} desde={periodo.desde} hasta={periodo.hasta} />
+          <FiltroPeriodo
+            clave={periodo.clave}
+            desde={periodo.desde}
+            hasta={periodo.hasta}
+            hoy={periodo.hoy}
+          />
         </div>
       </div>
 
