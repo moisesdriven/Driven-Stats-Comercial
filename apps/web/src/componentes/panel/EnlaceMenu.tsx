@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { useMenu } from './MarcoPanel';
 
 /** Subcuenta que se está mirando: la de la ruta (`/subcuentas/{id}`) o la del filtro (`?subcuenta=`). */
 function subcuentaActual(ruta: string, params: URLSearchParams): string | null {
@@ -21,6 +22,7 @@ export function EnlaceMenu({
   conSubcuenta = false,
   tambien,
   salvo,
+  titulo,
   children,
 }: {
   href: string;
@@ -31,17 +33,25 @@ export function EnlaceMenu({
   tambien?: string;
   /** No se marca como actual si la ruta contiene este tramo. */
   salvo?: string;
+  /** Texto del enlace, como ayuda emergente cuando el menú está contraído a íconos. */
+  titulo?: string;
   children: ReactNode;
 }) {
   const ruta = usePathname();
   const params = useSearchParams();
+  const { contraido } = useMenu();
   const propia = exacto ? ruta === href : ruta === href || ruta.startsWith(`${href}/`);
   const actual =
     (propia && !(salvo && ruta.includes(salvo))) || Boolean(tambien && ruta.includes(tambien));
   const sub = conSubcuenta ? subcuentaActual(ruta, params) : null;
   const destino = sub ? `${href}?subcuenta=${encodeURIComponent(sub)}` : href;
   return (
-    <Link href={destino} className={clase} aria-current={actual ? 'page' : undefined}>
+    <Link
+      href={destino}
+      className={clase}
+      aria-current={actual ? 'page' : undefined}
+      title={contraido ? titulo : undefined}
+    >
       {children}
     </Link>
   );
