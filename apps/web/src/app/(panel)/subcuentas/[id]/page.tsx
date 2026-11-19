@@ -115,7 +115,12 @@ export default async function VistaSubcuenta({
                 plantilla="/subcuentas/{id}"
               />
             )}
-            <FiltroPeriodo clave={periodo.clave} desde={periodo.desde} hasta={periodo.hasta} />
+            <FiltroPeriodo
+              clave={periodo.clave}
+              desde={periodo.desde}
+              hasta={periodo.hasta}
+              hoy={periodo.hoy}
+            />
             {ctx.modulos.exportar !== 'ninguno' && (
               <a
                 className="boton-sec"
@@ -174,6 +179,7 @@ export default async function VistaSubcuenta({
       <TablaAsesores
         asesores={asesores}
         corrido={d.corrido}
+        equipo={{ tiempoRespuestaMediana: i.tiempoRespuestaMediana, calidad: i.calidad }}
         enlace={verAsesores ? (a) => `/subcuentas/${id}/asesores/${a}${qs}` : null}
       />
 

@@ -217,3 +217,17 @@ una maqueta con datos reales de Jade18K.
   de Metas lo avisa, permite copiar las metas de otra subcuenta del usuario (se revisan y se guardan
   con «Guardar metas») y recuerda que sin sus 3 etapas de calidad no se analiza la calidad de sus
   mensajes.
+
+## Selector de fechas, total y promedio por asesor y logo (19 nov 2026, pedido del cliente)
+
+- **Selector de fechas:** un solo botón con el periodo («Últimos 7 días: 13 nov 2026 – 19 nov
+  2026») que abre atajos (hoy, ayer, hoy y ayer, últimos 7/14/28/30 días, esta semana, la semana
+  pasada, este mes, el mes pasado, personalizado) y un calendario de dos meses; se aplica con
+  «Actualizar». La semana empieza el lunes y no se eligen días futuros. Las URL anteriores
+  (`?periodo=hoy|mes|rango`) siguen funcionando.
+- **Tabla de asesores:** al pie, «Total del equipo» (leads, sin responder, pendientes y ventas
+  sumados; tiempo de respuesta = mediana real de toda la subcuenta; calidad del equipo; conversión =
+  ventas ÷ leads) y «Promedio por asesor» (cada columna dividida entre los asesores de la tabla;
+  en tiempo, calidad y conversión, solo los que tienen dato). Decisión del cliente: las dos filas.
+- **Logo:** la «D» de Driven como ícono de la pestaña (`icon.png`, `apple-icon.png`, `favicon.ico`
+  en `apps/web/src/app`).

@@ -1892,3 +1892,274 @@ a.pestana {
   align-items: flex-end;
   gap: 10px;
 }
+
+/* ---------------------------------------------------------------- Pie de tabla: total y promedio */
+.tabla tfoot .tabla__resumen > th,
+.tabla tfoot .tabla__resumen > td {
+  padding: 12px;
+  background: var(--fondo-suave);
+  color: var(--negro);
+  font-weight: 700;
+  font-size: 14px;
+  text-align: left;
+  white-space: nowrap;
+}
+.tabla tfoot .tabla__resumen > td.n {
+  text-align: right;
+}
+.tabla tfoot .tabla__resumen:first-child > * {
+  border-top: 2px solid var(--borde);
+}
+.tabla tfoot .tabla__resumen + .tabla__resumen > * {
+  border-top: 1px solid var(--borde-fila);
+  font-weight: 600;
+  color: var(--gris);
+}
+.tabla tfoot .tabla__resumen > :first-child {
+  padding-left: 20px;
+}
+@container (width < 700px) {
+  .tabla-caja--apilable .tabla tfoot {
+    display: block;
+    padding: 0 12px 12px;
+  }
+  .tabla-caja--apilable .tabla tfoot .tabla__resumen {
+    display: block;
+    border: 1px solid var(--borde);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .tabla-caja--apilable .tabla tfoot .tabla__resumen > th {
+    display: block;
+    padding: 8px 12px;
+  }
+  .tabla-caja--apilable .tabla tfoot .tabla__resumen > td[aria-hidden] {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------- Selector de fechas */
+.selector-fechas {
+  position: relative;
+}
+.selector-fechas__boton {
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--control-borde);
+  background: var(--sup);
+  color: var(--negro);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.selector-fechas__boton:hover {
+  border-color: var(--azul);
+}
+.selector-fechas__boton[aria-expanded='true'] {
+  border-color: var(--azul);
+  box-shadow: 0 0 0 3px var(--azul-suave);
+}
+.selector-fechas__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  width: max-content;
+  max-width: min(760px, calc(100vw - 32px));
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  background: var(--sup);
+  color: var(--negro);
+  box-shadow: 0 18px 48px rgb(11 13 18 / 0.18);
+  overflow: hidden;
+}
+.selector-fechas__atajos {
+  margin: 0;
+  padding: 10px 6px;
+  border: 0;
+  border-right: 1px solid var(--borde);
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  max-height: 460px;
+  overflow-y: auto;
+}
+.selector-fechas__atajo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.selector-fechas__atajo:hover {
+  background: var(--fondo-suave);
+}
+.selector-fechas__atajo input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--azul);
+}
+.selector-fechas__cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px;
+  min-width: 0;
+}
+.calendario {
+  position: relative;
+  display: flex;
+  gap: 24px;
+}
+.calendario__mes {
+  min-width: 0;
+}
+.calendario__titulo {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+.calendario__nav {
+  position: absolute;
+  top: 0;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--negro);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.calendario__nav:hover:not(:disabled) {
+  background: var(--fondo-suave);
+}
+.calendario__nav:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.calendario__nav--izq {
+  left: 0;
+}
+.calendario__nav--der {
+  right: 0;
+}
+.calendario__rejilla {
+  display: grid;
+  grid-template-columns: repeat(7, 36px);
+  row-gap: 2px;
+}
+.calendario__dia-semana {
+  height: 28px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: var(--gris);
+}
+.calendario__dia {
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--negro);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.calendario__dia:hover:not(:disabled) {
+  outline: 1px solid var(--azul);
+  outline-offset: -1px;
+  border-radius: 6px;
+}
+.calendario__dia:disabled {
+  color: var(--gris);
+  opacity: 0.45;
+  cursor: default;
+}
+.calendario__dia--rango {
+  background: var(--azul-suave);
+}
+.calendario__dia--extremo {
+  background: var(--azul);
+  color: var(--azul-tinta);
+  font-weight: 700;
+  border-radius: 6px;
+}
+.calendario__dia--hoy:not(.calendario__dia--extremo) {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.selector-fechas__fechas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.selector-fechas__pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--borde);
+}
+.selector-fechas__nota {
+  font-size: 12px;
+  color: var(--gris);
+}
+.selector-fechas__acciones {
+  display: flex;
+  gap: 8px;
+}
+/* En pantallas angostas: un solo mes y los atajos arriba, en dos columnas. */
+@media (max-width: 720px) {
+  .selector-fechas__boton > span {
+    white-space: normal;
+    text-align: left;
+  }
+  .selector-fechas__panel {
+    position: fixed;
+    top: 72px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - 88px);
+    overflow-y: auto;
+    flex-direction: column;
+  }
+  .selector-fechas__atajos,
+  .selector-fechas__cuerpo {
+    flex-shrink: 0;
+  }
+  .selector-fechas__atajos {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-right: 0;
+    border-bottom: 1px solid var(--borde);
+    max-height: none;
+  }
+  .calendario__mes:first-of-type {
+    display: none;
+  }
+  .calendario {
+    justify-content: center;
+  }
+}

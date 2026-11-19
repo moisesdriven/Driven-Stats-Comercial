@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { evaluar, calcularIndicadores } from '@driven/core';
 import { iniciales, minutos, nombreCorto, numero, porcentaje } from '@/lib/formato';
+import { filasResumen, type IndicadoresFila, type ResumenEquipo } from '@/lib/resumenAsesores';
 import { BarrasEtapa, Leyenda, PildoraCuello, Vacio } from './Bloques';
 
 export interface FilaAsesor {
@@ -15,14 +16,24 @@ export function TablaAsesores({
   asesores,
   corrido,
   enlace,
+  equipo,
   titulo = 'Asesores',
 }: {
   asesores: FilaAsesor[];
   corrido: boolean;
   /** Enlace al detalle de cada asesor; `null` si el usuario no puede verlo. */
   enlace: ((asesorId: string) => string) | null;
+  /** Tiempo de respuesta y calidad del equipo completo, para la fila de total. */
+  equipo: ResumenEquipo;
   titulo?: string;
 }) {
+  const resumen =
+    asesores.length > 1
+      ? filasResumen(
+          asesores.map((a) => a.indicadores),
+          equipo,
+        )
+      : null;
   return (
     <section id="asesores" aria-label="Asesores" className="seccion">
       <div className="seccion__cabecera">
@@ -118,6 +129,12 @@ export function TablaAsesores({
                 </tr>
               ))}
             </tbody>
+            {resumen && (
+              <tfoot>
+                <FilaResumen etiqueta="Total del equipo" f={resumen.total} decimales={0} />
+                <FilaResumen etiqueta="Promedio por asesor" f={resumen.promedio} decimales={1} />
+              </tfoot>
+            )}
           </table>
         </div>
       )}
@@ -125,5 +142,45 @@ export function TablaAsesores({
         <Leyenda />
       </div>
     </section>
+  );
+}
+
+/** Fila del pie: total del equipo o promedio por asesor (sin etapas ni cuello de botella). */
+function FilaResumen({
+  etiqueta,
+  f,
+  decimales,
+}: {
+  etiqueta: string;
+  f: IndicadoresFila;
+  decimales: number;
+}) {
+  return (
+    <tr className="tabla__resumen">
+      <th scope="row">{etiqueta}</th>
+      <td className="n" data-etiqueta="Leads">
+        {numero(f.leadsRecibidos, decimales)}
+      </td>
+      <td className="n" data-etiqueta="T. respuesta">
+        {minutos(f.tiempoRespuestaMediana)}
+      </td>
+      <td className="n" data-etiqueta="Sin responder">
+        {numero(f.sinResponder, decimales)}
+      </td>
+      <td className="n" data-etiqueta="Pendientes">
+        {numero(f.seguimientoVencido, decimales)}
+      </td>
+      <td className="n" data-etiqueta="Calidad">
+        {f.calidad === null ? '—' : numero(f.calidad, 1)}
+      </td>
+      <td className="n" data-etiqueta="Conversión">
+        {porcentaje(f.conversion)}
+      </td>
+      <td className="n" data-etiqueta="Ventas">
+        {numero(f.ventas, decimales)}
+      </td>
+      <td aria-hidden="true" />
+      <td aria-hidden="true" />
+    </tr>
   );
 }

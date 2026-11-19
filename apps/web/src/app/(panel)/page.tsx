@@ -72,7 +72,12 @@ export default async function VistaGeneral({
               canales={v.canales.map((c) => ({ valor: c, texto: nombreCanal(c) }))}
             />
           )}
-          <FiltroPeriodo clave={periodo.clave} desde={periodo.desde} hasta={periodo.hasta} />
+          <FiltroPeriodo
+            clave={periodo.clave}
+            desde={periodo.desde}
+            hasta={periodo.hasta}
+            hoy={periodo.hoy}
+          />
           {ctx.modulos.exportar !== 'ninguno' && (
             <a
               className="boton-sec"
