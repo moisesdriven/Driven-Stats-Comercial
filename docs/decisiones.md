@@ -261,3 +261,17 @@ una maqueta con datos reales de Jade18K.
   último día completo. La incremental sigue mientras tanto, así lo de hoy está al día.
 - Configuración → Estado de cargas muestra la tarjeta «Carga inicial (90 días)»: pendiente, en cola,
   en curso (con el día cargado), completa o con error.
+
+## Conversaciones que ya no existen y mensajes de error claros (20 nov 2026)
+
+- **Error de la carga inicial de Bitsac:** tras 47 min y 18.011 llamadas, GHL respondió 400
+  `CONVERSATIONS_CONVERSATION_NOT_FOUND` al pedir los mensajes de una conversación que su búsqueda
+  todavía listaba (eliminada o fusionada con otra). La carga se detenía entera. Ahora esas
+  conversaciones se saltan y se cuentan (`conversacionesInexistentes` en el resumen), tanto en la
+  reconstrucción del historial de etapas como en la carga por conversación.
+- Tras una carga inicial con error, el reintento es a las 2 h (antes, 6 h desde que se pidió); se
+  reanuda donde quedó.
+- **Mensajes de error para las personas** (pedido del cliente): cortos y sin detalles técnicos
+  (`apps/web/src/lib/errores.ts`), por ejemplo «GHL tenía una conversación que ya no existe
+  (eliminada o fusionada). Se reintentará sola.». El texto técnico sigue en la base y en los
+  registros, y en pantalla queda solo como ayuda emergente para soporte.

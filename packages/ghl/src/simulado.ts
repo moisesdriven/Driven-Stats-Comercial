@@ -38,6 +38,11 @@ export interface DatosSimulados {
    * por conversación sí los muestra.
    */
   ocultosEnExportacion?: Set<string>;
+  /**
+   * Conversaciones que la búsqueda lista pero que ya no existen (eliminadas o fusionadas): al pedir
+   * sus mensajes GHL responde 400 CONVERSATIONS_CONVERSATION_NOT_FOUND (caso real, 20 nov 2026).
+   */
+  conversacionesInexistentes?: Set<string>;
   /** Token esperado; cualquier otro responde 401. */
   token?: string;
 }
@@ -94,6 +99,19 @@ export function crearGhlSimulado(d: DatosSimulados) {
       return json({ message: 'The token is not authorized for this scope.' }, 401);
     }
 
+    const convFantasma = /^\/conversations\/([^/]+)\/messages$/.exec(ruta)?.[1];
+    if (convFantasma && d.conversacionesInexistentes?.has(convFantasma)) {
+      return json(
+        {
+          arguments: {},
+          canonicalCode: 'CONVERSATIONS_CONVERSATION_NOT_FOUND',
+          error: 'Bad Request',
+          message: `No conversation found with id: ${convFantasma}`,
+          statusCode: 400,
+        },
+        400,
+      );
+    }
     if (ruta === `/locations/${d.locationId}`) {
       return json({
         location: {

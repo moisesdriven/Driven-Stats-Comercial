@@ -15,7 +15,12 @@ import {
   type FotoOportunidad,
 } from '@driven/core';
 import { tablas, type Db } from '@driven/db';
-import type { ClienteGhl, OportunidadGhl, PipelineGhl } from '@driven/ghl';
+import {
+  esConversacionInexistente,
+  type ClienteGhl,
+  type OportunidadGhl,
+  type PipelineGhl,
+} from '@driven/ghl';
 import { cargarMapa } from './catalogos';
 import { enLotes, enParalelo, fechaONula } from './util';
 
@@ -225,25 +230,37 @@ export async function reconstruirHistorial(
   cliente: ClienteGhl,
   conversationIds: string[],
   pipelines: PipelineGhl[],
-): Promise<{ actividades: number; oportunidades: number; sinTraducir: number }> {
+): Promise<{
+  actividades: number;
+  oportunidades: number;
+  sinTraducir: number;
+  conversacionesInexistentes: number;
+}> {
   const pipelinePorNombre = new Map(pipelines.map((p) => [p.name.trim().toLowerCase(), p]));
   const actividades: (ActividadEtapa & { contactId: string | null; pipelineId: string | null })[] =
     [];
+  let inexistentes = 0;
   await enParalelo(conversationIds, 4, async (cid) => {
-    for await (const lote of cliente.mensajesConversacion(cid, 'TYPE_ACTIVITY_OPPORTUNITY')) {
-      for (const m of lote) {
-        const d = m.activity?.data;
-        if (!d?.id || !d.stage) continue;
-        const pipeline = pipelinePorNombre.get((d.pipeline ?? '').trim().toLowerCase()) ?? null;
-        actividades.push({
-          opportunityId: d.id,
-          en: new Date(m.dateAdded),
-          etapaAnterior: d.stage.oldStageName ?? null,
-          etapaNueva: d.stage.newStageName ?? null,
-          contactId: m.contactId ?? null,
-          pipelineId: pipeline?.id ?? null,
-        });
+    try {
+      for await (const lote of cliente.mensajesConversacion(cid, 'TYPE_ACTIVITY_OPPORTUNITY')) {
+        for (const m of lote) {
+          const d = m.activity?.data;
+          if (!d?.id || !d.stage) continue;
+          const pipeline = pipelinePorNombre.get((d.pipeline ?? '').trim().toLowerCase()) ?? null;
+          actividades.push({
+            opportunityId: d.id,
+            en: new Date(m.dateAdded),
+            etapaAnterior: d.stage.oldStageName ?? null,
+            etapaNueva: d.stage.newStageName ?? null,
+            contactId: m.contactId ?? null,
+            pipelineId: pipeline?.id ?? null,
+          });
+        }
       }
+    } catch (e) {
+      // Conversación eliminada o fusionada en GHL (la búsqueda aún la lista): se salta.
+      if (!esConversacionInexistente(e)) throw e;
+      inexistentes++;
     }
   });
 
@@ -291,7 +308,12 @@ export async function reconstruirHistorial(
       fuente: 'actividad',
     });
   }
-  return { actividades: actividades.length, oportunidades: opps.length, sinTraducir };
+  return {
+    actividades: actividades.length,
+    oportunidades: opps.length,
+    sinTraducir,
+    conversacionesInexistentes: inexistentes,
+  };
 }
 
 /**

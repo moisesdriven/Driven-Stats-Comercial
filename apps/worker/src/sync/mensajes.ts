@@ -15,7 +15,7 @@ import {
   type ResultadoGeneracionIa,
 } from '@driven/core';
 import { tablas, type Db } from '@driven/db';
-import type { ClienteGhl, MensajeGhl } from '@driven/ghl';
+import { esConversacionInexistente, type ClienteGhl, type MensajeGhl } from '@driven/ghl';
 import { enLotes, enParalelo, lista, log } from './util';
 
 export interface ResultadoMensajes {
@@ -26,6 +26,8 @@ export interface ResultadoMensajes {
   porOrigen: Record<string, number>;
   contactos: Set<string>;
   conversaciones: Set<string>;
+  /** Conversaciones que GHL lista pero ya no existen (eliminadas o fusionadas): se saltan. */
+  conversacionesInexistentes?: number;
 }
 
 async function asegurarParticiones(db: Db, desde: Date, hasta: Date) {
@@ -249,14 +251,20 @@ export async function cargarMensajesRecientes(
   await asegurarParticiones(db, desde, hasta);
   const limite = desde.getTime();
   await enParalelo([...conversaciones], concurrencia, async (id) => {
-    for await (const lote of cliente.mensajesConversacion(id)) {
-      const dentro = lote.filter((m) => {
-        const t = Date.parse(m.dateAdded);
-        return t >= limite && t <= hasta.getTime();
-      });
-      if (dentro.length) await guardarMensajes(db, cliente, dentro, r, 1);
-      // Más antiguo que `desde` en esta página: ya no hay nada nuevo más atrás.
-      if (lote.some((m) => Date.parse(m.dateAdded) < limite)) return;
+    try {
+      for await (const lote of cliente.mensajesConversacion(id)) {
+        const dentro = lote.filter((m) => {
+          const t = Date.parse(m.dateAdded);
+          return t >= limite && t <= hasta.getTime();
+        });
+        if (dentro.length) await guardarMensajes(db, cliente, dentro, r, 1);
+        // Más antiguo que `desde` en esta página: ya no hay nada nuevo más atrás.
+        if (lote.some((m) => Date.parse(m.dateAdded) < limite)) return;
+      }
+    } catch (e) {
+      // Eliminada o fusionada en GHL: no hay mensajes que traer; se sigue con las demás.
+      if (!esConversacionInexistente(e)) throw e;
+      r.conversacionesInexistentes = (r.conversacionesInexistentes ?? 0) + 1;
     }
   });
   return r;
