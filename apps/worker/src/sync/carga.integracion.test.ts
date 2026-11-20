@@ -3,7 +3,7 @@
  * Usa su propia base (<DATABASE_URL_TEST>_worker) para no chocar con las pruebas de la web.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { tablas, type Db } from '@driven/db';
 import { baseWorker } from '../pruebas/base';
 import {
@@ -488,5 +488,66 @@ describe.skipIf(!URL)('carga desde GHL (integración con GHL simulado)', () => {
     expect(await necesitaHistoricoInicial(db, LOC, new Date(Date.now() + 7 * 3600_000))).toBe(
       false,
     );
+  });
+  it('una conversación que GHL lista pero ya no existe no corta la carga histórica (20 nov 2026)', async () => {
+    const base = datos();
+    const conFantasma: DatosSimulados = {
+      ...base,
+      conversaciones: [
+        ...(base.conversaciones ?? []),
+        {
+          id: 'conv_BORRADA',
+          contactId: 'K9',
+          locationId: LOC,
+          assignedTo: 'U1',
+          dateAdded: Date.parse(h('09:00')),
+          lastMessageDate: Date.parse(h('09:30')),
+        },
+      ],
+      conversacionesInexistentes: new Set(['conv_BORRADA']),
+    };
+    const fantasma = new ClienteGhl({
+      token: 'pit-simulado',
+      locationId: LOC,
+      limitador: new Limitador(10_000, 10_000, async () => {}),
+      esperar: async () => {},
+      reintentosMax: 1,
+      fetch: crearGhlSimulado(conFantasma).fetch,
+    });
+    const r = await ejecutarCarga(db, fantasma, 'historico', {
+      modo: 'sombra',
+      dias: 2,
+      ahora: AHORA,
+    });
+    expect((r.historial as { conversacionesInexistentes: number }).conversacionesInexistentes).toBe(
+      1,
+    );
+    const [ultima] = await db
+      .select()
+      .from(tablas.syncEjecuciones)
+      .where(eq(tablas.syncEjecuciones.locationId, LOC))
+      .orderBy(desc(tablas.syncEjecuciones.inicio))
+      .limit(1);
+    expect(ultima?.estado).toBe('ok');
+  });
+
+  it('tras una carga inicial con error se reintenta a las 2 h, no antes', async () => {
+    const OTRA = 'LOC_CON_ERROR_SIM';
+    const fin = new Date('2026-11-20T17:00:00Z');
+    await db.insert(tablas.syncEjecuciones).values({
+      locationId: OTRA,
+      tipo: 'historico',
+      modo: 'sombra',
+      estado: 'error',
+      inicio: new Date('2026-11-20T16:13:00Z'),
+      fin,
+      error: 'GHL respondió 500',
+    });
+    expect(await necesitaHistoricoInicial(db, OTRA, new Date(fin.getTime() + 30 * 60_000))).toBe(
+      false,
+    );
+    expect(
+      await necesitaHistoricoInicial(db, OTRA, new Date(fin.getTime() + 2 * 3600_000 + 60_000)),
+    ).toBe(true);
   });
 });

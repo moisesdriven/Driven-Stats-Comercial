@@ -58,6 +58,19 @@ export class ErrorGhl extends Error {
   }
 }
 
+/**
+ * La conversación ya no existe en GHL (se eliminó o se fusionó con otra): GHL la sigue listando en
+ * la búsqueda, pero al pedir sus mensajes responde 400 CONVERSATIONS_CONVERSATION_NOT_FOUND (o
+ * 404). Visto el 20 nov 2026 en la carga histórica de Bitsac.
+ */
+export function esConversacionInexistente(e: unknown): boolean {
+  return (
+    e instanceof ErrorGhl &&
+    (e.estado === 404 ||
+      (e.estado === 400 && /CONVERSATION_NOT_FOUND|No conversation found/i.test(e.cuerpo)))
+  );
+}
+
 interface Solicitud {
   version: string;
   query?: Record<string, string | number | boolean | undefined>;

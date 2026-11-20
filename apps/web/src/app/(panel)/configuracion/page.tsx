@@ -9,6 +9,7 @@ import {
 } from '@/componentes/panel/Configuracion';
 import { nombreZona, ZONAS } from '@/lib/zonas';
 import { SelectorSubcuenta } from '@/componentes/panel/Filtros';
+import { mensajeClaro } from '@/lib/errores';
 import { fechaLarga, haceCuanto, numero } from '@/lib/formato';
 import { NOMBRE_ESTANDAR } from '@/lib/semaforo';
 import { MODELOS_CALIDAD } from '@driven/db';
@@ -57,12 +58,19 @@ interface MarcaCarga {
 function estadoCargaInicial(marcas: MarcaCarga[]): {
   texto: string;
   detalle?: string;
+  /** Texto técnico, solo como ayuda emergente para soporte. */
+  tecnico?: string;
   error?: boolean;
 } {
   const h = marcas.find((m) => m.recurso === 'historico');
   const pedida = marcas.find((m) => m.recurso === 'historico_solicitado');
   if (h?.ultimoError)
-    return { texto: 'Con error: se reintenta sola', detalle: h.ultimoError, error: true };
+    return {
+      texto: 'No terminó: se reintentará sola',
+      detalle: mensajeClaro(h.ultimoError, 'Lo ya cargado se conserva.'),
+      tecnico: h.ultimoError,
+      error: true,
+    };
   if (h?.marcaAgua)
     return {
       texto: 'En curso',
@@ -269,6 +277,7 @@ export default async function Configuracion({
             <span style={{ fontSize: 15, fontWeight: 600 }}>{inicial.texto}</span>
             {inicial.detalle && (
               <span
+                title={inicial.tecnico}
                 style={{
                   fontSize: 12,
                   color: inicial.error ? 'var(--rojo-texto)' : 'var(--gris)',
@@ -287,7 +296,9 @@ export default async function Configuracion({
                   : 'Sin datos'}
               </span>
               {m.ultimoError && (
-                <span style={{ fontSize: 12, color: 'var(--rojo-texto)' }}>{m.ultimoError}</span>
+                <span title={m.ultimoError} style={{ fontSize: 12, color: 'var(--rojo-texto)' }}>
+                  {mensajeClaro(m.ultimoError, 'Se reintentará en la próxima carga.')}
+                </span>
               )}
             </div>
           ))}
@@ -334,6 +345,7 @@ export default async function Configuracion({
                       </Pildora>
                       {c.error && (
                         <span
+                          title={c.error}
                           style={{
                             display: 'block',
                             fontSize: 12,
@@ -341,7 +353,7 @@ export default async function Configuracion({
                             marginTop: 4,
                           }}
                         >
-                          {c.error.slice(0, 200)}
+                          {mensajeClaro(c.error)}
                         </span>
                       )}
                     </td>
@@ -460,6 +472,7 @@ export default async function Configuracion({
                         <Pildora tono={e.tono}>{e.texto}</Pildora>
                         {a.error && (
                           <span
+                            title={a.error}
                             style={{
                               display: 'block',
                               fontSize: 12,
@@ -467,7 +480,7 @@ export default async function Configuracion({
                               marginTop: 4,
                             }}
                           >
-                            {a.error.slice(0, 160)}
+                            {mensajeClaro(a.error)}
                           </span>
                         )}
                       </td>

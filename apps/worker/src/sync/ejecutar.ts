@@ -56,28 +56,51 @@ export function inicioHistorico(ahora: Date, zona: string, dias = DIAS_HISTORICO
 const RECURSO_HISTORICO_SOLICITADO = 'historico_solicitado';
 /** Una histórica pedida y sin terminar se vuelve a pedir pasado este plazo (el de la cola). */
 const HORAS_REINTENTO_HISTORICO = 6;
+/** Tras una histórica con error, espera antes de reintentarla (se reanuda donde quedó). */
+const HORAS_REINTENTO_TRAS_ERROR = 2;
 
 /**
  * ¿Le falta a la subcuenta su primera carga histórica? Sí, mientras no haya ninguna histórica
- * terminada bien, salvo que se haya pedido hace menos de 6 h (está en cola o en curso).
+ * terminada bien, salvo que esté en cola o en curso (pedida hace menos de 6 h) o que haya fallado
+ * hace menos de 2 h.
  */
 export async function necesitaHistoricoInicial(
   db: Db,
   locationId: string,
   ahora = new Date(),
 ): Promise<boolean> {
-  const r = await db.execute<{ completa: boolean; solicitada: Date | null }>(sql`
+  const r = await db.execute<{
+    completa: boolean;
+    solicitada: Date | null;
+    estado: string | null;
+    inicio: Date | null;
+    fin: Date | null;
+  }>(sql`
     select
       exists (select 1 from comercial.sync_ejecuciones
         where location_id = ${locationId} and tipo = 'historico' and estado = 'ok') as completa,
       (select ultimo_ok from comercial.sync_estado
-        where location_id = ${locationId} and recurso = ${RECURSO_HISTORICO_SOLICITADO}) as solicitada`);
+        where location_id = ${locationId} and recurso = ${RECURSO_HISTORICO_SOLICITADO}) as solicitada,
+      u.estado, u.inicio, u.fin
+    from (select 1) x
+    left join lateral (
+      select estado, inicio, fin from comercial.sync_ejecuciones
+      where location_id = ${locationId} and tipo = 'historico'
+      order by inicio desc limit 1
+    ) u on true`);
   const f = r.rows[0];
   if (!f || f.completa) return false;
+  const horas = (d: Date | null) =>
+    d ? (ahora.getTime() - new Date(d).getTime()) / 3600_000 : Infinity;
   const solicitada = f.solicitada ? new Date(f.solicitada) : null;
-  return (
-    !solicitada || ahora.getTime() - solicitada.getTime() > HORAS_REINTENTO_HISTORICO * 3600_000
-  );
+  if (f.estado === 'error' && f.fin) {
+    // Falló: se reintenta pasadas 2 h desde el error (si no se pidió de nuevo desde entonces).
+    const pedidaDespues = solicitada && solicitada > new Date(f.fin);
+    return pedidaDespues
+      ? horas(solicitada) > HORAS_REINTENTO_HISTORICO
+      : horas(f.fin) >= HORAS_REINTENTO_TRAS_ERROR;
+  }
+  return horas(solicitada) > HORAS_REINTENTO_HISTORICO;
 }
 
 export async function marcarHistoricoSolicitado(db: Db, locationId: string): Promise<void> {
