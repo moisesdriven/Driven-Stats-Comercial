@@ -249,3 +249,15 @@ una maqueta con datos reales de Jade18K.
   oscuro en modo oscuro), como el resto de la página.
 - Las cuatro etapas van en fila solo con ancho suficiente; si no, 2 × 2, para que el nombre de la
   etapa y su estado entren en una línea.
+
+## Primera carga de cada subcuenta: 90 días (20 nov 2026, pedido del cliente)
+
+- La primera carga de una subcuenta siempre trae **los 90 días anteriores, hoy incluido**: desde la
+  medianoche (hora de la subcuenta) de hace 89 días hasta ahora. Antes la histórica contaba 90 × 24 h
+  hacia atrás desde el momento de la carga y solo se lanzaba a mano.
+- El worker, en cada pasada incremental, encola la histórica de toda subcuenta activa que no tenga
+  ninguna terminada bien (recién agregada o, como Bitsac, que solo tuvo incrementales). No la vuelve
+  a pedir mientras está en cola o en curso (6 h, el plazo de la cola); si falla, se reanuda desde el
+  último día completo. La incremental sigue mientras tanto, así lo de hoy está al día.
+- Configuración → Estado de cargas muestra la tarjeta «Carga inicial (90 días)»: pendiente, en cola,
+  en curso (con el día cargado), completa o con error.
