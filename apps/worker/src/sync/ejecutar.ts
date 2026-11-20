@@ -9,6 +9,7 @@
  * Todas las escrituras son upsert idempotentes por id de GHL.
  */
 import { and, eq, sql } from 'drizzle-orm';
+import { inicioDelDia } from '@driven/core';
 import { tablas, type Db } from '@driven/db';
 import type { ClienteGhl } from '@driven/ghl';
 import { calcularResumen, hoyEn, sumarDias } from '../calculo/resumen';
@@ -39,6 +40,49 @@ async function hoySubcuenta(db: Db, locationId: string, ahora: Date): Promise<st
 }
 
 export type TipoCarga = 'incremental' | 'nocturno' | 'historico';
+
+/** Días de la carga histórica (la primera de cada subcuenta): los 90 anteriores, hoy incluido. */
+export const DIAS_HISTORICO = 90;
+
+/**
+ * Inicio de la carga histórica: medianoche (hora de la subcuenta) del primer día de los `dias`
+ * días que terminan hoy. Con 90 días y hoy 20 nov, desde el 23 ago a las 00:00.
+ */
+export function inicioHistorico(ahora: Date, zona: string, dias = DIAS_HISTORICO): Date {
+  return inicioDelDia(new Date(ahora.getTime() - (dias - 1) * 86_400_000), zona);
+}
+
+/** Marca de que la carga histórica inicial ya se pidió (para no encolarla dos veces). */
+const RECURSO_HISTORICO_SOLICITADO = 'historico_solicitado';
+/** Una histórica pedida y sin terminar se vuelve a pedir pasado este plazo (el de la cola). */
+const HORAS_REINTENTO_HISTORICO = 6;
+
+/**
+ * ¿Le falta a la subcuenta su primera carga histórica? Sí, mientras no haya ninguna histórica
+ * terminada bien, salvo que se haya pedido hace menos de 6 h (está en cola o en curso).
+ */
+export async function necesitaHistoricoInicial(
+  db: Db,
+  locationId: string,
+  ahora = new Date(),
+): Promise<boolean> {
+  const r = await db.execute<{ completa: boolean; solicitada: Date | null }>(sql`
+    select
+      exists (select 1 from comercial.sync_ejecuciones
+        where location_id = ${locationId} and tipo = 'historico' and estado = 'ok') as completa,
+      (select ultimo_ok from comercial.sync_estado
+        where location_id = ${locationId} and recurso = ${RECURSO_HISTORICO_SOLICITADO}) as solicitada`);
+  const f = r.rows[0];
+  if (!f || f.completa) return false;
+  const solicitada = f.solicitada ? new Date(f.solicitada) : null;
+  return (
+    !solicitada || ahora.getTime() - solicitada.getTime() > HORAS_REINTENTO_HISTORICO * 3600_000
+  );
+}
+
+export async function marcarHistoricoSolicitado(db: Db, locationId: string): Promise<void> {
+  await guardarMarca(db, locationId, RECURSO_HISTORICO_SOLICITADO, null);
+}
 
 /**
  * Horas de exportación que la carga incremental vuelve a revisar en cada pasada. La exportación de
@@ -181,8 +225,8 @@ export async function ejecutarCarga(
         ahora,
       });
     } else {
-      const dias = o.dias ?? 90;
-      const inicio = new Date(ahora.getTime() - dias * 86_400_000);
+      const zona = await zonaSubcuenta(db, loc);
+      const inicio = inicioHistorico(ahora, zona, o.dias ?? DIAS_HISTORICO);
       // Reanudable: si una carga histórica anterior se cortó, sigue desde el último día completo.
       const avance = await leerMarca(db, loc, 'historico');
       let desde = avance && avance > inicio && avance < ahora ? avance : inicio;
@@ -241,7 +285,7 @@ export async function ejecutarCarga(
       await limpiarMarca(db, loc, 'historico');
       const hoy = await hoySubcuenta(db, loc, ahora);
       resumen.resumen = await calcularResumen(db, loc, {
-        desde: hoyEn(await zonaSubcuenta(db, loc), inicio),
+        desde: hoyEn(zona, inicio),
         hasta: hoy,
         ahora,
       });

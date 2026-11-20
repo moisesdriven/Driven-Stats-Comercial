@@ -37,8 +37,45 @@ const RECURSO: Record<string, string> = {
 const TIPO_CARGA: Record<string, string> = {
   incremental: 'Incremental (cada 15 min)',
   nocturno: 'Nocturna',
-  historico: 'Histórica',
+  historico: 'Inicial (90 días)',
 };
+
+/** Marcas internas de la carga inicial: se muestran juntas en su propia tarjeta. */
+const RECURSOS_CARGA_INICIAL = ['historico', 'historico_solicitado'];
+
+interface MarcaCarga {
+  recurso: string;
+  marcaAgua: Date | null;
+  ultimoOk: Date | null;
+  ultimoError: string | null;
+}
+
+/**
+ * Estado de la primera carga de la subcuenta (los 90 días anteriores, hoy incluido). El worker la
+ * encola solo en la primera carga incremental de una subcuenta que aún no la tiene.
+ */
+function estadoCargaInicial(marcas: MarcaCarga[]): {
+  texto: string;
+  detalle?: string;
+  error?: boolean;
+} {
+  const h = marcas.find((m) => m.recurso === 'historico');
+  const pedida = marcas.find((m) => m.recurso === 'historico_solicitado');
+  if (h?.ultimoError)
+    return { texto: 'Con error: se reintenta sola', detalle: h.ultimoError, error: true };
+  if (h?.marcaAgua)
+    return {
+      texto: 'En curso',
+      detalle: `Cargado hasta el ${fechaLarga(h.marcaAgua.toISOString().slice(0, 10))}`,
+    };
+  if (h?.ultimoOk) return { texto: `Completa ${haceCuanto(h.ultimoOk).toLowerCase()}` };
+  if (pedida?.ultimoOk)
+    return {
+      texto: 'En cola',
+      detalle: `Pedida ${haceCuanto(pedida.ultimoOk).toLowerCase()}`,
+    };
+  return { texto: 'Pendiente', detalle: 'Empieza con la próxima carga (máx. 15 min)' };
+}
 const ESTADO_ANALISIS: Record<
   string,
   { texto: string; tono: 'verde' | 'amarillo' | 'rojo' | 'gris' | 'azul' }
@@ -221,26 +258,40 @@ export default async function Configuracion({
     );
   } else if (seccion === 'cargas' && id) {
     const cargas = await enPagina(cargasRecientes(db, ctx, id));
-    const marcas = subs.find((s) => s.locationId === id)?.marcas ?? [];
+    const todas = subs.find((s) => s.locationId === id)?.marcas ?? [];
+    const inicial = estadoCargaInicial(todas);
+    const marcas = todas.filter((m) => !RECURSOS_CARGA_INICIAL.includes(m.recurso));
     contenido = (
       <>
-        {marcas.length > 0 && (
-          <section aria-label="Datos al día" className="rejilla rejilla--kpis-chicos">
-            {marcas.map((m) => (
-              <div key={m.recurso} className="kpi kpi--chico">
-                <span className="kpi__etiqueta">{RECURSO[m.recurso] ?? m.recurso}</span>
-                <span style={{ fontSize: 15, fontWeight: 600 }}>
-                  {m.marcaAgua
-                    ? `Al día hasta ${haceCuanto(m.marcaAgua).toLowerCase()}`
-                    : 'Sin datos'}
-                </span>
-                {m.ultimoError && (
-                  <span style={{ fontSize: 12, color: 'var(--rojo-texto)' }}>{m.ultimoError}</span>
-                )}
-              </div>
-            ))}
-          </section>
-        )}
+        <section aria-label="Datos al día" className="rejilla rejilla--kpis-chicos">
+          <div className="kpi kpi--chico">
+            <span className="kpi__etiqueta">Carga inicial (90 días)</span>
+            <span style={{ fontSize: 15, fontWeight: 600 }}>{inicial.texto}</span>
+            {inicial.detalle && (
+              <span
+                style={{
+                  fontSize: 12,
+                  color: inicial.error ? 'var(--rojo-texto)' : 'var(--gris)',
+                }}
+              >
+                {inicial.detalle}
+              </span>
+            )}
+          </div>
+          {marcas.map((m) => (
+            <div key={m.recurso} className="kpi kpi--chico">
+              <span className="kpi__etiqueta">{RECURSO[m.recurso] ?? m.recurso}</span>
+              <span style={{ fontSize: 15, fontWeight: 600 }}>
+                {m.marcaAgua
+                  ? `Al día hasta ${haceCuanto(m.marcaAgua).toLowerCase()}`
+                  : 'Sin datos'}
+              </span>
+              {m.ultimoError && (
+                <span style={{ fontSize: 12, color: 'var(--rojo-texto)' }}>{m.ultimoError}</span>
+              )}
+            </div>
+          ))}
+        </section>
         <section aria-label="Cargas recientes" className="seccion">
           <h2
             className="seccion__titulo seccion__titulo--chico"

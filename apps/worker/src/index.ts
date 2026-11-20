@@ -2,7 +2,9 @@
  * Worker de Driven Comercial: cargas desde GHL con pg-boss (esquema `comercial_cola`).
  *   sync-incremental  cada SYNC_INCREMENTAL_MINUTOS (15 por defecto)
  *   sync-nocturno     diario a SYNC_NOCTURNO_HORA, hora de Lima (02:30 por defecto)
- *   sync-historico    manual: node dist/cli.js historico --dias 90 [--subcuenta <locationId>]
+ *   sync-historico    la primera carga de cada subcuenta (los 90 días anteriores, hoy incluido):
+ *                     se encola sola cuando la subcuenta aún no la tiene; a mano también con
+ *                     node dist/cli.js historico --dias 90 [--subcuenta <locationId>]
  *   resumen-pendiente cada 5 min: recalcula el resumen diario de las subcuentas marcadas desde la web
  *   purga-textos      diario a las 03:30: borra el texto de los mensajes con más de 90 días
  * Una sola ejecución activa por cola (política singleton). Modo `sombra` por defecto.
@@ -15,7 +17,13 @@ import { procesarPendientes, solicitarAnalisis } from './calidad/proceso';
 import { ProveedorAnthropic } from './calidad/proveedor';
 import { leerConfiguracion } from './configuracion';
 import { subcuentasActivas } from './subcuentas';
-import { ejecutarCarga, type TipoCarga } from './sync/ejecutar';
+import {
+  DIAS_HISTORICO,
+  ejecutarCarga,
+  marcarHistoricoSolicitado,
+  necesitaHistoricoInicial,
+  type TipoCarga,
+} from './sync/ejecutar';
 import { log } from './sync/util';
 
 export const COLAS: Record<TipoCarga, string> = {
@@ -69,6 +77,23 @@ async function principal() {
       for (const t of trabajos) {
         const subcuentas = await subcuentasActivas(db, cfg.GHL_MAX_LLAMADAS_10S, t.data?.subcuenta);
         for (const s of subcuentas) {
+          // Primera carga de una subcuenta (recién agregada o que nunca tuvo la histórica): los 90
+          // días anteriores, hoy incluido, en su propia cola. La incremental sigue mientras tanto.
+          if (tipo === 'incremental') {
+            const loc = s.cliente.locationId;
+            try {
+              if (await necesitaHistoricoInicial(db, loc)) {
+                await boss.send(COLAS.historico, { subcuenta: loc, dias: DIAS_HISTORICO });
+                await marcarHistoricoSolicitado(db, loc);
+                log('historico_inicial_encolado', { locationId: loc, dias: DIAS_HISTORICO });
+              }
+            } catch (e) {
+              log('historico_inicial_error', {
+                locationId: loc,
+                error: e instanceof Error ? e.message : String(e),
+              });
+            }
+          }
           try {
             await ejecutarCarga(db, s.cliente, tipo, {
               modo: cfg.MODO_ALERTAS,

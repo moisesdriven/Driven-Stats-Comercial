@@ -250,15 +250,18 @@ paso 3 da aviso, espera y repite.
 1. En la web: **Configuración → Subcuentas y tokens**, pega el `locationId` y el token privado
    (PIT) de solo lectura de la subcuenta. El sistema prueba cada permiso antes de guardarlo.
 2. En **Configuración → Subcuentas y tokens** elige la zona horaria correcta (Jade18K: Lima).
-3. Lanza la carga histórica (solo lectura sobre GHL):
+3. La carga histórica (los 90 días anteriores, hoy incluido; solo lectura sobre GHL) **se lanza
+   sola** en la primera carga incremental de la subcuenta, a más tardar 15 min después del alta.
+   Su avance se ve en **Configuración → Estado de cargas** (tarjeta «Carga inicial (90 días)»: en
+   cola, en curso con el día cargado, completa o con error) o con `docker logs -f comercial-worker`.
+
+   Para repetirla a mano (por ejemplo, con más días):
 
    ```powershell
    .\08-carga-historica.ps1 -Dias 90
    ```
 
    Para una sola subcuenta: `.\08-carga-historica.ps1 -Subcuenta 93mgPQwURqpEvyzZcf9m -Dias 90`.
-   El avance se ve en `.\05-verificar.ps1` (paso 5) o en el servidor con
-   `docker logs -f comercial-worker`.
 
 4. En **Metas y etapas**, revisa las metas y elige las 3 etapas de calidad; en **Horarios**, el
    horario de cada asesor o el modo "Tiempo corrido".

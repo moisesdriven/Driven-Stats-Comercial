@@ -14,7 +14,7 @@ import {
   type MensajeGhl,
   type OportunidadGhl,
 } from '@driven/ghl';
-import { ejecutarCarga } from './ejecutar';
+import { ejecutarCarga, marcarHistoricoSolicitado, necesitaHistoricoInicial } from './ejecutar';
 import { recalcularVentas } from './oportunidades';
 
 const URL = process.env.DATABASE_URL_TEST;
@@ -471,5 +471,22 @@ describe.skipIf(!URL)('carga desde GHL (integración con GHL simulado)', () => {
     });
     expect(await buscar('k2-9')).toHaveLength(1);
     expect(await buscar('k1-7')).toHaveLength(1);
+  });
+  it('la primera carga de una subcuenta es la histórica de 90 días, y se pide una sola vez', async () => {
+    const NUEVA = 'LOC_NUEVA_SIM';
+    const t0 = new Date('2026-11-20T15:00:00Z');
+    // Sin ninguna histórica terminada: hay que pedirla.
+    expect(await necesitaHistoricoInicial(db, NUEVA, t0)).toBe(true);
+    // Pedida: no se vuelve a pedir mientras está en cola o en curso…
+    await marcarHistoricoSolicitado(db, NUEVA);
+    expect(await necesitaHistoricoInicial(db, NUEVA, new Date())).toBe(false);
+    // …salvo que pasen más de 6 h sin terminarla (se reintenta).
+    expect(await necesitaHistoricoInicial(db, NUEVA, new Date(Date.now() + 7 * 3600_000))).toBe(
+      true,
+    );
+    // La subcuenta simulada ya tiene su histórica terminada: no se pide otra.
+    expect(await necesitaHistoricoInicial(db, LOC, new Date(Date.now() + 7 * 3600_000))).toBe(
+      false,
+    );
   });
 });

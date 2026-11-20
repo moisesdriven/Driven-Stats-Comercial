@@ -51,7 +51,7 @@ Detalle en [`decisiones.md`](decisiones.md).
   asignación, primeras respuestas, cambio de etapa, venta, venta cancelada, pérdida, reapertura),
   estado de entrega y tipo de contenido por mensaje, motivos de pérdida y registro de cada carga.
 - Worker con pg-boss: `sync-incremental` (15 min), `sync-nocturno` (02:30 Lima) y
-  `sync-historico` (manual, reanudable por día). Comando `node dist/cli.js`.
+  `sync-historico` (reanudable por día; desde el 20 nov 2026 se encola sola como primera carga de cada subcuenta: los 90 días anteriores, hoy incluido). Comando `node dist/cli.js`.
 - API de configuración: alta de subcuenta con verificación del PIT, mapa de etapas, 3 etapas de
   calidad y estado de las cargas.
 - Carga real de Jade18K en modo sombra (ver `docs/validacion.md`).
